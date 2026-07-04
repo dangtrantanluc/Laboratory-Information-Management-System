@@ -1,0 +1,81 @@
+# LIMS Backend M7 — postgres + redis + minio + api.
+# Port riêng (8060 / 5460 / 6460 / 9460-9461) — KHÔNG đụng spendlens (8050/3050).
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: lims-postgres
+    environment:
+      POSTGRES_USER: lims
+      POSTGRES_PASSWORD: lims
+      POSTGRES_DB: lims
+    ports:
+      - "5460:5432"
+    volumes:
+      - lims_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lims -d lims"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: lims-redis
+    ports:
+      - "6460:6379"
+    volumes:
+      - lims_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: lims-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9460:9000"   # S3 API
+      - "9461:9001"   # Console UI
+    volumes:
+      - lims_miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  lims-api:
+    build: .
+    container_name: lims-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://lims:lims@postgres:5432/lims
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9460
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: lims-attachments
+      JWT_SECRET: dev_only_change_me_super_secret_key_min_32_chars
+      ENVIRONMENT: development
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3050
+      SEED_ADMIN_EMAIL: admin@lims.local
+      SEED_ADMIN_PASSWORD: ChangeMe@123
+    ports:
+      - "8060:8060"
+
+volumes:
+  lims_pgdata:
+  lims_redisdata:
+  lims_miniodata:

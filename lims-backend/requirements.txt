@@ -1,0 +1,39 @@
+# ===== LIMS Backend (M7) — pinned dependencies =====
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Config / validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+email-validator==2.2.0
+
+# Database (sync SQLAlchemy + Postgres + migrations)
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.0
+
+# Auth / security
+passlib[bcrypt]==1.7.4
+# bcrypt 4.0.1: passlib 1.7.4 đọc đúng version (tránh warning "error reading bcrypt version").
+bcrypt==4.0.1
+python-jose[cryptography]==3.3.0
+
+# Redis (jti denylist, lockout, rate limit, rbac cache)
+redis==5.2.1
+
+# Object storage (MinIO via boto3 S3-compatible)
+boto3==1.35.92
+
+# Scheduler (M1 CRON-1 due-soon + CRON-2 overdue + M4 CRON-3/CRON-4)
+APScheduler==3.11.0
+
+# Date math (M4 — cộng-năm an toàn năm nhuận 29/02→28/02 cho next_salary_raise_date)
+python-dateutil==2.9.0.post0
+
+# PDF generation (M1 FR-016 — phiếu kết quả thử nghiệm)
+reportlab==4.2.5
+
+# Excel generation (M2 FR-013/014 — nhật ký nhập/xuất + báo cáo tiêu hao)
+openpyxl==3.1.5
