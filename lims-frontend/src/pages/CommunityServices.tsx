@@ -6,6 +6,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DescList, DescItem } from '@/components/ui/DescList';
 import { Field, Input, Textarea, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -22,6 +23,7 @@ export function CommunityServices() {
   const toast = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CommunityService | null>(null);
+  const [viewTarget, setViewTarget] = useState<CommunityService | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CommunityService | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -60,7 +62,7 @@ export function CommunityServices() {
             header: '',
             align: 'right' as const,
             render: (c: CommunityService) => (
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
                   <Pencil size={14} />
                 </Button>
@@ -89,7 +91,14 @@ export function CommunityServices() {
         }
       />
       <Card>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(c) => c.id}
+          loading={loading}
+          pageSize={12}
+          onRowClick={(c) => setViewTarget(c)}
+        />
       </Card>
 
       {createOpen && (
@@ -113,6 +122,18 @@ export function CommunityServices() {
           }}
         />
       )}
+      {viewTarget && (
+        <CommunityDetailModal
+          service={viewTarget}
+          canManage={canManage}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            const c = viewTarget;
+            setViewTarget(null);
+            setEditTarget(c);
+          }}
+        />
+      )}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -123,6 +144,47 @@ export function CommunityServices() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+function CommunityDetailModal({
+  service: c,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  service: CommunityService;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Chi tiết hoạt động cộng đồng"
+      description="Hoạt động phục vụ cộng đồng, xã hội"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      <DescList>
+        <DescItem full label="Nội dung hoạt động" value={<span className="whitespace-pre-wrap">{c.content}</span>} />
+        <DescItem label="Đơn vị chủ trì" value={c.host} />
+        <DescItem label="Người thực hiện" value={c.performer_name} />
+        <DescItem label="Thời gian" value={formatDate(c.performed_at)} />
+        <DescItem label="Phòng ban" value={c.department_name} />
+      </DescList>
+    </Modal>
   );
 }
 

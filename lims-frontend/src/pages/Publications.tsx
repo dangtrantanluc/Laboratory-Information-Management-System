@@ -7,7 +7,9 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DescList, DescItem } from '@/components/ui/DescList';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { Badge } from '@/components/ui/Badge';
 import { PublicationTypeBadge } from '@/components/ui/StatusBadge';
 import {
   ContributorEditor,
@@ -32,6 +34,7 @@ export function Publications() {
   const [type, setType] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Publication | null>(null);
+  const [viewTarget, setViewTarget] = useState<Publication | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Publication | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -88,7 +91,7 @@ export function Publications() {
     {
       key: 'index',
       header: 'Chỉ số',
-      render: (p) => (p.type === 'paper' ? indexLabel(p.index_code) : p.issuing_authority ?? '—'),
+      render: (p) => (p.type === 'paper' ? indexLabel(p.category ?? p.index_code) : p.issuing_authority ?? '—'),
     },
     ...(canManage
       ? [
@@ -97,7 +100,7 @@ export function Publications() {
             header: '',
             align: 'right' as const,
             render: (p: Publication) => (
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setEditTarget(p)}>
                   <Pencil size={14} />
                 </Button>
@@ -135,7 +138,14 @@ export function Publications() {
             <option value="patent">Sáng chế / GPHI</option>
           </Select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(p) => p.id} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(p) => p.id}
+          loading={loading}
+          pageSize={12}
+          onRowClick={(p) => setViewTarget(p)}
+        />
       </Card>
 
       {createOpen && (
@@ -159,6 +169,19 @@ export function Publications() {
           }}
         />
       )}
+      {viewTarget && (
+        <PublicationDetailModal
+          publication={viewTarget}
+          indexLabel={indexLabel}
+          canManage={canManage}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            const p = viewTarget;
+            setViewTarget(null);
+            setEditTarget(p);
+          }}
+        />
+      )}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -169,6 +192,96 @@ export function Publications() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+function PublicationDetailModal({
+  publication: p,
+  indexLabel,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  publication: Publication;
+  indexLabel: (code: string | null) => string;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const isPaper = p.type === 'paper';
+  const authors = p.authors.slice().sort((a, b) => a.author_order - b.author_order);
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={p.title}
+      description={<PublicationTypeBadge type={p.type} />}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      <DescList>
+        <DescItem label="Năm" value={p.year} />
+        <DescItem label="Phòng ban" value={p.department_name} />
+        {isPaper ? (
+          <>
+            <DescItem label="Tạp chí / Hội nghị" value={p.journal} full />
+            <DescItem label="Chỉ số" value={<Badge tone="info">{indexLabel(p.category ?? p.index_code)}</Badge>} />
+            <DescItem
+              label="DOI"
+              value={
+                p.doi ? (
+                  <a
+                    href={`https://doi.org/${p.doi}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-berry hover:underline"
+                  >
+                    {p.doi}
+                  </a>
+                ) : null
+              }
+            />
+          </>
+        ) : (
+          <>
+            <DescItem label="Số bằng" value={p.patent_no} />
+            <DescItem label="Cơ quan cấp" value={p.issuing_authority} />
+          </>
+        )}
+        <DescItem
+          full
+          label={`Tác giả (${authors.length})`}
+          value={
+            authors.length === 0 ? null : (
+              <ol className="mt-1 divide-y divide-hairline overflow-hidden rounded-lg border border-hairline">
+                {authors.map((a, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="text-sm text-ink">
+                      <span className="mr-2 text-xs text-subink">{a.author_order}.</span>
+                      {a.name ?? a.external_name ?? '—'}
+                      {!a.user_id && <span className="ml-1.5 text-xs text-subink">(ngoài hệ thống)</span>}
+                    </span>
+                    {a.is_corresponding && <Badge tone="success">Tác giả liên hệ</Badge>}
+                  </li>
+                ))}
+              </ol>
+            )
+          }
+        />
+      </DescList>
+    </Modal>
   );
 }
 

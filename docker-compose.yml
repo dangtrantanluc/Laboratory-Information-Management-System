@@ -71,7 +71,7 @@ services:
       MINIO_BUCKET: lims-attachments
       JWT_SECRET: dev_only_change_me_super_secret_key_min_32_chars
       ENVIRONMENT: development
-      CORS_ORIGINS: http://localhost:3060,http://localhost:5173
+      CORS_ORIGINS: http://localhost:3060,http://localhost:5173,http://localhost:5174,http://localhost:5175
       SEED_ADMIN_EMAIL: admin@lims.local
       SEED_ADMIN_PASSWORD: ChangeMe@123
     ports:

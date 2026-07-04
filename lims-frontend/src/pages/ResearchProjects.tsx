@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DescList, DescItem } from '@/components/ui/DescList';
 import { Field, Input, Select } from '@/components/ui/Field';
 import {
   ContributorEditor,
@@ -32,6 +33,7 @@ export function ResearchProjects() {
   const [q, setQ] = useState('');
   const [level, setLevel] = useState('');
   const [editTarget, setEditTarget] = useState<ResearchProject | null>(null);
+  const [viewTarget, setViewTarget] = useState<ResearchProject | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ResearchProject | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -98,7 +100,7 @@ export function ResearchProjects() {
             header: '',
             align: 'right' as const,
             render: (p: ResearchProject) => (
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setEditTarget(p)}>
                   <Pencil size={14} />
                 </Button>
@@ -139,7 +141,14 @@ export function ResearchProjects() {
             ))}
           </Select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(p) => p.id} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(p) => p.id}
+          loading={loading}
+          pageSize={12}
+          onRowClick={(p) => setViewTarget(p)}
+        />
       </Card>
 
       {createOpen && (
@@ -163,6 +172,19 @@ export function ResearchProjects() {
           }}
         />
       )}
+      {viewTarget && (
+        <ProjectDetailModal
+          project={viewTarget}
+          levelLabel={levelLabel}
+          canManage={canManage}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            const p = viewTarget;
+            setViewTarget(null);
+            setEditTarget(p);
+          }}
+        />
+      )}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -173,6 +195,79 @@ export function ResearchProjects() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+function ProjectDetailModal({
+  project,
+  levelLabel,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  project: ResearchProject;
+  levelLabel: (code: string) => string;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  // Tải chi tiết để chắc chắn có danh sách thành viên (list có thể chỉ trả member_count).
+  const { data, loading } = useAsync(() => researchApi.getProject(project.id), [project.id]);
+  const p = data ?? project;
+  const members = p.members ?? [];
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={p.title}
+      description={p.code ? `Mã đề tài: ${p.code}` : 'Đề tài nghiên cứu khoa học'}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      <DescList>
+        <DescItem label="Cấp đề tài" value={<Badge tone="info">{levelLabel(p.level)}</Badge>} />
+        <DescItem label="Trạng thái" value={<Badge tone="neutral">{p.status}</Badge>} />
+        <DescItem label="Chủ nhiệm" value={p.lead_user_name} />
+        <DescItem label="Phòng ban" value={p.department_name} />
+        <DescItem label="Bắt đầu" value={p.start_date ? formatDate(p.start_date) : null} />
+        <DescItem label="Kết thúc" value={p.end_date ? formatDate(p.end_date) : null} />
+        <DescItem
+          full
+          label={`Thành viên tham gia (${members.length})`}
+          value={
+            loading ? (
+              'Đang tải…'
+            ) : members.length === 0 ? null : (
+              <ul className="mt-1 divide-y divide-hairline overflow-hidden rounded-lg border border-hairline">
+                {members.map((m, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="text-sm text-ink">
+                      {m.name ?? m.external_name ?? '—'}
+                      {!m.user_id && <span className="ml-1.5 text-xs text-subink">(ngoài hệ thống)</span>}
+                    </span>
+                    <Badge tone={m.role_in_project === 'lead' ? 'success' : 'neutral'}>
+                      {m.role_in_project === 'lead' ? 'Chủ nhiệm' : 'Thành viên'}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        />
+      </DescList>
+    </Modal>
   );
 }
 
