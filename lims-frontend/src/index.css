@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --blueberry-skin: #2f3a55;
+    --berry-bloom: #5c6b8a;
+    --stem-grey: #6e6f73;
+    --yogurt-tint: #a29f76;
+    --plate-white: #f5f6f3;
+    --text-main: #1a1a1a;
+    --text-sub: #6e6f73;
+    --border: #dcdcdc;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-plate text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  /* Thin, unobtrusive scrollbar consistent with ERP look */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-hairline rounded-full;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
