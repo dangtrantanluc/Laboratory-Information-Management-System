@@ -30,6 +30,7 @@ class CurrentUser:
     role: str
     department_id: Optional[uuid.UUID]
     is_dept_lead: bool
+    is_quality_manager: bool
     status: str
     jti: str
     token_exp: int
@@ -82,6 +83,7 @@ def get_current_user(
         role=user.role,
         department_id=user.department_id,
         is_dept_lead=is_lead,
+        is_quality_manager=bool(getattr(user, "is_quality_manager", False)),
         status=user.status,
         jti=jti,
         token_exp=int(payload.get("exp", 0)),

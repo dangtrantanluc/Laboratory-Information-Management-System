@@ -29,6 +29,8 @@ export interface CurrentUser {
   role: Role;
   department: { id: string; name: string; code: string } | null;
   is_dept_lead: boolean;
+  /** M8: Phụ trách chất lượng (QM) — mở/đóng CAPA. admin/leader luôn có quyền QMS. */
+  is_quality_manager?: boolean;
   status: UserStatus;
   must_change_password?: boolean;
   permissions: Permission[];
@@ -1250,4 +1252,226 @@ export interface PageMeta {
 export interface Paged<T> {
   data: T[];
   meta: PageMeta;
+}
+
+// ── M8: Không phù hợp & Hành động khắc phục (NC & CAPA §7.10/§8.7) ──
+export type NcSource = 'manual' | 'complaint' | 'qc' | 'audit' | 'env' | 'sample' | 'pt';
+export const NC_SOURCE_LABELS: Record<NcSource, string> = {
+  manual: 'Nhập thủ công',
+  complaint: 'Khiếu nại',
+  qc: 'Kiểm soát chất lượng (QC)',
+  audit: 'Đánh giá nội bộ',
+  env: 'Điều kiện môi trường',
+  sample: 'Mẫu thử nghiệm',
+  pt: 'Thử nghiệm thành thạo',
+};
+
+export type NcSeverity = 'minor' | 'major' | 'critical';
+export const NC_SEVERITY_LABELS: Record<NcSeverity, string> = {
+  minor: 'Nhẹ',
+  major: 'Nặng',
+  critical: 'Nghiêm trọng',
+};
+
+export type NcStatus = 'open' | 'in_capa' | 'closed' | 'cancelled';
+export const NC_STATUS_LABELS: Record<NcStatus, string> = {
+  open: 'Mới mở',
+  in_capa: 'Đang khắc phục',
+  closed: 'Đã đóng',
+  cancelled: 'Đã hủy',
+};
+
+export type CapaType = 'corrective' | 'preventive';
+export const CAPA_TYPE_LABELS: Record<CapaType, string> = {
+  corrective: 'Khắc phục',
+  preventive: 'Phòng ngừa',
+};
+
+export type CapaStatus = 'in_progress' | 'closed';
+export type CapaEffectiveness = 'effective' | 'not_effective';
+export const CAPA_EFFECTIVENESS_LABELS: Record<CapaEffectiveness, string> = {
+  effective: 'Hiệu lực đạt',
+  not_effective: 'Chưa hiệu lực',
+};
+export type ActionStatus = 'todo' | 'done';
+
+export interface NcListItem {
+  id: string;
+  nc_code: string;
+  title: string;
+  source_type: NcSource;
+  source_label: string;
+  severity: NcSeverity;
+  status: NcStatus;
+  department_id: string | null;
+  department_name: string | null;
+  raised_by_name: string | null;
+  raised_at: string;
+  has_capa: boolean;
+}
+
+export interface CapaActionItem {
+  id: string;
+  action: string;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  due_date: string | null;
+  status: ActionStatus;
+  done_at: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface CapaDetail {
+  id: string;
+  nc_id: string;
+  capa_type: CapaType;
+  root_cause: string;
+  owner_id: string;
+  owner_name: string | null;
+  due_date: string | null;
+  status: CapaStatus;
+  effectiveness_result: CapaEffectiveness | null;
+  effectiveness_note: string | null;
+  verified_by_name: string | null;
+  verified_at: string | null;
+  closed_by_name: string | null;
+  closed_at: string | null;
+  created_by_name: string | null;
+  created_at: string;
+  actions: CapaActionItem[];
+}
+
+export interface NcDetail {
+  id: string;
+  nc_code: string;
+  title: string;
+  description: string;
+  source_type: NcSource;
+  source_label: string;
+  source_id: string | null;
+  severity: NcSeverity;
+  status: NcStatus;
+  impact_assessment: string | null;
+  affected_ref_type: string | null;
+  affected_ref_id: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  raised_by: string;
+  raised_by_name: string | null;
+  raised_at: string;
+  updated_at: string;
+  capa: CapaDetail | null;
+  warning?: string | null;
+}
+
+export interface NcStats {
+  total: number;
+  by_status: Partial<Record<NcStatus, number>>;
+  by_severity: Partial<Record<NcSeverity, number>>;
+  by_source: Partial<Record<NcSource, number>>;
+  open_capa: number;
+}
+
+// ── M10: Rủi ro & Cơ hội + Cải tiến (§8.5/§8.6) ─────────────────
+export type RiskKind = 'risk' | 'opportunity';
+export const RISK_KIND_LABELS: Record<RiskKind, string> = {
+  risk: 'Rủi ro',
+  opportunity: 'Cơ hội',
+};
+
+export type RiskStatus = 'open' | 'treating' | 'monitoring' | 'closed';
+export const RISK_STATUS_LABELS: Record<RiskStatus, string> = {
+  open: 'Mới mở',
+  treating: 'Đang xử lý',
+  monitoring: 'Theo dõi',
+  closed: 'Đã đóng',
+};
+
+export type RiskBand = 'low' | 'medium' | 'high';
+export const RISK_BAND_LABELS: Record<RiskBand, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+};
+
+export type TreatmentStatus = 'todo' | 'done';
+
+export interface RiskTreatmentItem {
+  id: string;
+  treatment: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  due_date: string | null;
+  status: TreatmentStatus;
+  done_at: string | null;
+  created_at: string;
+}
+
+export interface RiskListItem {
+  id: string;
+  risk_code: string;
+  kind: RiskKind;
+  title: string;
+  likelihood: number;
+  impact: number;
+  level: number;
+  band: RiskBand;
+  status: RiskStatus;
+  department_id: string | null;
+  department_name: string | null;
+  owner_name: string | null;
+  next_review_date: string | null;
+  created_at: string;
+}
+
+export interface RiskDetail extends RiskListItem {
+  context: string;
+  process_ref: string | null;
+  owner_id: string;
+  closed_at: string | null;
+  closed_by_name: string | null;
+  updated_at: string;
+  treatments: RiskTreatmentItem[];
+}
+
+export interface RiskStats {
+  matrix: number[][]; // matrix[likelihood][impact], index 0..5
+  by_status: Partial<Record<RiskStatus, number>>;
+  by_band: Record<RiskBand, number>;
+  total: number;
+  open_high: number;
+}
+
+export type ImprovementSource = 'customer' | 'staff' | 'review' | 'audit' | 'other';
+export const IMPROVEMENT_SOURCE_LABELS: Record<ImprovementSource, string> = {
+  customer: 'Khách hàng',
+  staff: 'Nhân sự',
+  review: 'Xem xét lãnh đạo',
+  audit: 'Đánh giá nội bộ',
+  other: 'Khác',
+};
+
+export type ImprovementStatus = 'open' | 'in_progress' | 'done' | 'rejected';
+export const IMPROVEMENT_STATUS_LABELS: Record<ImprovementStatus, string> = {
+  open: 'Mới ghi nhận',
+  in_progress: 'Đang triển khai',
+  done: 'Hoàn thành',
+  rejected: 'Không áp dụng',
+};
+
+export interface ImprovementItem {
+  id: string;
+  improvement_code: string;
+  source: ImprovementSource;
+  title: string;
+  description: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  status: ImprovementStatus;
+  linked_nc_id: string | null;
+  created_at: string;
+  updated_at: string;
 }

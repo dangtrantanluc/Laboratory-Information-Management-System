@@ -18,6 +18,9 @@ import {
   HeartHandshake,
   BarChart3,
   FileText,
+  ShieldAlert,
+  AlertTriangle,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 import type { CurrentUser } from '@/types';
@@ -34,13 +37,16 @@ import {
   canViewDocumentStats,
   canViewEquipment,
   canViewReports,
+  canViewNC,
+  canViewRisk,
+  canViewImprovement,
 } from '@/lib/rbac';
 
 export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  group: 'main' | 'document' | 'hr' | 'research' | 'catalog' | 'system';
+  group: 'main' | 'qms' | 'document' | 'hr' | 'research' | 'catalog' | 'system';
   /** Hàm kiểm tra hiển thị theo quyền. Bỏ trống = mọi user đã đăng nhập. */
   visible?: (user: CurrentUser | null) => boolean;
 }
@@ -51,6 +57,11 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/chemicals', label: 'Hóa chất', icon: FlaskConical, group: 'main', visible: canViewChemicals },
   { to: '/equipment', label: 'Thiết bị', icon: Wrench, group: 'main', visible: canViewEquipment },
   { to: '/reports', label: 'Báo cáo', icon: BarChart3, group: 'main', visible: canViewReports },
+
+  // ── M8/M10: QMS — Không phù hợp, Rủi ro, Cải tiến ──
+  { to: '/nonconformities', label: 'Không phù hợp / CAPA', icon: ShieldAlert, group: 'qms', visible: canViewNC },
+  { to: '/risks', label: 'Rủi ro & Cơ hội', icon: AlertTriangle, group: 'qms', visible: canViewRisk },
+  { to: '/improvements', label: 'Cải tiến', icon: Lightbulb, group: 'qms', visible: canViewImprovement },
 
   // ── M3: Quản lý tài liệu ──
   { to: '/documents', label: 'Tài liệu', icon: FileText, group: 'document', visible: canViewDocuments },
@@ -80,6 +91,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const GROUP_LABELS: Record<NavItem['group'], string> = {
   main: 'Nghiệp vụ',
+  qms: 'Chất lượng (QMS)',
   document: 'Tài liệu',
   hr: 'Nhân sự',
   research: 'NCKH',

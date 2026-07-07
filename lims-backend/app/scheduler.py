@@ -87,6 +87,30 @@ def _job_calibration_due() -> None:
         db.close()
 
 
+def _job_capa_due() -> None:
+    from app.services import nc_cron_service
+
+    db = SessionLocal()
+    try:
+        nc_cron_service.run_capa_due(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("CRON-7 capa-due failed: %s", exc)
+    finally:
+        db.close()
+
+
+def _job_risk_review_due() -> None:
+    from app.services import risk_cron_service
+
+    db = SessionLocal()
+    try:
+        risk_cron_service.run_risk_review_due(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("CRON-8 risk-review-due failed: %s", exc)
+    finally:
+        db.close()
+
+
 def start_scheduler() -> None:
     global _scheduler
     if _scheduler is not None:
@@ -134,10 +158,24 @@ def start_scheduler() -> None:
         id="equipment-calibration-due",
         replace_existing=True,
     )
+    # CRON-7: 08:00 nhắc CAPA tới/quá hạn (mốc 7/3/0 ngày) — M8 §8.7
+    sched.add_job(
+        _job_capa_due,
+        CronTrigger(hour=8, minute=0),
+        id="capa-due",
+        replace_existing=True,
+    )
+    # CRON-8: 08:15 nhắc đánh giá lại rủi ro (mốc 30/15/7 ngày) — M10 §8.5
+    sched.add_job(
+        _job_risk_review_due,
+        CronTrigger(hour=8, minute=15),
+        id="risk-review-due",
+        replace_existing=True,
+    )
     sched.start()
     _scheduler = sched
     logger.info(
-        "APScheduler started (M1 CRON-1/CRON-2 + M2 CRON-6 + M4 CRON-3/CRON-4 + M5 CRON-5)"
+        "APScheduler started (CRON-1..8: M1/M2/M4/M5 + M8 CRON-7 + M10 CRON-8)"
     )
 
 

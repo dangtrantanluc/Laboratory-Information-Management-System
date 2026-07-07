@@ -17,7 +17,7 @@ export function Sidebar({
 }) {
   const { user } = useAuth();
   const items = visibleNav(user);
-  const groups: NavItem['group'][] = ['main', 'document', 'hr', 'research', 'catalog', 'system'];
+  const groups: NavItem['group'][] = ['main', 'qms', 'document', 'hr', 'research', 'catalog', 'system'];
 
   return (
     <>

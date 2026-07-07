@@ -9,6 +9,12 @@ import {
   SECURITY_LEVEL_LABELS,
   EQUIPMENT_STATUS_LABELS,
   CALIBRATION_STATUS_LABELS,
+  NC_SEVERITY_LABELS,
+  NC_STATUS_LABELS,
+  RISK_KIND_LABELS,
+  RISK_STATUS_LABELS,
+  RISK_BAND_LABELS,
+  IMPROVEMENT_STATUS_LABELS,
   type EquipmentStatus,
   type CalibrationStatus,
   type SampleStatus,
@@ -21,6 +27,12 @@ import {
   type CompetenceKind,
   type DocVersionStatus,
   type SecurityLevel,
+  type NcSeverity,
+  type NcStatus,
+  type RiskKind,
+  type RiskStatus,
+  type RiskBand,
+  type ImprovementStatus,
 } from '@/types';
 import { Badge, type BadgeTone } from './Badge';
 
@@ -155,6 +167,85 @@ export function CalibrationStatusBadge({ status }: { status: CalibrationStatus }
   return (
     <Badge tone={CALIBRATION_STATUS_TONE[status] ?? 'neutral'} dot>
       {CALIBRATION_STATUS_LABELS[status] ?? status}
+    </Badge>
+  );
+}
+
+// ── M8: NC & CAPA ───────────────────────────────────────────────
+const NC_SEVERITY_TONE: Record<NcSeverity, BadgeTone> = {
+  minor: 'info',
+  major: 'warning',
+  critical: 'overdue',
+};
+export function NcSeverityBadge({ severity }: { severity: NcSeverity }) {
+  return (
+    <Badge tone={NC_SEVERITY_TONE[severity] ?? 'neutral'} dot>
+      {NC_SEVERITY_LABELS[severity] ?? severity}
+    </Badge>
+  );
+}
+
+const NC_STATUS_TONE: Record<NcStatus, BadgeTone> = {
+  open: 'warning',
+  in_capa: 'pending',
+  closed: 'success',
+  cancelled: 'muted',
+};
+export function NcStatusBadge({ status }: { status: NcStatus }) {
+  return (
+    <Badge tone={NC_STATUS_TONE[status] ?? 'neutral'} dot>
+      {NC_STATUS_LABELS[status] ?? status}
+    </Badge>
+  );
+}
+
+// ── M10: Risk & Improvement ─────────────────────────────────────
+export function RiskKindBadge({ kind }: { kind: RiskKind }) {
+  return (
+    <Badge tone={kind === 'opportunity' ? 'success' : 'info'}>
+      {RISK_KIND_LABELS[kind] ?? kind}
+    </Badge>
+  );
+}
+
+const RISK_STATUS_TONE: Record<RiskStatus, BadgeTone> = {
+  open: 'warning',
+  treating: 'pending',
+  monitoring: 'info',
+  closed: 'muted',
+};
+export function RiskStatusBadge({ status }: { status: RiskStatus }) {
+  return (
+    <Badge tone={RISK_STATUS_TONE[status] ?? 'neutral'} dot>
+      {RISK_STATUS_LABELS[status] ?? status}
+    </Badge>
+  );
+}
+
+const RISK_BAND_TONE: Record<RiskBand, BadgeTone> = {
+  low: 'success',
+  medium: 'warning',
+  high: 'overdue',
+};
+export function RiskBandBadge({ band, level }: { band: RiskBand; level?: number }) {
+  return (
+    <Badge tone={RISK_BAND_TONE[band] ?? 'neutral'} dot>
+      {RISK_BAND_LABELS[band] ?? band}
+      {level != null ? ` (${level})` : ''}
+    </Badge>
+  );
+}
+
+const IMPROVEMENT_STATUS_TONE: Record<ImprovementStatus, BadgeTone> = {
+  open: 'warning',
+  in_progress: 'pending',
+  done: 'success',
+  rejected: 'muted',
+};
+export function ImprovementStatusBadge({ status }: { status: ImprovementStatus }) {
+  return (
+    <Badge tone={IMPROVEMENT_STATUS_TONE[status] ?? 'neutral'} dot>
+      {IMPROVEMENT_STATUS_LABELS[status] ?? status}
     </Badge>
   );
 }

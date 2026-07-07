@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, ForeignKey, CheckConstraint, UniqueConstraint, text
+from sqlalchemy import Boolean, String, ForeignKey, CheckConstraint, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, CITEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +27,11 @@ class User(Base):
         nullable=True,
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
+    # M8: cờ Phụ trách chất lượng (Quality Manager §5/§8.7). Đúng pattern is_dept_lead —
+    # cho phép staff được ủy quyền QM: mở/đóng CAPA. admin/leader luôn có quyền QMS.
+    is_quality_manager: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
     status: Mapped[str] = mapped_column(
         String(10), nullable=False, server_default=text("'active'")
     )

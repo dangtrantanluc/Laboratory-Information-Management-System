@@ -13,6 +13,11 @@ import { Documents } from '@/pages/Documents';
 import { DocumentDetail } from '@/pages/DocumentDetail';
 import { Equipment } from '@/pages/Equipment';
 import { EquipmentDetail } from '@/pages/EquipmentDetail';
+import { Nonconformities } from '@/pages/Nonconformities';
+import { NonconformityDetail } from '@/pages/NonconformityDetail';
+import { Risks } from '@/pages/Risks';
+import { RiskDetail } from '@/pages/RiskDetail';
+import { Improvements } from '@/pages/Improvements';
 import { DocumentPendingReview } from '@/pages/DocumentPendingReview';
 import { DocumentAccessStats } from '@/pages/DocumentAccessStats';
 import { Customers } from '@/pages/Customers';
@@ -45,6 +50,9 @@ import {
   canViewDocumentStats,
   canViewEquipment,
   canViewReports,
+  canViewNC,
+  canViewRisk,
+  canViewImprovement,
 } from '@/lib/rbac';
 
 export default function App() {
@@ -248,6 +256,48 @@ export default function App() {
           element={
             <RequireAccess allow={canViewResearch}>
               <AchievementStats />
+            </RequireAccess>
+          }
+        />
+
+        {/* ── M8: QMS — Không phù hợp & CAPA ── */}
+        <Route
+          path="/nonconformities"
+          element={
+            <RequireAccess allow={canViewNC}>
+              <Nonconformities />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="/nonconformities/:id"
+          element={
+            <RequireAccess allow={canViewNC}>
+              <NonconformityDetail />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="/risks"
+          element={
+            <RequireAccess allow={canViewRisk}>
+              <Risks />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="/risks/:id"
+          element={
+            <RequireAccess allow={canViewRisk}>
+              <RiskDetail />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="/improvements"
+          element={
+            <RequireAccess allow={canViewImprovement}>
+              <Improvements />
             </RequireAccess>
           }
         />

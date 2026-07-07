@@ -30,11 +30,16 @@ from app.routers import (
     hr_catalogs,
     hr_crons,
     hr_profiles,
+    improvements,
+    nc_crons,
+    nonconformities,
     notifications,
     rbac,
     reporting,
     research,
     results,
+    risk_crons,
+    risks,
     sample_crons,
     sample_reports,
     samples,
@@ -105,6 +110,13 @@ app.include_router(hr_crons.router, prefix=api)
 app.include_router(equipments.router, prefix=api)
 app.include_router(calibrations.router, prefix=api)
 app.include_router(equipment_crons.router, prefix=api)
+# --- M8: Nonconformity & CAPA (EPIC-QMS §7.10/§8.7) ---
+app.include_router(nonconformities.router, prefix=api)
+app.include_router(nc_crons.router, prefix=api)
+# --- M10: Risk & Improvement (EPIC-QMS §8.5/§8.6) ---
+app.include_router(risks.router, prefix=api)
+app.include_router(improvements.router, prefix=api)
+app.include_router(risk_crons.router, prefix=api)
 # --- M6: Reporting & Analytics (module cuối, tầng tổng hợp chéo) ---
 app.include_router(reporting.router, prefix=api)
 

@@ -180,6 +180,52 @@ export function canViewSystemAccess(user: CurrentUser | null): boolean {
   return user?.role === 'admin' || user?.role === 'leader';
 }
 
+// ── M8: NC & CAPA (EPIC-QMS §7.10/§8.7) ─────────────────────────
+/** Menu "Không phù hợp / CAPA": admin/leader/staff. Accountant KHÔNG (cách ly lab). */
+export function canViewNC(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'nonconformity', 'read') || (!!user && !isAccountant(user));
+}
+/** Tạo phiếu NC: admin/leader/staff (staff scope phòng — BE enforce). */
+export function canCreateNC(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'nonconformity', 'create') || user?.role === 'admin';
+}
+/**
+ * Quản lý CAPA (mở/đóng CAPA, thêm/đánh dấu hành động, xác minh hiệu lực §8.7).
+ * QM: admin/leader luôn được; staff CHỈ khi is_quality_manager (giống pattern is_dept_lead).
+ */
+export function canManageCapa(user: CurrentUser | null): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'leader') return true;
+  return user.role === 'staff' && !!user.is_quality_manager;
+}
+/** Chạy CRON-7 nhắc CAPA thủ công: chỉ admin. */
+export function canRunCapaCron(user: CurrentUser | null): boolean {
+  return user?.role === 'admin';
+}
+
+// ── M10: Rủi ro & Cải tiến (EPIC-QMS §8.5/§8.6) ─────────────────
+export function canViewRisk(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'risk', 'read') || (!!user && !isAccountant(user));
+}
+export function canCreateRisk(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'risk', 'create') || user?.role === 'admin';
+}
+/** Quản lý rủi ro (biện pháp xử lý, đóng): QM (admin/leader hoặc staff is_quality_manager). */
+export function canManageRisk(user: CurrentUser | null): boolean {
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'leader') return true;
+  return user.role === 'staff' && !!user.is_quality_manager;
+}
+export function canRunRiskCron(user: CurrentUser | null): boolean {
+  return user?.role === 'admin';
+}
+export function canViewImprovement(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'improvement', 'read') || (!!user && !isAccountant(user));
+}
+export function canCreateImprovement(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'improvement', 'create') || user?.role === 'admin';
+}
+
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'admin', label: 'Quản trị viên' },
   { value: 'leader', label: 'Ban lãnh đạo' },

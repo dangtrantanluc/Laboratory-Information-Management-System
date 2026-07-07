@@ -62,6 +62,22 @@ from app.models.hr import (
     TeachingCourse,
 )
 
+# --- M8: Nonconformity & CAPA ---
+from app.models.nonconformity import (
+    Capa,
+    CapaAction,
+    CapaNotificationDedup,
+    Nonconformity,
+)
+
+# --- M10: Risk & Improvement ---
+from app.models.risk import (
+    Improvement,
+    Risk,
+    RiskNotificationDedup,
+    RiskTreatment,
+)
+
 __all__ = [
     "Department",
     "User",
@@ -113,4 +129,14 @@ __all__ = [
     "LabRegistration",
     "TeachingCourse",
     "CommunityService",
+    # M8
+    "Nonconformity",
+    "Capa",
+    "CapaAction",
+    "CapaNotificationDedup",
+    # M10
+    "Risk",
+    "RiskTreatment",
+    "Improvement",
+    "RiskNotificationDedup",
 ]

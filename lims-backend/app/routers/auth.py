@@ -119,6 +119,7 @@ def me(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_
                 {"id": dept.id, "name": dept.name, "code": dept.code} if dept else None
             ),
             "is_dept_lead": user.is_dept_lead,
+            "is_quality_manager": bool(getattr(db_user, "is_quality_manager", False)),
             "status": db_user.status,
             "must_change_password": db_user.password_changed_at is None,
             "permissions": permissions,
