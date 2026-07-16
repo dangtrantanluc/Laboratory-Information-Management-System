@@ -1,0 +1,5 @@
+Mở http://localhost:3060 và dùng user demo (mật khẩu chung Lims@1234):
+
+hoa.tm@lims.local — leader, xem toàn hệ thống (khuyến nghị để thấy hết dashboard)
+long.hv@lims.local / huong.lt@lims.local — staff (nghiệp vụ lab theo phòng ban)
+ke.dt@lims.local — accountant (chi phí + lương, không thấy mẫu/kết quả)
