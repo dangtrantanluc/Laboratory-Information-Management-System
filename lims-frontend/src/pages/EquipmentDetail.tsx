@@ -80,7 +80,7 @@ export function EquipmentDetail() {
       </Card>
     );
 
-  // leader & accountant CHỈ XEM; staff chỉ ghi phòng mình; admin full.
+  // leader & office CHỈ XEM; staff chỉ ghi phòng mình; admin full.
   const canWrite = canWriteEquipmentDept(user, eq.department_id);
 
   function reloadAll() {
@@ -242,7 +242,7 @@ export function EquipmentDetail() {
             />
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[760px] text-sm table-sticky-1">
                 <thead>
                   <tr className="border-b border-hairline bg-plate/80 text-left text-xs uppercase tracking-wide text-stem">
                     <th className="px-4 py-2.5">Ngày hiệu chuẩn</th>
@@ -452,11 +452,11 @@ function EditEquipmentModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Tên thiết bị" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tên thiết bị" required className="md:col-span-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Vị trí đặt" className="sm:col-span-2">
+        <Field label="Vị trí đặt" className="md:col-span-2">
           <Input value={location} onChange={(e) => setLocation(e.target.value)} />
         </Field>
         <Field label="Người phụ trách" hint="Phải cùng phòng với thiết bị.">
@@ -488,7 +488,7 @@ function EditEquipmentModal({
               onChange={(e) => setCycleValue(e.target.value.replace(/[^\d]/g, ''))}
               inputMode="numeric"
               placeholder="vd: 12"
-              className="max-w-[120px]"
+              className="w-full sm:max-w-[120px]"
             />
             <Select
               value={cycleUnit}
@@ -579,7 +579,7 @@ function CalibrateModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Ngày hiệu chuẩn" required>
           <Input
             type="date"
@@ -594,7 +594,7 @@ function CalibrateModal({
             <option value="fail">{CALIBRATION_RESULT_LABELS.fail}</option>
           </Select>
         </Field>
-        <Field label="Đơn vị thực hiện" className="sm:col-span-2">
+        <Field label="Đơn vị thực hiện" className="md:col-span-2">
           <Input
             value={provider}
             onChange={(e) => setProvider(e.target.value)}
@@ -602,7 +602,7 @@ function CalibrateModal({
           />
         </Field>
 
-        <div className="sm:col-span-2 rounded-lg border border-hairline bg-plate/30 px-4 py-3">
+        <div className="md:col-span-2 rounded-lg border border-hairline bg-plate/30 px-4 py-3">
           <p className="text-xs text-subink">
             {hasCycle
               ? `Hạn kế tiếp tự tính = ngày hiệu chuẩn + ${equipment.calibration_cycle_value} ${equipment.calibration_cycle_unit ? CALIBRATION_CYCLE_UNIT_LABELS[equipment.calibration_cycle_unit] : ''}.`
@@ -639,13 +639,13 @@ function CalibrateModal({
           </>
         )}
 
-        <Field label="Ghi chú" className="sm:col-span-2">
+        <Field label="Ghi chú" className="md:col-span-2">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="vd: lý do đính chính" />
         </Field>
         <Field
           label="Giấy chứng nhận (CoC)"
           required={result === 'pass'}
-          className="sm:col-span-2"
+          className="md:col-span-2"
           hint="PDF, PNG, JPG · tối đa 20MB. Bắt buộc khi kết quả Đạt."
         >
           <FileDrop file={cert} onSelect={setCert} accept={CERT_ACCEPT} />

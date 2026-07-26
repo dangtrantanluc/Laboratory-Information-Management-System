@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DescList, DescItem } from '@/components/ui/DescList';
@@ -21,11 +21,23 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { canManageResearch } from '@/lib/rbac';
 import type { ResearchProject } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+
+// Trạng thái đề tài → nhãn + màu badge (dễ quét trong bảng)
+const PROJECT_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
+  ongoing: { label: 'Đang thực hiện', tone: 'pending' },
+  completed: { label: 'Hoàn thành', tone: 'success' },
+  accepted: { label: 'Đã nghiệm thu', tone: 'info' },
+  cancelled: { label: 'Đã hủy', tone: 'muted' },
+};
+function ProjectStatusBadge({ status }: { status: string }) {
+  const s = PROJECT_STATUS[status] ?? { label: status, tone: 'neutral' as BadgeTone };
+  return <Badge tone={s.tone} dot>{s.label}</Badge>;
+}
 
 export function ResearchProjects() {
   const { user } = useAuth();
@@ -74,7 +86,7 @@ export function ResearchProjects() {
         </div>
       ),
     },
-    { key: 'level', header: 'Cấp', render: (p) => <Badge tone="info">{levelLabel(p.level)}</Badge> },
+    { key: 'level', priority: 1, header: 'Cấp', render: (p) => <Badge tone="info">{levelLabel(p.level)}</Badge> },
     { key: 'lead', header: 'Chủ nhiệm', render: (p) => p.lead_user_name ?? '—' },
     { key: 'department', header: 'Phòng', render: (p) => p.department_name ?? '—' },
     {
@@ -87,7 +99,7 @@ export function ResearchProjects() {
         </span>
       ),
     },
-    { key: 'status', header: 'Trạng thái', render: (p) => p.status },
+    { key: 'status', priority: 1, header: 'Trạng thái', render: (p) => <ProjectStatusBadge status={p.status} /> },
     {
       key: 'time',
       header: 'Thời gian',
@@ -131,8 +143,8 @@ export function ResearchProjects() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Tên đề tài…" className="max-w-xs flex-1" />
-          <Select value={level} onChange={(e) => setLevel(e.target.value)} className="max-w-[200px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Tên đề tài…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full sm:max-w-[200px]">
             <option value="">Mọi cấp</option>
             {(levels ?? []).map((l) => (
               <option key={l.code} value={l.code}>
@@ -238,11 +250,14 @@ function ProjectDetailModal({
     >
       <DescList>
         <DescItem label="Cấp đề tài" value={<Badge tone="info">{levelLabel(p.level)}</Badge>} />
-        <DescItem label="Trạng thái" value={<Badge tone="neutral">{p.status}</Badge>} />
+        <DescItem label="Trạng thái" value={<ProjectStatusBadge status={p.status} />} />
         <DescItem label="Chủ nhiệm" value={p.lead_user_name} />
         <DescItem label="Phòng ban" value={p.department_name} />
         <DescItem label="Bắt đầu" value={p.start_date ? formatDate(p.start_date) : null} />
         <DescItem label="Kết thúc" value={p.end_date ? formatDate(p.end_date) : null} />
+        <DescItem label="Năm học" value={p.academic_year} />
+        <DescItem label="Kinh phí" value={p.budget_amount ? formatMoney(p.budget_amount, p.budget_currency ?? 'VND') : null} />
+        <DescItem label="Chuyển giao" value={p.is_transferred ? (p.transfer_product ?? 'Có') : null} />
         <DescItem
           full
           label={`Thành viên tham gia (${members.length})`}
@@ -289,7 +304,7 @@ function ProjectModal({
   const [departmentId, setDepartmentId] = useState(project?.department_id ?? '');
   const [start, setStart] = useState(project?.start_date ?? '');
   const [end, setEnd] = useState(project?.end_date ?? '');
-  const [status, setStatus] = useState(project?.status ?? 'in_progress');
+  const [status, setStatus] = useState(project?.status ?? 'ongoing');
   const [members, setMembers] = useState<ContributorRow[]>(
     project?.members?.length
       ? project.members.map((m) => ({
@@ -366,8 +381,8 @@ function ProjectModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Tên đề tài" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tên đề tài" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
         <Field label="Mã đề tài">
@@ -410,9 +425,13 @@ function ProjectModal({
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
         </Field>
         <Field label="Trạng thái">
-          <Input value={status} onChange={(e) => setStatus(e.target.value)} placeholder="in_progress" />
+          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+            {Object.entries(PROJECT_STATUS).map(([val, s]) => (
+              <option key={val} value={val}>{s.label}</option>
+            ))}
+          </Select>
         </Field>
-        <div className="sm:col-span-2">
+        <div className="md:col-span-2">
           <p className="mb-2 text-sm font-medium text-ink">
             Thành viên <span className="text-overdue">*</span>
           </p>

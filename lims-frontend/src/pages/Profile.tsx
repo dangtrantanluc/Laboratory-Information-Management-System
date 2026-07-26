@@ -1,17 +1,22 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserCircle, Save, RotateCcw, KeyRound, ShieldAlert } from 'lucide-react';
+import { UserCircle, Save, RotateCcw, KeyRound, ShieldAlert, UserSquare2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
-import { Avatar } from '@/components/ui/Avatar';
+import { AvatarUploader } from '@/components/profile/AvatarUploader';
+import { SessionList } from '@/components/profile/SessionList';
+import { LoadingState, EmptyState } from '@/components/ui/States';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
+import { useAsync } from '@/lib/useAsync';
 import { ROLE_LABELS } from '@/types';
+import * as hrApi from '@/api/hr';
+import { HrProfileView } from '@/components/hr/HrProfileView';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -75,7 +80,7 @@ export function Profile() {
         {/* Tóm tắt tài khoản */}
         <Card>
           <CardBody className="flex flex-col items-center gap-3 pt-5 text-center">
-            <Avatar name={user?.full_name ?? '—'} size="lg" className="h-16 w-16 text-lg" />
+            <AvatarUploader />
             <div>
               <p className="text-base font-semibold text-ink">{user?.full_name ?? '—'}</p>
               <p className="text-sm text-subink">{user?.email ?? '—'}</p>
@@ -101,7 +106,7 @@ export function Profile() {
             subtitle="Họ tên và email hiển thị trên toàn hệ thống"
           />
           <CardBody className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Họ tên" required>
                 <Input
                   value={fullName}
@@ -123,7 +128,7 @@ export function Profile() {
             </div>
 
             {/* Field do admin quản lý — read-only */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Vai trò">
                 <Input value={user ? ROLE_LABELS[user.role] : '—'} disabled />
               </Field>
@@ -161,6 +166,51 @@ export function Profile() {
           </Link>
         </CardBody>
       </Card>
+
+      {/* m30 — thiết bị đang đăng nhập */}
+      <SessionList />
+
+      {/* Hồ sơ nhân sự của chính mình — HĐ, lương, năng lực (gộp từ "Hồ sơ của tôi") */}
+      <HrSelfProfile />
+    </div>
+  );
+}
+
+/** Hồ sơ nhân sự của chính chủ — mọi vai trò xem được, có đủ lương/HĐ/PII của mình. */
+function HrSelfProfile() {
+  const { user } = useAuth();
+  const profileQ = useAsync(() => hrApi.getMyProfile(), []);
+  const [missing, setMissing] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-2 border-t border-hairline pt-5 text-base font-semibold text-ink">
+        <UserSquare2 size={18} className="text-stem" /> Hồ sơ nhân sự
+      </div>
+
+      {profileQ.loading ? (
+        <LoadingState />
+      ) : !profileQ.data || missing ? (
+        <Card>
+          <EmptyState
+            title="Bạn chưa có hồ sơ nhân sự"
+            description="Liên hệ Văn phòng hoặc Quản trị viên để được khởi tạo hồ sơ."
+          />
+        </Card>
+      ) : (
+        <HrProfileView
+          userId={profileQ.data.user_id}
+          profile={profileQ.data}
+          onProfileChange={() => profileQ.reload()}
+          // Chính chủ chỉ XEM (không tự nâng lương/sửa HĐ) trừ khi là admin/office
+          canManage={false}
+          canEditSalary={user?.role === 'admin' || user?.role === 'office'}
+          canViewCompetence
+          canManageCompetence={user?.role === 'admin' || user?.role === 'leader'}
+          selfView
+          onNotFound={() => setMissing(true)}
+        />
+      )}
     </div>
   );
 }

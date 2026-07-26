@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -53,6 +54,7 @@ export function Documents() {
     {
       key: 'document_code',
       header: 'Mã / Tiêu đề',
+      primary: true,
       sortValue: (d) => d.document_code,
       render: (d) => (
         <div>
@@ -61,7 +63,12 @@ export function Documents() {
         </div>
       ),
     },
-    { key: 'type', header: 'Loại', render: (d) => <Badge tone="info">{d.type_label}</Badge> },
+    {
+      key: 'type',
+      header: 'Loại',
+      priority: 1,
+      render: (d) => <Badge tone="info">{d.type_label}</Badge>,
+    },
     { key: 'department', header: 'Phòng', render: (d) => d.department_name ?? '—' },
     {
       key: 'security',
@@ -72,6 +79,7 @@ export function Documents() {
     {
       key: 'version',
       header: 'Hiệu lực',
+      priority: 1,
       render: (d) =>
         d.current_version ? (
           <span className="inline-flex items-center gap-2">
@@ -118,38 +126,58 @@ export function Documents() {
       />
 
       <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="max-w-xs flex-1" />
-          <Select value={type} onChange={(e) => setType(e.target.value)} className="max-w-[200px]">
-            <option value="">Mọi loại</option>
-            {(types ?? []).map((t) => (
-              <option key={t.code} value={t.code}>
-                {t.label}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={securityLevel}
-            onChange={(e) => setSecurityLevel(e.target.value)}
-            className="max-w-[160px]"
-          >
-            <option value="">Mọi mức bảo mật</option>
-            <option value="internal">Nội bộ</option>
-            <option value="restricted">Hạn chế</option>
-          </Select>
-          <Select
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className="max-w-[200px]"
-          >
-            <option value="">Mọi phòng</option>
-            {(depts?.data ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <FilterBar
+          search={<SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" />}
+          filters={[
+            {
+              key: 'type',
+              label: 'Loại tài liệu',
+              active: !!type,
+              node: (
+                <Select value={type} onChange={(e) => setType(e.target.value)}>
+                  <option value="">Mọi loại</option>
+                  {(types ?? []).map((t) => (
+                    <option key={t.code} value={t.code}>
+                      {t.label}
+                    </option>
+                  ))}
+                </Select>
+              ),
+            },
+            {
+              key: 'security',
+              label: 'Mức bảo mật',
+              active: !!securityLevel,
+              node: (
+                <Select value={securityLevel} onChange={(e) => setSecurityLevel(e.target.value)}>
+                  <option value="">Mọi mức bảo mật</option>
+                  <option value="internal">Nội bộ</option>
+                  <option value="restricted">Hạn chế</option>
+                </Select>
+              ),
+            },
+            {
+              key: 'dept',
+              label: 'Phòng ban',
+              active: !!departmentId,
+              node: (
+                <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                  <option value="">Mọi phòng</option>
+                  {(depts?.data ?? []).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </Select>
+              ),
+            },
+          ]}
+          onClear={() => {
+            setType('');
+            setSecurityLevel('');
+            setDepartmentId('');
+          }}
+        />
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
@@ -240,8 +268,8 @@ function CreateDocumentModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Tiêu đề" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: SOP đo pH" />
         </Field>
         <Field label="Loại tài liệu" required>
@@ -261,7 +289,7 @@ function CreateDocumentModal({
           </Select>
         </Field>
         {canPickDept ? (
-          <Field label="Phòng ban sở hữu" className="sm:col-span-2">
+          <Field label="Phòng ban sở hữu" className="md:col-span-2">
             <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">— Mặc định theo người tạo —</option>
               {(depts?.data ?? []).map((d) => (
@@ -272,18 +300,18 @@ function CreateDocumentModal({
             </Select>
           </Field>
         ) : (
-          <Field label="Phòng ban sở hữu" className="sm:col-span-2" hint="Tài liệu thuộc phòng của bạn.">
+          <Field label="Phòng ban sở hữu" className="md:col-span-2" hint="Tài liệu thuộc phòng của bạn.">
             <Input value={user?.department?.name ?? '—'} disabled />
           </Field>
         )}
-        <Field label="Ghi chú phiên bản" className="sm:col-span-2" hint="Không bắt buộc cho phiên bản đầu.">
+        <Field label="Ghi chú phiên bản" className="md:col-span-2" hint="Không bắt buộc cho phiên bản đầu.">
           <Textarea
             value={changeNote}
             onChange={(e) => setChangeNote(e.target.value)}
             placeholder="vd: Phiên bản ban hành lần đầu"
           />
         </Field>
-        <Field label="Tệp nội dung (v1)" required className="sm:col-span-2" hint="PDF, DOCX, XLSX, PNG, JPG · tối đa 20MB">
+        <Field label="Tệp nội dung (v1)" required className="md:col-span-2" hint="PDF, DOCX, XLSX, PNG, JPG · tối đa 20MB">
           <FileDrop file={file} onSelect={setFile} />
         </Field>
       </div>

@@ -35,7 +35,7 @@ npm run preview
 |---|---|---|
 | `admin` | Quản trị viên | Toàn quyền: users, phòng ban, mọi nghiệp vụ |
 | `leader` | Ban lãnh đạo | Xem toàn hệ thống, duyệt, audit log |
-| `accountant` | Kế toán | Tài chính hóa chất; **không truy cập mẫu** |
+| `office` | Văn phòng | Tài chính hóa chất; **không truy cập mẫu** |
 | `staff` | Nhân sự / KTV | Nghiệp vụ lab theo phòng; trưởng nhóm (`is_dept_lead`) được phân công / duyệt / chốt mẫu |
 
 Menu và nút thao tác bật/tắt theo ma trận quyền trả về từ `GET /auth/me`. Backend luôn
@@ -47,7 +47,7 @@ re-validate mọi thao tác ghi.
 - **Dashboard** — KPI mẫu theo trạng thái, mẫu quá hạn, hóa chất tồn thấp; scope theo role.
 - **Mẫu** — phiếu yêu cầu (test-requests) → thêm mẫu → vòng đời mẫu: phân công (trưởng nhóm),
   chuyển giao + chain of custody, nhập kết quả (người được giao), duyệt (tách nhập–duyệt),
-  chốt mẫu, nhập lý do trễ hạn, xuất PDF phiếu kết quả. Kế toán bị chặn (403).
+  chốt mẫu, nhập lý do trễ hạn, xuất PDF phiếu kết quả. Văn phòng bị chặn (403).
 - **Hóa chất** — danh mục, lô (giá/CoA), giao dịch nhập/xuất/điều chỉnh (quy đổi đơn vị,
   xác nhận cảnh báo lô fail/quá hạn), tồn theo lô, lịch sử, xuất Excel. Cột giá ẩn với staff.
 - **Khách hàng** (admin + staff), **Nhân sự** & **Phòng ban** (admin), **Thông báo**,

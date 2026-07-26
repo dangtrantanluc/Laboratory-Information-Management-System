@@ -50,6 +50,11 @@ export interface CreateProjectBody {
   start_date?: string | null;
   end_date?: string | null;
   status?: string | null;
+  academic_year?: string | null;
+  budget_amount?: string | null;
+  budget_currency?: string | null;
+  is_transferred?: boolean | null;
+  transfer_product?: string | null;
   members: ProjectMember[];
 }
 export function createProject(body: CreateProjectBody) {
@@ -91,8 +96,18 @@ export interface CreatePublicationBody {
   doi?: string | null;
   index_code?: string | null;
   category?: string | null;
+  pub_scope?: string | null;
+  is_scie?: boolean | null;
+  is_ssci?: boolean | null;
+  is_scopus?: boolean | null;
+  is_aci?: boolean | null;
+  academic_year?: string | null;
   patent_no?: string | null;
   issuing_authority?: string | null;
+  application_no?: string | null;
+  application_date?: string | null;
+  granted_date?: string | null;
+  patent_holder?: string | null;
   department_id?: string | null;
   authors: PublicationAuthor[];
 }
@@ -155,6 +170,12 @@ export interface CreateTeachingBody {
   course_name: string;
   semester: string;
   year: number;
+  academic_year?: string | null;
+  hk1_theory_hours?: number | null;
+  hk1_practice_hours?: number | null;
+  hk2_theory_hours?: number | null;
+  hk2_practice_hours?: number | null;
+  note?: string | null;
 }
 export function createTeaching(body: CreateTeachingBody) {
   return apiPost<TeachingCourse>('/teaching-courses', body);

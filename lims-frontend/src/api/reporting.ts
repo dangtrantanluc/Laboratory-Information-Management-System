@@ -53,6 +53,31 @@ export function getDashboardCharts(
   }) as Promise<DashboardChartsResponse>;
 }
 
+// ── Lượt truy cập (chân trang) ──────────────────────────────────
+export interface AccessCounters {
+  available: boolean;
+  today: number;
+  week: number;
+  month: number;
+  total: number;
+}
+export function getAccessCounters() {
+  return getAggregate<AccessCounters, DashboardMeta>('/access-counters');
+}
+
+// ── Workload theo KTV (dashboard Trưởng phòng lab) ──────────────
+export interface LabWorkloadItem {
+  user_id: string;
+  user_name: string;
+  count: number;
+}
+export function getLabWorkload(params: { department_id?: string } = {}) {
+  return getAggregate<{ available: boolean; items: LabWorkloadItem[] }, DashboardMeta>(
+    '/dashboard/lab-workload',
+    { ...params },
+  );
+}
+
 // ── #3 Báo cáo mẫu ──────────────────────────────────────────────
 export interface SamplesReportFilters extends ReportFilters {
   status?: string;

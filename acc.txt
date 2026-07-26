@@ -1,5 +1,17 @@
 Mở http://localhost:3060 và dùng user demo (mật khẩu chung Lims@1234):
 
-hoa.tm@lims.local — leader, xem toàn hệ thống (khuyến nghị để thấy hết dashboard)
+── Tài khoản test theo từng VAI TRÒ (để kiểm UI/menu mỗi role) ──
+admin@lims.local        — admin        (toàn quyền, quản trị hệ thống)
+hoa.tm@lims.local       — leader       (ban lãnh đạo, xem toàn hệ thống — khuyến nghị để thấy hết dashboard)
+reception@lims.local    — reception    (Phòng nhận mẫu: nhận mẫu, khách hàng, phân công mẫu → phòng lab)
+qms@lims.local          — qms          (Phòng QLCL: kho biểu mẫu VILAS, duyệt/kiểm soát tài liệu)
+biet.hv@lims.local      — lab_manager  (Trưởng phòng lab "Sinh học phân tử, công nghệ gen")
+ktv.lab@lims.local      — staff/KTV    (KTV trong phòng lab: hóa chất, thiết bị, nhập kết quả)
+ke.dt@lims.local        — office       (văn phòng: chi phí + lương, không thấy mẫu/kết quả)
+
+── Tài khoản demo cũ (dữ liệu mẫu phong phú) ──
 long.hv@lims.local / huong.lt@lims.local — staff (nghiệp vụ lab theo phòng ban)
-ke.dt@lims.local — accountant (chi phí + lương, không thấy mẫu/kết quả)
+sinh.nt@lims.local      — leader (phòng Sinh)
+
+Ghi chú: mật khẩu admin mặc định lấy từ SEED_ADMIN_PASSWORD (mặc định ChangeMe@123),
+các tài khoản demo khác dùng chung Lims@1234.

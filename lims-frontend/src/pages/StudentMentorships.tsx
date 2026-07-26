@@ -61,7 +61,7 @@ export function StudentMentorships() {
             header: '',
             align: 'right' as const,
             render: (m: StudentMentorship) => (
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setEditTarget(m)}>
                   <Pencil size={14} />
                 </Button>
@@ -91,7 +91,7 @@ export function StudentMentorships() {
       />
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="max-w-[220px]">
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:max-w-[220px]">
             <option value="">Mọi loại</option>
             {(types ?? []).map((t) => (
               <option key={t.code} value={t.code}>
@@ -100,7 +100,14 @@ export function StudentMentorships() {
             ))}
           </Select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(m) => m.id} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(m) => m.id}
+          loading={loading}
+          pageSize={12}
+          onRowClick={canManage ? (m) => setEditTarget(m) : undefined}
+        />
       </Card>
 
       {createOpen && (
@@ -158,8 +165,6 @@ function MentorshipModal({
 
   const { data: types } = useAsync(() => researchApi.listMentorshipTypes(), []);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
-  // Staff chỉ được khai cho chính mình → khóa selector mentor
-  const isStaff = user?.role === 'staff';
 
   async function submit() {
     if (!studentName.trim()) return toast.error('Nhập tên sinh viên');
@@ -209,10 +214,10 @@ function MentorshipModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {!editing && (
-          <Field label="Người hướng dẫn" required className="sm:col-span-2">
-            <Select value={mentorId} onChange={(e) => setMentorId(e.target.value)} disabled={isStaff}>
+          <Field label="Người hướng dẫn" required className="md:col-span-2">
+            <Select value={mentorId} onChange={(e) => setMentorId(e.target.value)}>
               <option value="">— Chọn —</option>
               {(users?.data ?? []).map((u) => (
                 <option key={u.id} value={u.id}>
@@ -235,7 +240,7 @@ function MentorshipModal({
             ))}
           </Select>
         </Field>
-        <Field label="Đề tài" className="sm:col-span-2">
+        <Field label="Đề tài" className="md:col-span-2">
           <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
         </Field>
         <Field label="Năm" required>

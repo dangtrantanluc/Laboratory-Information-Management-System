@@ -249,7 +249,7 @@ function SalaryHistorySection({ userId }: { userId: string }) {
           <p className="py-3 text-sm text-subink">Chưa có lần nâng lương nào.</p>
         ) : (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[640px] text-sm table-sticky-1">
               <thead>
                 <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-stem">
                   <th className="py-2 pr-4">Ngày</th>
@@ -473,7 +473,7 @@ function ContractModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Ngày ký" required>
           <Input type="date" value={signed} onChange={(e) => setSigned(e.target.value)} />
         </Field>
@@ -487,7 +487,7 @@ function ContractModal({
             ))}
           </Select>
         </Field>
-        <Field label="Ngày hết hạn" hint="Bỏ trống = hợp đồng vô thời hạn" className="sm:col-span-2">
+        <Field label="Ngày hết hạn" hint="Bỏ trống = hợp đồng vô thời hạn" className="md:col-span-2">
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
         </Field>
       </div>
@@ -614,7 +614,7 @@ function SalaryRaiseModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Bậc/ngạch" required>
           <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="A1.4" />
         </Field>
@@ -627,7 +627,7 @@ function SalaryRaiseModal({
         <Field label="Ngày nâng lương" required>
           <Input type="date" value={raiseDate} onChange={(e) => setRaiseDate(e.target.value)} />
         </Field>
-        <Field label="Ghi chú (số quyết định…)" className="sm:col-span-2">
+        <Field label="Ghi chú (số quyết định…)" className="md:col-span-2">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="QĐ 123/2026" />
         </Field>
       </div>
@@ -701,7 +701,7 @@ function CompetenceModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Loại" required>
           <Select value={kind} onChange={(e) => setKind(e.target.value as CompetenceKind)}>
             <option value="degree">Bằng cấp</option>
@@ -712,7 +712,7 @@ function CompetenceModal({
         <Field label="Nơi cấp / người cấp">
           <Input value={issuer} onChange={(e) => setIssuer(e.target.value)} />
         </Field>
-        <Field label="Tên năng lực" required className="sm:col-span-2">
+        <Field label="Tên năng lực" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Thạc sĩ Hóa phân tích" />
         </Field>
         <Field label="Ngày cấp">
@@ -723,10 +723,10 @@ function CompetenceModal({
         </Field>
         {kind === 'authorization' && (
           <>
-            <Field label="Phạm vi / chỉ tiêu được ủy quyền" required className="sm:col-span-2">
+            <Field label="Phạm vi / chỉ tiêu được ủy quyền" required className="md:col-span-2">
               <Textarea value={scope} onChange={(e) => setScope(e.target.value)} placeholder="Chỉ tiêu pH, phương pháp SOP-XX" />
             </Field>
-            <Field label="Người ủy quyền" required className="sm:col-span-2">
+            <Field label="Người ủy quyền" required className="md:col-span-2">
               <Select value={authorizedBy} onChange={(e) => setAuthorizedBy(e.target.value)}>
                 <option value="">— Chọn —</option>
                 {(users?.data ?? []).map((u) => (

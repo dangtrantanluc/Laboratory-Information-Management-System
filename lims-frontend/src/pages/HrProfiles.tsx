@@ -113,11 +113,11 @@ export function HrProfiles() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Tên hoặc email…" className="max-w-xs flex-1" />
+          <SearchInput value={q} onChange={setQ} placeholder="Tên hoặc email…" className="w-full sm:max-w-xs sm:flex-1" />
           <Select
             value={departmentId}
             onChange={(e) => setDepartmentId(e.target.value)}
-            className="max-w-[220px]"
+            className="w-full sm:max-w-[220px]"
           >
             <option value="">Mọi phòng ban</option>
             {(depts?.data ?? []).map((d) => (
@@ -197,8 +197,8 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Người dùng" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Người dùng" required className="md:col-span-2">
           <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
             <option value="">— Chọn người dùng —</option>
             {(users?.data ?? []).map((u) => (
@@ -214,7 +214,7 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         <Field label="Ngày vào làm">
           <Input type="date" value={hiredDate} onChange={(e) => setHiredDate(e.target.value)} />
         </Field>
-        <Field label="Số điện thoại" className="sm:col-span-2">
+        <Field label="Số điện thoại" className="md:col-span-2">
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xx…" />
         </Field>
       </div>

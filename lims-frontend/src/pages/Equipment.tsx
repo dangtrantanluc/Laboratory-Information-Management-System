@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select } from '@/components/ui/Field';
@@ -79,6 +80,7 @@ export function Equipment() {
     },
     {
       key: 'status',
+      priority: 1,
       header: 'Tình trạng',
       align: 'center',
       render: (e) => <EquipmentStatusBadge status={e.status} />,
@@ -95,6 +97,7 @@ export function Equipment() {
     },
     {
       key: 'next_due_date',
+      priority: 1,
       header: 'Hạn kế tiếp',
       sortValue: (e) => e.next_due_date ?? '',
       render: (e) => formatDate(e.next_due_date ?? undefined),
@@ -124,60 +127,84 @@ export function Equipment() {
       />
 
       <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput
-            value={q}
-            onChange={setQ}
-            placeholder="Mã hoặc tên thiết bị…"
-            className="max-w-xs flex-1"
-          />
-          <Select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
-            className="max-w-[180px]"
-            disabled={onlyDue}
-          >
-            <option value="">Mọi tình trạng</option>
-            {(Object.keys(EQUIPMENT_STATUS_LABELS) as EquipmentStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {EQUIPMENT_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={calStatus}
-            onChange={(e) => setCalStatus(e.target.value)}
-            className="max-w-[200px]"
-            disabled={onlyDue}
-          >
-            <option value="">Mọi trạng thái hiệu chuẩn</option>
-            <option value="ok">{CALIBRATION_STATUS_LABELS.ok}</option>
-            <option value="due_soon">{CALIBRATION_STATUS_LABELS.due_soon}</option>
-            <option value="overdue">{CALIBRATION_STATUS_LABELS.overdue}</option>
-            <option value="failed">{CALIBRATION_STATUS_LABELS.failed}</option>
-            <option value="never_calibrated">{CALIBRATION_STATUS_LABELS.never_calibrated}</option>
-            <option value="not_applicable">{CALIBRATION_STATUS_LABELS.not_applicable}</option>
-          </Select>
-          <Select
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className="max-w-[180px]"
-          >
-            <option value="">Mọi phòng</option>
-            {(depts?.data ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </Select>
-          <Button
-            variant={onlyDue ? 'danger' : 'secondary'}
-            onClick={() => setOnlyDue((v) => !v)}
-            title="Lọc thiết bị sắp/đã quá hạn hiệu chuẩn"
-          >
-            <AlertTriangle size={16} /> {onlyDue ? 'Đang lọc tới hạn' : 'Sắp tới hạn'}
-          </Button>
-        </div>
+        <FilterBar
+          search={<SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tên thiết bị…" />}
+          filters={[
+            {
+              key: 'status',
+              label: 'Tình trạng thiết bị',
+              active: !!status,
+              node: (
+                <Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as EquipmentStatus | '')}
+                  disabled={onlyDue}
+                >
+                  <option value="">Mọi tình trạng</option>
+                  {(Object.keys(EQUIPMENT_STATUS_LABELS) as EquipmentStatus[]).map((s) => (
+                    <option key={s} value={s}>
+                      {EQUIPMENT_STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </Select>
+              ),
+            },
+            {
+              key: 'cal',
+              label: 'Trạng thái hiệu chuẩn',
+              active: !!calStatus,
+              node: (
+                <Select
+                  value={calStatus}
+                  onChange={(e) => setCalStatus(e.target.value)}
+                  disabled={onlyDue}
+                >
+                  <option value="">Mọi trạng thái hiệu chuẩn</option>
+                  <option value="ok">{CALIBRATION_STATUS_LABELS.ok}</option>
+                  <option value="due_soon">{CALIBRATION_STATUS_LABELS.due_soon}</option>
+                  <option value="overdue">{CALIBRATION_STATUS_LABELS.overdue}</option>
+                  <option value="failed">{CALIBRATION_STATUS_LABELS.failed}</option>
+                  <option value="never_calibrated">
+                    {CALIBRATION_STATUS_LABELS.never_calibrated}
+                  </option>
+                  <option value="not_applicable">{CALIBRATION_STATUS_LABELS.not_applicable}</option>
+                </Select>
+              ),
+            },
+            {
+              key: 'dept',
+              label: 'Phòng ban',
+              active: !!departmentId,
+              node: (
+                <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                  <option value="">Mọi phòng</option>
+                  {(depts?.data ?? []).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </Select>
+              ),
+            },
+          ]}
+          onClear={() => {
+            setStatus('');
+            setCalStatus('');
+            setDepartmentId('');
+          }}
+          extra={
+            <Button
+              variant={onlyDue ? 'danger' : 'secondary'}
+              onClick={() => setOnlyDue((v) => !v)}
+              title="Lọc thiết bị sắp/đã quá hạn hiệu chuẩn"
+            >
+              <AlertTriangle size={16} />
+              <span className="hidden sm:inline">
+                {onlyDue ? 'Đang lọc tới hạn' : 'Sắp tới hạn'}
+              </span>
+            </Button>
+          }
+        />
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
@@ -281,11 +308,11 @@ function CreateEquipmentModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Tên thiết bị" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tên thiết bị" required className="md:col-span-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="vd: Máy đo pH Mettler" />
         </Field>
-        <Field label="Vị trí đặt" className="sm:col-span-2">
+        <Field label="Vị trí đặt" className="md:col-span-2">
           <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="vd: Phòng Hóa lý - Bàn 3" />
         </Field>
         {canPickDept ? (
@@ -328,7 +355,7 @@ function CreateEquipmentModal({
         </Field>
         <Field
           label="Chu kỳ hiệu chuẩn"
-          className="sm:col-span-2"
+          className="md:col-span-2"
           hint="Bỏ trống nếu thiết bị không thuộc diện hiệu chuẩn (sẽ không nhắc/không cảnh báo quá hạn)."
         >
           <div className="flex gap-3">
@@ -337,12 +364,12 @@ function CreateEquipmentModal({
               onChange={(e) => setCycleValue(e.target.value.replace(/[^\d]/g, ''))}
               inputMode="numeric"
               placeholder="vd: 12"
-              className="max-w-[140px]"
+              className="w-full sm:max-w-[140px]"
             />
             <Select
               value={cycleUnit}
               onChange={(e) => setCycleUnit(e.target.value as CalibrationCycleUnit)}
-              className="max-w-[160px]"
+              className="w-full sm:max-w-[160px]"
             >
               {(Object.keys(CALIBRATION_CYCLE_UNIT_LABELS) as CalibrationCycleUnit[]).map((u) => (
                 <option key={u} value={u}>

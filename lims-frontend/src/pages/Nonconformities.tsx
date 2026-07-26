@@ -65,12 +65,14 @@ export function Nonconformities() {
     { key: 'source', header: 'Nguồn', render: (n) => n.source_label },
     {
       key: 'severity',
+      priority: 1,
       header: 'Mức độ',
       align: 'center',
       render: (n) => <NcSeverityBadge severity={n.severity} />,
     },
     {
       key: 'status',
+      priority: 1,
       header: 'Trạng thái',
       align: 'center',
       render: (n) => <NcStatusBadge status={n.status} />,
@@ -108,7 +110,7 @@ export function Nonconformities() {
       />
 
       {stats && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard label="Tổng NC" value={stats.total} />
           <StatCard label="Đang khắc phục" value={stats.by_status.in_capa ?? 0} tone="pending" />
           <StatCard label="Đã đóng" value={stats.by_status.closed ?? 0} tone="success" />
@@ -122,12 +124,12 @@ export function Nonconformities() {
             value={q}
             onChange={setQ}
             placeholder="Mã NC hoặc tiêu đề…"
-            className="max-w-xs flex-1"
+            className="w-full sm:max-w-xs sm:flex-1"
           />
           <Select
             value={status}
             onChange={(e) => setStatus(e.target.value as NcStatus | '')}
-            className="max-w-[180px]"
+            className="w-full sm:max-w-[180px]"
           >
             <option value="">Mọi trạng thái</option>
             {(Object.keys(NC_STATUS_LABELS) as NcStatus[]).map((s) => (
@@ -139,7 +141,7 @@ export function Nonconformities() {
           <Select
             value={severity}
             onChange={(e) => setSeverity(e.target.value as NcSeverity | '')}
-            className="max-w-[160px]"
+            className="w-full sm:max-w-[160px]"
           >
             <option value="">Mọi mức độ</option>
             {(Object.keys(NC_SEVERITY_LABELS) as NcSeverity[]).map((s) => (
@@ -151,7 +153,7 @@ export function Nonconformities() {
           <Select
             value={sourceType}
             onChange={(e) => setSourceType(e.target.value as NcSource | '')}
-            className="max-w-[200px]"
+            className="w-full sm:max-w-[200px]"
           >
             <option value="">Mọi nguồn</option>
             {(Object.keys(NC_SOURCE_LABELS) as NcSource[]).map((s) => (
@@ -203,7 +205,7 @@ function StatCard({
           ? 'text-pending'
           : 'text-ink';
   return (
-    <div className="rounded-xl border border-hairline bg-white px-4 py-3 shadow-card">
+    <div className="rounded-xl border border-hairline bg-surface px-4 py-3 shadow-card">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-xs text-subink">{label}</p>
     </div>
@@ -264,11 +266,11 @@ function CreateNcModal({ onClose, onCreated }: { onClose: () => void; onCreated:
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Tiêu đề" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: Kết quả QC vượt giới hạn kiểm soát" />
         </Field>
-        <Field label="Mô tả chi tiết" required className="sm:col-span-2">
+        <Field label="Mô tả chi tiết" required className="md:col-span-2">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Mô tả sự không phù hợp…" />
         </Field>
         <Field label="Mức độ">
@@ -290,7 +292,7 @@ function CreateNcModal({ onClose, onCreated }: { onClose: () => void; onCreated:
           </Select>
         </Field>
         {canPickDept ? (
-          <Field label="Phòng ban" className="sm:col-span-2">
+          <Field label="Phòng ban" className="md:col-span-2">
             <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">— Mặc định theo người tạo —</option>
               {(depts?.data ?? []).map((d) => (
@@ -301,11 +303,11 @@ function CreateNcModal({ onClose, onCreated }: { onClose: () => void; onCreated:
             </Select>
           </Field>
         ) : (
-          <Field label="Phòng ban" hint="Phiếu thuộc phòng của bạn." className="sm:col-span-2">
+          <Field label="Phòng ban" hint="Phiếu thuộc phòng của bạn." className="md:col-span-2">
             <Input value={user?.department?.name ?? '—'} disabled />
           </Field>
         )}
-        <Field label="Đánh giá tác động (§7.10.1)" className="sm:col-span-2" hint="Mẫu/kết quả bị ảnh hưởng, hành động tức thời…">
+        <Field label="Đánh giá tác động (§7.10.1)" className="md:col-span-2" hint="Mẫu/kết quả bị ảnh hưởng, hành động tức thời…">
           <Textarea value={impact} onChange={(e) => setImpact(e.target.value)} rows={2} />
         </Field>
       </div>

@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { FilterBar } from '@/components/ui/FilterBar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
@@ -58,11 +59,12 @@ export function Risks() {
     { key: 'kind', header: 'Loại', align: 'center', render: (r) => <RiskKindBadge kind={r.kind} /> },
     {
       key: 'level',
+      priority: 1,
       header: 'Mức rủi ro (P×I)',
       sortValue: (r) => r.level,
       render: (r) => <RiskBandBadge band={r.band} level={r.level} />,
     },
-    { key: 'status', header: 'Trạng thái', align: 'center', render: (r) => <RiskStatusBadge status={r.status} /> },
+    { key: 'status', priority: 1, header: 'Trạng thái', align: 'center', render: (r) => <RiskStatusBadge status={r.status} /> },
     { key: 'owner', header: 'Phụ trách', render: (r) => r.owner_name ?? '—' },
     {
       key: 'review',
@@ -116,27 +118,55 @@ export function Risks() {
       )}
 
       <Card>
-        <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="max-w-xs flex-1" />
-          <Select value={kind} onChange={(e) => setKind(e.target.value as RiskKind | '')} className="max-w-[150px]">
-            <option value="">Rủi ro & cơ hội</option>
-            {(Object.keys(RISK_KIND_LABELS) as RiskKind[]).map((k) => (
-              <option key={k} value={k}>{RISK_KIND_LABELS[k]}</option>
-            ))}
-          </Select>
-          <Select value={band} onChange={(e) => setBand(e.target.value as RiskBand | '')} className="max-w-[150px]">
-            <option value="">Mọi mức</option>
-            <option value="high">Cao</option>
-            <option value="medium">Trung bình</option>
-            <option value="low">Thấp</option>
-          </Select>
-          <Select value={status} onChange={(e) => setStatus(e.target.value as RiskStatus | '')} className="max-w-[170px]">
-            <option value="">Mọi trạng thái</option>
-            {(Object.keys(RISK_STATUS_LABELS) as RiskStatus[]).map((s) => (
-              <option key={s} value={s}>{RISK_STATUS_LABELS[s]}</option>
-            ))}
-          </Select>
-        </div>
+        <FilterBar
+          search={<SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" />}
+          filters={[
+            {
+              key: 'kind',
+              label: 'Phân loại',
+              active: !!kind,
+              node: (
+                <Select value={kind} onChange={(e) => setKind(e.target.value as RiskKind | '')}>
+                  <option value="">Rủi ro &amp; cơ hội</option>
+                  {(Object.keys(RISK_KIND_LABELS) as RiskKind[]).map((k) => (
+                    <option key={k} value={k}>{RISK_KIND_LABELS[k]}</option>
+                  ))}
+                </Select>
+              ),
+            },
+            {
+              key: 'band',
+              label: 'Mức rủi ro',
+              active: !!band,
+              node: (
+                <Select value={band} onChange={(e) => setBand(e.target.value as RiskBand | '')}>
+                  <option value="">Mọi mức</option>
+                  <option value="high">Cao</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="low">Thấp</option>
+                </Select>
+              ),
+            },
+            {
+              key: 'status',
+              label: 'Trạng thái',
+              active: !!status,
+              node: (
+                <Select value={status} onChange={(e) => setStatus(e.target.value as RiskStatus | '')}>
+                  <option value="">Mọi trạng thái</option>
+                  {(Object.keys(RISK_STATUS_LABELS) as RiskStatus[]).map((s) => (
+                    <option key={s} value={s}>{RISK_STATUS_LABELS[s]}</option>
+                  ))}
+                </Select>
+              ),
+            },
+          ]}
+          onClear={() => {
+            setKind('');
+            setBand('');
+            setStatus('');
+          }}
+        />
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
@@ -164,7 +194,7 @@ function bandOf(level: number): RiskBand {
 }
 const BAND_BG: Record<RiskBand, string> = {
   low: 'bg-success/15 text-success',
-  medium: 'bg-warning/15 text-[#b45309]',
+  medium: 'bg-warning/15 text-warning',
   high: 'bg-overdue/15 text-overdue',
 };
 
@@ -214,7 +244,7 @@ function RowCells({ lk, impacts, stats }: { lk: number; impacts: number[]; stats
 }
 
 function SummaryRow({ label, value, tone }: { label: string; value: number; tone?: 'overdue' | 'warning' | 'success' }) {
-  const color = tone === 'overdue' ? 'text-overdue' : tone === 'warning' ? 'text-[#b45309]' : tone === 'success' ? 'text-success' : 'text-ink';
+  const color = tone === 'overdue' ? 'text-overdue' : tone === 'warning' ? 'text-warning' : tone === 'success' ? 'text-success' : 'text-ink';
   return (
     <div className="flex items-center justify-between border-b border-hairline pb-2 last:border-0">
       <span className="text-sm text-subink">{label}</span>
@@ -272,7 +302,7 @@ function CreateRiskModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Loại">
           <Select value={kind} onChange={(e) => setKind(e.target.value as RiskKind)}>
             {(Object.keys(RISK_KIND_LABELS) as RiskKind[]).map((k) => (
@@ -283,10 +313,10 @@ function CreateRiskModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <Field label="Tiến trình liên quan">
           <Input value={processRef} onChange={(e) => setProcessRef(e.target.value)} placeholder="vd: Tiếp nhận mẫu" />
         </Field>
-        <Field label="Tiêu đề" required className="sm:col-span-2">
+        <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: Mẫu bị nhiễm chéo khi lưu" />
         </Field>
-        <Field label="Bối cảnh / mô tả" required className="sm:col-span-2">
+        <Field label="Bối cảnh / mô tả" required className="md:col-span-2">
           <Textarea value={context} onChange={(e) => setContext(e.target.value)} rows={2} />
         </Field>
         <Field label="Khả năng xảy ra (1–5)">
@@ -299,20 +329,20 @@ function CreateRiskModal({ onClose, onCreated }: { onClose: () => void; onCreate
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
           </Select>
         </Field>
-        <Field label="Mức rủi ro tính được" className="sm:col-span-2">
+        <Field label="Mức rủi ro tính được" className="md:col-span-2">
           <div className={`inline-flex items-center rounded-lg px-3 py-2 text-sm font-bold ${BAND_BG[band]}`}>
             {level} — {band === 'high' ? 'Cao' : band === 'medium' ? 'Trung bình' : 'Thấp'}
           </div>
         </Field>
         {canPickDept && (
-          <Field label="Phòng ban" className="sm:col-span-2">
+          <Field label="Phòng ban" className="md:col-span-2">
             <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
               <option value="">— Mặc định theo người tạo —</option>
               {(depts?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </Select>
           </Field>
         )}
-        <Field label="Ngày đánh giá lại" className="sm:col-span-2">
+        <Field label="Ngày đánh giá lại" className="md:col-span-2">
           <Input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
         </Field>
       </div>

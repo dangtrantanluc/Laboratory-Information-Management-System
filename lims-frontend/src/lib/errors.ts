@@ -16,7 +16,7 @@ const CODE_MESSAGES: Record<string, string> = {
 
   // RBAC
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
-  FORBIDDEN_ACCOUNTANT: 'Vai trò Kế toán không được truy cập nghiệp vụ mẫu.',
+  FORBIDDEN_OFFICE: 'Vai trò Văn phòng không được truy cập nghiệp vụ mẫu.',
   VALIDATION_ERROR: 'Dữ liệu nhập chưa hợp lệ, vui lòng kiểm tra lại.',
   NOT_FOUND: 'Không tìm thấy dữ liệu.',
 
@@ -59,7 +59,7 @@ const CODE_MESSAGES: Record<string, string> = {
   DUPLICATE_CUSTOMER: 'Khách hàng đã tồn tại.',
 
   // M4 — Nhân sự & NCKH
-  SALARY_FORBIDDEN: 'Bạn không có quyền xem/sửa lương. Chỉ Kế toán và Quản trị viên được điều chỉnh lương.',
+  SALARY_FORBIDDEN: 'Bạn không có quyền xem/sửa lương. Chỉ Văn phòng và Quản trị viên được điều chỉnh lương.',
   PROFILE_NOT_FOUND: 'Không tìm thấy hồ sơ nhân sự.',
   DUPLICATE_PROFILE: 'Người dùng này đã có hồ sơ nhân sự.',
   HR_PROFILE_EXISTS: 'Người dùng này đã có hồ sơ nhân sự.',

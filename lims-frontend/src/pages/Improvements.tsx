@@ -71,14 +71,14 @@ export function Improvements() {
       />
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="max-w-xs flex-1" />
-          <Select value={source} onChange={(e) => setSource(e.target.value as ImprovementSource | '')} className="max-w-[180px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={source} onChange={(e) => setSource(e.target.value as ImprovementSource | '')} className="w-full sm:max-w-[180px]">
             <option value="">Mọi nguồn</option>
             {(Object.keys(IMPROVEMENT_SOURCE_LABELS) as ImprovementSource[]).map((s) => (
               <option key={s} value={s}>{IMPROVEMENT_SOURCE_LABELS[s]}</option>
             ))}
           </Select>
-          <Select value={status} onChange={(e) => setStatus(e.target.value as ImprovementStatus | '')} className="max-w-[180px]">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as ImprovementStatus | '')} className="w-full sm:max-w-[180px]">
             <option value="">Mọi trạng thái</option>
             {(Object.keys(IMPROVEMENT_STATUS_LABELS) as ImprovementStatus[]).map((s) => (
               <option key={s} value={s}>{IMPROVEMENT_STATUS_LABELS[s]}</option>

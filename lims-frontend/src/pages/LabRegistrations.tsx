@@ -42,10 +42,11 @@ export function LabRegistrations() {
     { key: 'purpose', header: 'Mục đích', render: (r) => r.purpose },
     {
       key: 'period',
+      priority: 1,
       header: 'Thời gian',
       render: (r) => `${formatDate(r.registered_from)} → ${r.registered_to ? formatDate(r.registered_to) : '—'}`,
     },
-    { key: 'status', header: 'Trạng thái', render: (r) => <RegistrationStatusBadge status={r.status} /> },
+    { key: 'status', priority: 1, header: 'Trạng thái', render: (r) => <RegistrationStatusBadge status={r.status} /> },
     {
       key: 'actions',
       header: '',
@@ -80,7 +81,7 @@ export function LabRegistrations() {
       />
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="max-w-[200px]">
+          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full sm:max-w-[200px]">
             <option value="">Mọi trạng thái</option>
             <option value="pending">Chờ duyệt</option>
             <option value="approved">Đã duyệt</option>
@@ -165,8 +166,8 @@ function RegistrationModal({ onClose, onSaved }: { onClose: () => void; onSaved:
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Người hướng dẫn" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Người hướng dẫn" required className="md:col-span-2">
           <Select value={mentorId} onChange={(e) => setMentorId(e.target.value)} disabled={isStaff}>
             <option value="">— Chọn —</option>
             {(users?.data ?? []).map((u) => (

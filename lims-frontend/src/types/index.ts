@@ -4,16 +4,27 @@
  */
 
 // ── Roles & Auth ────────────────────────────────────────────────
-export type Role = 'admin' | 'leader' | 'accountant' | 'staff';
+export type Role =
+  | 'admin'
+  | 'leader'
+  | 'office'
+  | 'staff'
+  | 'reception'
+  | 'qms'
+  | 'lab_manager';
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Quản trị viên',
   leader: 'Ban lãnh đạo',
-  accountant: 'Kế toán',
-  staff: 'Nhân sự / KTV',
+  office: 'Văn phòng',
+  staff: 'KTV',
+  reception: 'Phòng nhận mẫu',
+  qms: 'Quản lý chất lượng',
+  lab_manager: 'Trưởng phòng lab',
 };
 
-export type UserStatus = 'active' | 'disabled';
+/** m30 — 'pending' = tự đăng ký, chờ Quản trị viên duyệt (chưa đăng nhập được). */
+export type UserStatus = 'active' | 'disabled' | 'pending';
 
 export interface Permission {
   resource: string;
@@ -33,6 +44,10 @@ export interface CurrentUser {
   is_quality_manager?: boolean;
   status: UserStatus;
   must_change_password?: boolean;
+  /** m30 — presigned URL ảnh đại diện (TTL 15 phút). null nếu chưa đặt ảnh. */
+  avatar_url?: string | null;
+  /** m30 — mốc xác thực email. null = chưa xác thực. */
+  email_verified_at?: string | null;
   permissions: Permission[];
   created_at: string;
 }
@@ -66,21 +81,329 @@ export interface UserListItem {
   department_name: string | null;
   is_dept_lead: boolean;
   status: UserStatus;
+  /** m30 — null nghĩa là người dùng chưa bấm link xác thực trong mail. */
+  email_verified_at?: string | null;
   last_login_at?: string | null;
   created_at: string;
 }
 
 // ── Departments (M7) ────────────────────────────────────────────
+export type DepartmentKind = 'leadership' | 'reception' | 'office' | 'qms' | 'division' | 'lab';
+
+export const DEPARTMENT_KIND_LABELS: Record<DepartmentKind, string> = {
+  leadership: 'Ban lãnh đạo',
+  reception: 'Phòng nhận mẫu',
+  office: 'Văn phòng',
+  qms: 'Quản lý chất lượng',
+  division: 'Phòng nghiên cứu trọng điểm',
+  lab: 'Phòng thí nghiệm',
+};
+
 export interface Department {
   id: string;
   name: string;
   code: string;
   parent_id: string | null;
+  kind?: DepartmentKind;
+  is_vlab?: boolean;
   lead_user_id: string | null;
   lead_user_name?: string | null;
   status: string;
   member_count?: number;
   created_at?: string;
+  children?: Department[];
+}
+
+// ── Kho biểu mẫu VILAS (GĐ3) ────────────────────────────────────
+export type FormCategory = 'BM' | 'QT' | 'HD' | 'TL';
+
+export const FORM_CATEGORY_LABELS: Record<FormCategory, string> = {
+  BM: 'Biểu mẫu',
+  QT: 'Quy trình',
+  HD: 'Hướng dẫn',
+  TL: 'Tài liệu',
+};
+
+export interface FormFile {
+  id: string;
+  file_name: string;
+  mime: string | null;
+  size: number | null;
+  uploaded_at: string;
+}
+
+/** Nhóm tệp thuộc biểu mẫu gốc hay minh chứng — khớp path /forms/{owner}/{id}/file. */
+export type FormFileOwner = 'templates' | 'submissions';
+
+/** Một bản trong lịch sử tải lên của biểu mẫu/minh chứng (gồm cả bản đã bị thay). */
+export interface FormFileHistoryItem extends FormFile {
+  uploaded_by_name: string | null;
+  /** true nếu đây là tệp đang dùng; false là bản đã bị thay/gỡ. */
+  is_current: boolean;
+  /** Thời điểm bị thay/gỡ — null khi vẫn là bản hiện hành. */
+  replaced_at: string | null;
+  action: string;
+  action_label: string;
+  /** Lý do người dùng nhập khi tải bản này lên. */
+  reason: string | null;
+  /** Lý do của thao tác đã loại bỏ bản này. */
+  removed_reason: string | null;
+}
+
+export interface FormTemplate {
+  id: string;
+  code: string;
+  title: string;
+  iso_clause: string;
+  category: FormCategory;
+  year: number | null;
+  is_active: boolean;
+  note: string | null;
+  files: FormFile[];
+  created_at: string;
+}
+
+export interface FormSubmission {
+  id: string;
+  template_id: string;
+  template_code: string | null;
+  template_title: string | null;
+  department_id: string;
+  department_name: string | null;
+  year: number | null;
+  note: string | null;
+  submitted_by: string;
+  submitted_by_name: string | null;
+  submitted_at: string;
+  files: FormFile[];
+  status: RegistrationStatus;
+  reviewed_by: string | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  reject_reason: string | null;
+}
+
+// ── Nhận & Chuyển mẫu (GĐ2b) ────────────────────────────────────
+// m28: luồng thật — tiếp nhận → báo giá → khách đồng ý → thanh toán → chuyển lab → trả KQ
+export type IntakeStatus =
+  | 'received' | 'quoted' | 'quote_accepted' | 'paid' | 'dispatched' | 'completed' | 'cancelled';
+
+export const INTAKE_STATUS_LABELS: Record<IntakeStatus, string> = {
+  received: 'Đã tiếp nhận',
+  quoted: 'Đã báo giá',
+  quote_accepted: 'Khách đồng ý giá',
+  paid: 'Đã thanh toán',
+  dispatched: 'Đã chuyển lab',
+  completed: 'Đã trả kết quả',
+  cancelled: 'Đã hủy',
+};
+
+/** Các bước theo thứ tự để vẽ thanh tiến trình (không gồm 'cancelled'). */
+export const INTAKE_FLOW: IntakeStatus[] = [
+  'received', 'quoted', 'quote_accepted', 'paid', 'dispatched', 'completed',
+];
+
+export type PaymentStatus = 'unpaid' | 'partial' | 'paid' | 'waived';
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  unpaid: 'Chưa thanh toán',
+  partial: 'Thanh toán một phần',
+  paid: 'Đã thanh toán',
+  waived: 'Miễn phí',
+};
+
+export type DispatchStatus = 'sent' | 'received' | 'in_progress' | 'done' | 'returned';
+export const DISPATCH_STATUS_LABELS: Record<DispatchStatus, string> = {
+  sent: 'Chờ tiếp nhận',
+  received: 'Đã tiếp nhận',
+  in_progress: 'Đang thực hiện',
+  done: 'Hoàn thành',
+  returned: 'Trả lại',
+};
+
+export interface SampleDispatch {
+  id: string;
+  intake_id: string;
+  /** m27: liên kết danh mục chỉ tiêu (null = chỉ tiêu nhập tự do). */
+  test_parameter_id?: string | null;
+  unit_price?: string | null;
+  /** m28 — BM 7.1.02: Loại/Tên mẫu + Số lượng. */
+  sample_name?: string | null;
+  quantity?: number;
+  intake_code?: string | null;
+  customer_name?: string | null;
+  chi_tieu: string;
+  don_vi?: string | null;
+  phuong_phap?: string | null;
+  ket_qua?: string | null;
+  can_bo?: string | null;
+  target_department_id: string;
+  target_department_name: string | null;
+  status: DispatchStatus;
+  note: string | null;
+  dispatched_by: string;
+  dispatched_by_name: string | null;
+  dispatched_at: string;
+  received_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+  files: FormFile[];
+}
+
+export interface SampleIntake {
+  id: string;
+  code: string;
+  customer_name: string;
+  contact: string | null;
+  description: string | null;
+  note: string | null;
+  status: IntakeStatus;
+  status_label?: string;
+  /** Bước hợp lệ kế tiếp (backend trả) — FE dựng nút chuyển trạng thái. */
+  next_statuses?: IntakeStatus[];
+  payment_status?: PaymentStatus;
+  paid_amount?: string | null;
+  payment_date?: string | null;
+  payment_ref?: string | null;
+  payment_note?: string | null;
+  /** Ô "Lưu ý" trên phiếu chuyển mẫu BM 7.1.02. */
+  dispatch_note?: string | null;
+  address?: string | null;
+  tax_code?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  due_date?: string | null;
+  result_language?: string | null;
+  return_method?: string | null;
+  fee_note?: string | null;
+  other_request?: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  received_by: string;
+  received_by_name: string | null;
+  received_at: string;
+  created_at: string;
+  files: FormFile[];
+  dispatches?: SampleDispatch[];
+  /** m26: true = thông tin KH đang bị ẩn với vai trò hiện tại (phòng lab chưa được duyệt). */
+  customer_info_masked?: boolean;
+  /** 'pending' nếu phòng đã gửi yêu cầu và đang chờ Phòng nhận mẫu duyệt. */
+  customer_info_request_status?: 'pending' | null;
+}
+
+// ── m29: BÁO GIÁ ─────────────────────────────────────────────────
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
+  draft: 'Nháp',
+  sent: 'Đã gửi khách',
+  accepted: 'Khách đồng ý',
+  rejected: 'Khách từ chối',
+  expired: 'Hết hiệu lực',
+};
+
+export interface QuotationItem {
+  id?: string;
+  sort_order?: number;
+  sample_name: string | null;
+  test_parameter_id?: string | null;
+  parameter_name: string;
+  method?: string | null;
+  unit?: string | null;
+  quantity: number;
+  /** Số tiền dạng STRING — không parseFloat để tránh sai số. */
+  unit_price: string;
+  amount?: string;
+  note?: string | null;
+}
+
+export interface Quotation {
+  id: string;
+  code: string;
+  intake_id: string | null;
+  intake_code: string | null;
+  customer_name: string;
+  customer_address: string | null;
+  customer_email: string | null;
+  customer_phone: string | null;
+  issue_date: string | null;
+  valid_until: string | null;
+  vat_rate: string;
+  subtotal: string;
+  vat_amount: string;
+  total: string;
+  status: QuotationStatus;
+  status_label?: string;
+  next_statuses?: QuotationStatus[];
+  note: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  items?: QuotationItem[];
+  item_count?: number;
+}
+
+// ── m27: Master data CHỈ TIÊU THỬ NGHIỆM (bảng giá phân tích) ────
+export type TestMatrix =
+  | 'soil' | 'water' | 'fertilizer' | 'feed' | 'food' | 'quarantine' | 'molecular' | 'other';
+
+export const TEST_MATRIX_LABELS: Record<TestMatrix, string> = {
+  soil: 'Đất',
+  water: 'Nước',
+  fertilizer: 'Phân bón, Chế phẩm sinh học',
+  feed: 'Thức ăn chăn nuôi',
+  food: 'Nông sản, Thực phẩm',
+  quarantine: 'Kiểm dịch thực vật',
+  molecular: 'Sinh học phân tử (SHPT)',
+  other: 'Khác',
+};
+
+export interface TestParameter {
+  id: string;
+  matrix: TestMatrix;
+  matrix_label: string;
+  sample_matrix: string | null;
+  name: string;
+  method: string | null;
+  unit: string | null;
+  /** Số thập phân dạng STRING — không parseFloat để tránh sai số. */
+  unit_price: string | null;
+  currency: string;
+  turnaround_days: number | null;
+  in_charge: string | null;
+  note: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  is_accredited: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── m26: Yêu cầu xem thông tin khách hàng ────────────────────────
+export type InfoRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export const INFO_REQUEST_STATUS_LABELS: Record<InfoRequestStatus, string> = {
+  pending: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối',
+};
+
+export interface CustomerInfoRequest {
+  id: string;
+  intake_id: string;
+  intake_code: string | null;
+  requester_user_id: string;
+  requester_name: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  reason: string | null;
+  status: InfoRequestStatus;
+  decided_by: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  decide_note: string | null;
+  created_at: string;
 }
 
 // ── Customers (M7) ──────────────────────────────────────────────
@@ -533,22 +856,37 @@ export interface ResearchProject {
   code?: string | null;
   title: string;
   level: string;
-  lead_user_id: string;
+  lead_user_id: string | null;
   lead_user_name: string | null;
+  lead_external_name?: string | null;
   department_id: string | null;
   department_name: string | null;
   start_date: string | null;
   end_date: string | null;
+  academic_year?: string | null;
+  budget_amount?: string | null;
+  budget_currency?: string | null;
+  is_transferred?: boolean;
+  transfer_product?: string | null;
   status: string;
   member_count?: number;
   members?: ProjectMember[];
 }
 
-export type PublicationType = 'paper' | 'patent';
+export type PublicationType = 'paper' | 'patent' | 'conference';
+export type PubScope = 'domestic' | 'international';
+export type AuthorRole = 'main' | 'co' | 'corresponding';
 
 export const PUBLICATION_TYPE_LABELS: Record<PublicationType, string> = {
   paper: 'Bài báo',
   patent: 'Sáng chế / GPHI',
+  conference: 'Báo cáo hội nghị/kỷ yếu',
+};
+
+export const AUTHOR_ROLE_LABELS: Record<AuthorRole, string> = {
+  main: 'Tác giả',
+  co: 'Đồng tác giả',
+  corresponding: 'Tác giả liên hệ',
 };
 
 /** Tác giả — HOẶC user_id (nội bộ) HOẶC external_name (ngoài hệ thống). */
@@ -558,6 +896,7 @@ export interface PublicationAuthor {
   name?: string | null;
   author_order: number;
   is_corresponding: boolean;
+  author_role?: AuthorRole | null;
 }
 
 export interface Publication {
@@ -569,10 +908,20 @@ export interface Publication {
   doi: string | null;
   index_code: string | null;
   category: string | null;
+  pub_scope?: PubScope | null;
+  is_scie?: boolean;
+  is_ssci?: boolean;
+  is_scopus?: boolean;
+  is_aci?: boolean;
+  academic_year?: string | null;
   department_id: string | null;
   department_name: string | null;
   patent_no: string | null;
   issuing_authority: string | null;
+  application_no?: string | null;
+  application_date?: string | null;
+  granted_date?: string | null;
+  patent_holder?: string | null;
   authors: PublicationAuthor[];
 }
 
@@ -611,15 +960,90 @@ export interface LabRegistration {
   created_at: string;
 }
 
+/** Thẻ vào PTN (sinh viên) — danh sách quản trị do Văn phòng quản lý, không qua duyệt. */
+export interface LabAccessCard {
+  id: string;
+  student_name: string;
+  class_name: string | null;
+  student_code: string;
+  email: string | null;
+  room: string;
+  purpose: string | null;
+  supervisor_name: string | null;
+  valid_from: string;
+  valid_to: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TeachingCourse {
   id: string;
-  user_id: string;
+  user_id: string | null;
   user_name?: string | null;
+  lecturer_external_name?: string | null;
   course_name: string;
   semester: string;
   year: number;
+  academic_year?: string | null;
+  hk1_theory_hours?: number | null;
+  hk1_practice_hours?: number | null;
+  hk2_theory_hours?: number | null;
+  hk2_practice_hours?: number | null;
+  note?: string | null;
   department_id?: string | null;
   department_name?: string | null;
+}
+
+// ── Menu mới (migration m23) ─────────────────────────────────────
+export interface ResearchContract {
+  id: string;
+  title: string;
+  contract_type: string | null;
+  value_amount: string | null;
+  currency: string | null;
+  partner_org: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  academic_year: string | null;
+  department_id: string | null;
+  department_name?: string | null;
+  created_at?: string;
+}
+
+export type StaffActivityKind = 'dang' | 'cong_doan' | 'vilas' | 'khac';
+
+export const STAFF_ACTIVITY_KIND_LABELS: Record<StaffActivityKind, string> = {
+  dang: 'Công tác Đảng',
+  cong_doan: 'Công tác Công đoàn',
+  vilas: 'Công tác VILAS',
+  khac: 'Khác',
+};
+
+export interface StaffActivity {
+  id: string;
+  kind: StaffActivityKind;
+  content: string;
+  performed_at: string | null;
+  academic_year: string | null;
+  performer_user_id: string | null;
+  performer_name?: string | null;
+  department_id: string | null;
+  created_at?: string;
+}
+
+export interface TrainingCertificate {
+  id: string;
+  recipient_name: string;
+  certificate_no: string | null;
+  course_name: string | null;
+  issued_date: string | null;
+  note: string | null;
+  academic_year: string | null;
+  host_user_id: string | null;
+  host_name?: string | null;
+  department_id: string | null;
+  created_at?: string;
 }
 
 export interface CommunityService {
@@ -1011,9 +1435,9 @@ export interface EquipmentDownloadInfo {
 // ── M6: Báo cáo & Dashboard (Reporting & Analytics) ─────────────
 /**
  * Dashboard tổng hợp chéo module (#1). Mỗi khối KPI có `available`.
- * Khối VẮNG MẶT khi vai trò không được xem (accountant: không `samples`/`equipments`/`documents`;
+ * Khối VẮNG MẶT khi vai trò không được xem (office: không `samples`/`equipments`/`documents`;
  * staff: không `hr`) — luôn dùng `'samples' in data` để kiểm tra, KHÔNG dựa null.
- * Field tiền (`consumption_cost_month`) chỉ có với vai trò tài chính (admin/leader/accountant).
+ * Field tiền (`consumption_cost_month`) chỉ có với vai trò tài chính (admin/leader/office).
  * Số tiền là number theo backend M6 (KPI đếm/tổng) — hiển thị qua formatNumber, không tính tiếp.
  */
 export interface DashboardScope {
@@ -1037,7 +1461,7 @@ export interface DashboardChemicalsKpi {
   expiring_soon?: number;
   recheck_due?: number;
   low_stock?: number;
-  /** Chỉ vai trò tài chính (admin/leader/accountant). */
+  /** Chỉ vai trò tài chính (admin/leader/office). */
   consumption_cost_month?: number;
   deep_link_expiring?: string;
   deep_link_low_stock?: string;
@@ -1073,6 +1497,21 @@ export interface DashboardNotificationsKpi {
   deep_link?: string;
 }
 
+/** Khối KPI riêng cho dashboard vai trò qms (M21). */
+export interface DashboardQmsKpi {
+  available: boolean;
+  error?: string;
+  nc_open?: number;
+  nc_open_capa?: number;
+  risk_open_high?: number;
+  evidence_pending?: number;
+  improvements_open?: number;
+  deep_link_nc?: string;
+  deep_link_risk?: string;
+  deep_link_evidence?: string;
+  deep_link_improvements?: string;
+}
+
 export interface DashboardData {
   scope: DashboardScope;
   samples?: DashboardSamplesKpi;
@@ -1081,6 +1520,7 @@ export interface DashboardData {
   hr?: DashboardHrKpi;
   documents?: DashboardDocumentsKpi;
   notifications?: DashboardNotificationsKpi;
+  qms?: DashboardQmsKpi;
 }
 
 /** meta của response aggregate M6 (cache + thời điểm). */
@@ -1127,12 +1567,18 @@ export interface ChemicalConsumptionGroup {
   data: ChemicalConsumptionPoint[];
 }
 
+export interface NcByStatusPoint {
+  status: NcStatus;
+  count: number;
+}
+
 export interface DashboardCharts {
   samples_by_status?: ChartBlock<SamplesByStatusPoint>;
   samples_over_time?: ChartBlock<SamplesOverTimePoint> & {
     group_by?: string;
     metric?: string;
   };
+  nc_by_status?: ChartBlock<NcByStatusPoint>;
   chemical_consumption?: {
     available: boolean;
     error?: string;
@@ -1474,4 +1920,45 @@ export interface ImprovementItem {
   linked_nc_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ── Báo cáo hoạt động hàng tháng (m25) ───────────────────────────
+export type ActivityReportStatus = 'draft' | 'submitted' | 'reviewed';
+
+export const ACTIVITY_REPORT_STATUS_LABELS: Record<ActivityReportStatus, string> = {
+  draft: 'Nháp',
+  submitted: 'Đã nộp',
+  reviewed: 'Đã tổng hợp',
+};
+
+export interface ActivityReportCounts {
+  teaching: number;
+  projects: number;
+  publications: number;
+  contracts: number;
+  activities: number;
+}
+
+export interface ActivityReport {
+  id: string;
+  reporter_user_id: string;
+  reporter_name: string | null;
+  department_id: string | null;
+  department_name: string | null;
+  period_label: string;
+  period_year: number | null;
+  academic_year: string | null;
+  status: ActivityReportStatus;
+  note: string | null;
+  submitted_at: string | null;
+  reviewed_by_name: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  counts?: ActivityReportCounts;
+  // chi tiết (khi GET /{id})
+  teaching?: Array<{ id: string; course_name: string; hk1_theory_hours: number | null; hk1_practice_hours: number | null; hk2_theory_hours: number | null; hk2_practice_hours: number | null }>;
+  projects?: Array<{ id: string; title: string; level: string | null; status: string; budget_amount: string | null }>;
+  publications?: Array<{ id: string; title: string; type: string; pub_scope: string | null; journal: string | null; year: number | null; is_scie: boolean; is_scopus: boolean }>;
+  contracts?: Array<{ id: string; title: string; contract_type: string | null; value_amount: string | null }>;
+  activities?: Array<{ id: string; kind: string; content: string }>;
 }

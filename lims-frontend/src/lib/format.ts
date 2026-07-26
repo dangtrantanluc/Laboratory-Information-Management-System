@@ -85,7 +85,7 @@ export function daysUntil(iso: string): number {
 
 /** Màu avatar ổn định theo tên. */
 export function avatarColor(seed: string): string {
-  const palette = ['#2f3a55', '#5c6b8a', '#a29f76', '#3b82f6', '#0ea5e9', '#8b5cf6', '#14b8a6'];
+  const palette = ['#0d8256', '#0e7c86', '#4d7c0f', '#a29f76', '#2563eb', '#7c3aed', '#0f766e'];
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return palette[h % palette.length];

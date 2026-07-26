@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, KeyRound, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Settings as SettingsIcon, KeyRound, ShieldCheck, BellRing } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +9,7 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { describeError } from '@/lib/errors';
 import { ROLE_LABELS } from '@/types';
+import { disablePush, enablePush, isPushEnabled, isPushSupported } from '@/lib/push';
 
 export function Settings() {
   const { user, changePassword } = useAuth();
@@ -17,6 +18,36 @@ export function Settings() {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    isPushEnabled().then(setPushEnabled);
+  }, []);
+
+  async function togglePush() {
+    setPushBusy(true);
+    try {
+      if (pushEnabled) {
+        await disablePush();
+        setPushEnabled(false);
+        toast.success('Đã tắt thông báo đẩy trên thiết bị này');
+      } else {
+        const ok = await enablePush();
+        if (ok) {
+          setPushEnabled(true);
+          toast.success('Đã bật thông báo đẩy trên thiết bị này');
+        } else {
+          toast.error('Không thể bật thông báo đẩy — kiểm tra quyền trình duyệt');
+        }
+      }
+    } catch (err) {
+      toast.error(describeError(err).title);
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function submitPwd() {
     if (next.length < 8) return toast.error('Mật khẩu mới tối thiểu 8 ký tự');
@@ -57,7 +88,19 @@ export function Settings() {
         <Card className="lg:col-span-2">
           <CardHeader title="Đổi mật khẩu" subtitle="Cập nhật mật khẩu đăng nhập" />
           <CardBody>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* Trường username ẩn: cho trình duyệt gắn đúng tài khoản vào form mật khẩu,
+                tránh tự điền email vào ô "Tìm" trên sidebar. */}
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={user?.email ?? ''}
+              readOnly
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Mật khẩu hiện tại">
                 <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
               </Field>
@@ -76,6 +119,28 @@ export function Settings() {
           </CardBody>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader
+          title="Thông báo đẩy trên trình duyệt"
+          subtitle="Nhận popup thông báo desktop ngay cả khi tab đang thu nhỏ/ẩn"
+        />
+        <CardBody className="flex flex-col gap-3">
+          {!isPushSupported() ? (
+            <p className="text-sm text-subink">Trình duyệt này không hỗ trợ thông báo đẩy.</p>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-subink">
+                <BellRing size={16} />
+                {pushEnabled ? 'Đang bật trên thiết bị này' : 'Chưa bật trên thiết bị này'}
+              </div>
+              <Button variant={pushEnabled ? 'secondary' : 'primary'} onClick={togglePush} loading={pushBusy}>
+                {pushEnabled ? 'Tắt thông báo đẩy' : 'Bật thông báo đẩy'}
+              </Button>
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
       <Card>
         <CardHeader

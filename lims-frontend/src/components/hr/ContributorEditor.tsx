@@ -74,7 +74,7 @@ export function ContributorEditor({
             </Field>
 
             {r.mode === 'internal' ? (
-              <Field label="Người dùng" className="min-w-[200px] flex-1">
+              <Field label="Người dùng" className="w-full sm:min-w-[200px] sm:flex-1">
                 <Select value={r.user_id} onChange={(e) => update(i, { user_id: e.target.value })}>
                   <option value="">— Chọn —</option>
                   {users.map((u) => (
@@ -85,7 +85,7 @@ export function ContributorEditor({
                 </Select>
               </Field>
             ) : (
-              <Field label="Tên người ngoài" className="min-w-[200px] flex-1">
+              <Field label="Tên người ngoài" className="w-full sm:min-w-[200px] sm:flex-1">
                 <Input
                   value={r.external_name}
                   onChange={(e) => update(i, { external_name: e.target.value })}

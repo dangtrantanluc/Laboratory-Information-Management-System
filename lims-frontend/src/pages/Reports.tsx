@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import { useChartHeight, useChartCompact } from '@/lib/useChart';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -132,7 +133,7 @@ function FilterBar({
   return (
     <Card>
       <CardBody className="pt-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
           <Field label="Từ ngày">
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </Field>
@@ -199,6 +200,8 @@ const SAMPLE_STATUS_ORDER: SampleStatus[] = [
 ];
 
 function SamplesReportTab() {
+  const chartH = useChartHeight();
+  const { xAxis, yAxis } = useChartCompact();
   const toast = useToast();
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -301,7 +304,7 @@ function SamplesReportTab() {
       ) : (
         <>
           <MetaLine meta={q.data?.meta} />
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard label="Tổng số mẫu" value={formatNumber(d.total)} />
             <StatCard label="Đang thực nghiệm" value={d.by_status?.testing ?? 0} />
             <StatCard label="Quá hạn" value={d.by_status?.overdue ?? 0} />
@@ -315,13 +318,13 @@ function SamplesReportTab() {
               {barData.length === 0 || barData.every((b) => b.value === 0) ? (
                 <EmptyState title="Không có dữ liệu trong kỳ đã chọn" />
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={chartH}>
                   <BarChart data={barData} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7b8499' }} interval={0} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#7b8499' }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e8f2ec" vertical={false} />
+                    <XAxis dataKey="name" {...xAxis} tick={{ ...xAxis.tick, fill: '#6b7a72' }} />
+                    <YAxis allowDecimals={false} {...yAxis} tick={{ ...yAxis.tick, fill: '#6b7a72' }} />
                     <Tooltip />
-                    <Bar dataKey="value" name="Số mẫu" fill="#2f3a55" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="value" name="Số mẫu" fill="#0d8256" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -428,7 +431,7 @@ function ChemicalsReportTab() {
         <>
           <MetaLine meta={q.data?.meta} />
           {showCost && d.total_cost !== undefined && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <StatCard label="Tổng chi phí (VND)" value={formatNumber(d.total_cost)} />
             </div>
           )}
@@ -441,8 +444,8 @@ function ChemicalsReportTab() {
               {d.by_measurement_group.length === 0 ? (
                 <EmptyState title="Không có dữ liệu trong kỳ đã chọn" />
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto scrollbar-thin">
+                  <table className="w-full min-w-[560px] text-sm table-sticky-1">
                     <thead>
                       <tr className="border-b border-hairline text-left text-xs text-subink">
                         <th className="py-2 pr-4 font-medium">Nhóm đo</th>
@@ -550,7 +553,7 @@ function SystemAccessTab() {
       ) : (
         <>
           <MetaLine meta={q.data?.meta} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <StatCard label="Lượt truy cập" value={formatNumber(d.totals.access_count)} />
             <StatCard label="Lượt tải tài liệu" value={formatNumber(d.totals.download_count)} />
             <StatCard label="Lượt chỉnh sửa" value={formatNumber(d.totals.edit_count)} />

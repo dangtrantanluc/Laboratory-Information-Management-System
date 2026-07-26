@@ -31,9 +31,10 @@ export function Customers() {
   const canManage = canManageCustomers(user);
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Tên', sortValue: (c) => c.name, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
-    { key: 'contact', header: 'Liên hệ', render: (c) => c.contact ?? '—' },
+    { key: 'contact', priority: 1, header: 'Liên hệ', render: (c) => c.contact ?? '—' },
     {
       key: 'type',
+      priority: 1,
       header: 'Loại',
       render: (c) => <Badge tone="neutral">{CUSTOMER_TYPE_LABELS[c.type] ?? c.type}</Badge>,
     },

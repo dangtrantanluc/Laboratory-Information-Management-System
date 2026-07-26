@@ -23,6 +23,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
+import { formatDate } from '@/lib/format';
 import type { Publication, PublicationType } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
@@ -81,13 +82,13 @@ export function Publications() {
         </div>
       ),
     },
-    { key: 'type', header: 'Loại', render: (p) => <PublicationTypeBadge type={p.type} /> },
+    { key: 'type', priority: 1, header: 'Loại', render: (p) => <PublicationTypeBadge type={p.type} /> },
     {
       key: 'meta',
       header: 'Tạp chí / Số bằng',
       render: (p) => (p.type === 'paper' ? p.journal ?? '—' : p.patent_no ?? '—'),
     },
-    { key: 'year', header: 'Năm', align: 'center', sortValue: (p) => p.year, render: (p) => p.year },
+    { key: 'year', priority: 1, header: 'Năm', align: 'center', sortValue: (p) => p.year, render: (p) => p.year },
     {
       key: 'index',
       header: 'Chỉ số',
@@ -131,8 +132,8 @@ export function Publications() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Tiêu đề…" className="max-w-xs flex-1" />
-          <Select value={type} onChange={(e) => setType(e.target.value)} className="max-w-[180px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Tiêu đề…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={type} onChange={(e) => setType(e.target.value)} className="w-full sm:max-w-[180px]">
             <option value="">Mọi loại</option>
             <option value="paper">Bài báo</option>
             <option value="patent">Sáng chế / GPHI</option>
@@ -234,20 +235,30 @@ function PublicationDetailModal({
       <DescList>
         <DescItem label="Năm" value={p.year} />
         <DescItem label="Phòng ban" value={p.department_name} />
-        {isPaper ? (
+        {p.type !== 'patent' ? (
           <>
-            <DescItem label="Tạp chí / Hội nghị" value={p.journal} full />
-            <DescItem label="Chỉ số" value={<Badge tone="info">{indexLabel(p.category ?? p.index_code)}</Badge>} />
+            <DescItem label="Tạp chí / Kỷ yếu / Hội nghị" value={p.journal} full />
+            {isPaper && <DescItem label="Chỉ số" value={<Badge tone="info">{indexLabel(p.category ?? p.index_code)}</Badge>} />}
+            <DescItem label="Phạm vi" value={p.pub_scope === 'international' ? 'Quốc tế' : p.pub_scope === 'domestic' ? 'Trong nước' : null} />
+            <DescItem
+              full
+              label="Xếp hạng chỉ mục"
+              value={
+                p.is_scie || p.is_ssci || p.is_scopus || p.is_aci ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.is_scie && <Badge tone="success">SCIE</Badge>}
+                    {p.is_ssci && <Badge tone="success">SSCI</Badge>}
+                    {p.is_scopus && <Badge tone="info">Scopus</Badge>}
+                    {p.is_aci && <Badge tone="neutral">ACI</Badge>}
+                  </div>
+                ) : null
+              }
+            />
             <DescItem
               label="DOI"
               value={
                 p.doi ? (
-                  <a
-                    href={`https://doi.org/${p.doi}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-berry hover:underline"
-                  >
+                  <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noreferrer" className="text-berry hover:underline">
                     {p.doi}
                   </a>
                 ) : null
@@ -258,8 +269,13 @@ function PublicationDetailModal({
           <>
             <DescItem label="Số bằng" value={p.patent_no} />
             <DescItem label="Cơ quan cấp" value={p.issuing_authority} />
+            <DescItem label="Số đơn" value={p.application_no} />
+            <DescItem label="Ngày nộp đơn" value={p.application_date ? formatDate(p.application_date) : null} />
+            <DescItem label="Ngày cấp bằng" value={p.granted_date ? formatDate(p.granted_date) : null} />
+            <DescItem label="Chủ bằng" value={p.patent_holder} />
           </>
         )}
+        <DescItem label="Năm học" value={p.academic_year} />
         <DescItem
           full
           label={`Tác giả (${authors.length})`}
@@ -387,7 +403,7 @@ function PublicationModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Loại" required>
           <Select value={type} onChange={(e) => setType(e.target.value as PublicationType)} disabled={editing}>
             <option value="paper">Bài báo</option>
@@ -397,7 +413,7 @@ function PublicationModal({
         <Field label="Năm" required>
           <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
         </Field>
-        <Field label="Tiêu đề" required className="sm:col-span-2">
+        <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
 
@@ -416,7 +432,7 @@ function PublicationModal({
                 ))}
               </Select>
             </Field>
-            <Field label="DOI" className="sm:col-span-2">
+            <Field label="DOI" className="md:col-span-2">
               <Input value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.1000/abc123" />
             </Field>
           </>
@@ -431,7 +447,7 @@ function PublicationModal({
           </>
         )}
 
-        <Field label="Phòng ban" className="sm:col-span-2">
+        <Field label="Phòng ban" className="md:col-span-2">
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
             <option value="">— Không gắn phòng —</option>
             {(depts?.data ?? []).map((d) => (
@@ -442,7 +458,7 @@ function PublicationModal({
           </Select>
         </Field>
 
-        <div className="sm:col-span-2">
+        <div className="md:col-span-2">
           <p className="mb-2 text-sm font-medium text-ink">
             Tác giả <span className="text-overdue">*</span>
           </p>

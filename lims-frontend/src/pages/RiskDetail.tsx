@@ -1,3 +1,4 @@
+import { cn } from '@/lib/cn';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle, Plus, CheckCircle2, Circle, Lock } from 'lucide-react';
@@ -125,7 +126,13 @@ function TreatmentRow({ treatment: t, riskId, canToggle, onDone }: { treatment: 
   }
   return (
     <li className="flex items-start gap-2.5 rounded-lg border border-hairline px-3 py-2.5">
-      <button onClick={toggle} disabled={!canToggle || busy} className={done ? 'text-success' : 'text-stem hover:text-ink'}>
+      <button
+        onClick={toggle}
+        disabled={!canToggle || busy}
+        aria-label={done ? `Bỏ đánh dấu hoàn thành: ${t.treatment}` : `Đánh dấu hoàn thành: ${t.treatment}`}
+        aria-pressed={done}
+        className={cn('-m-1.5 shrink-0 p-1.5', done ? 'text-success' : 'text-stem hover:text-ink')}
+      >
         {done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
       </button>
       <div className="min-w-0 flex-1">
@@ -222,7 +229,7 @@ function EditModal({ risk, onClose, onDone }: { risk: RiskDetailT; onClose: () =
   return (
     <Modal open onClose={onClose} title="Cập nhật đánh giá rủi ro"
       footer={<><Button variant="secondary" onClick={onClose} disabled={submitting}>Hủy</Button><Button onClick={submit} loading={submitting}>Lưu</Button></>}>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Khả năng (1–5)">
           <Select value={String(likelihood)} onChange={(e) => setLikelihood(Number(e.target.value))}>
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}

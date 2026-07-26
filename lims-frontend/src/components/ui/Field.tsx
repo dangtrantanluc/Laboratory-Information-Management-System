@@ -41,7 +41,7 @@ export function Field({
 }
 
 const baseControl =
-  'h-10 w-full rounded-lg border bg-white px-3 text-sm text-ink placeholder:text-stem/70 transition-colors focus:outline-none focus:ring-2 focus:ring-blueberry/30 disabled:bg-plate disabled:cursor-not-allowed';
+  'h-10 w-full rounded-lg border bg-surface px-3 text-sm text-ink placeholder:text-stem/70 transition-colors focus:outline-none focus:ring-2 focus:ring-blueberry/30 disabled:bg-plate disabled:cursor-not-allowed';
 
 export const Input = forwardRef<
   HTMLInputElement,
