@@ -95,24 +95,28 @@ chmod 600 .env.prod
 > không log. Script trên tự khẳng định độ dài 87/43 ký tự nên sai định dạng là
 > nó dừng ngay.
 
-### 3.2 Các bí mật còn lại
+### 3.2 Điền toàn bộ phần còn lại bằng một lệnh
 
 ```bash
-{
-  echo "JWT_SECRET=$(openssl rand -hex 32)"
-  echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')"
-  echo "REDIS_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')"
-  echo "MINIO_ROOT_USER=lims-$(openssl rand -hex 4)"
-  echo "MINIO_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')"
-  echo "SEED_ADMIN_PASSWORD=$(openssl rand -base64 18 | tr -d '/+=')"
-} >> .env.prod
+./scripts/init-env-prod.sh lims.tenmien.com
 ```
 
-Xoá các dòng rỗng trùng tên còn sót từ file mẫu:
+Script sinh mọi bí mật (`JWT_SECRET`, mật khẩu Postgres/Redis/MinIO, mật khẩu
+admin lần đầu, khoá VAPID) và đặt ba URL theo tên miền bạn đưa.
+
+**Chỉ ghi đè dòng còn giá trị mẫu** — giá trị bạn đã tự điền được giữ nguyên,
+nên chạy lại nhiều lần vẫn an toàn.
+
+Hai thứ script không tự lấy được, phải điền tay sau đó: `CLOUDFLARE_TUNNEL_TOKEN`
+(§5) và thông tin SMTP.
+
+> Script cũng thay `SEED_ADMIN_EMAIL` nếu nó còn là `admin@lims.local` — đó là
+> tài khoản demo được liệt kê công khai trong `acc.txt`.
+
+Lấy mật khẩu admin lần đầu (đổi ngay sau khi đăng nhập):
 
 ```bash
-awk -F= '!seen[$1]++ || $0 ~ /^#/ || NF<2' .env.prod > .env.prod.tmp && mv .env.prod.tmp .env.prod
-grep -c '^[A-Z]' .env.prod        # đếm số biến đã điền
+grep '^SEED_ADMIN_PASSWORD=' .env.prod
 ```
 
 ---
