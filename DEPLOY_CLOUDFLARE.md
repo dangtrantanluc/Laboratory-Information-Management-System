@@ -206,9 +206,17 @@ LIMS_API_CPUS=0.8
 VAPID keypair riêng cho production:
 
 ```bash
-pip install py-vapid
-python3 -c "from py_vapid import Vapid02; v=Vapid02(); v.generate_keys(); print(v.public_key, v.private_key)"
+./scripts/gen-vapid-keys.sh >> .env
 ```
+
+> KHÔNG dùng `print(v.public_key)` của py_vapid: nó in ra ĐỐI TƯỢNG khoá
+> (`<cryptography...ECPublicKey object at 0x...>`), không phải chuỗi. Đặt giá trị
+> đó vào `.env` thì container VẪN khởi động — `${VAR:?}` chỉ xét biến rỗng hay
+> không — rồi Web Push hỏng âm thầm, không lỗi, không log.
+
+**Từ 2026-07-26 đây là biến BẮT BUỘC**: `docker-compose.yml` không còn giá trị
+mặc định cho VAPID (khoá cũ đã lộ trên repo công khai và bị xoay). Thiếu biến thì
+container từ chối khởi động — có chủ đích, để không ai vô tình chạy bằng khoá lộ.
 
 ---
 

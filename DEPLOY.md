@@ -190,9 +190,13 @@ echo "SEED_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -d /=+ | cut -c1-20)"
 VAPID (Web Push):
 
 ```bash
-pip install py-vapid
-python3 -c "from py_vapid import Vapid02; v=Vapid02(); v.generate_keys(); print('VAPID_PUBLIC_KEY='+v.public_key); print('VAPID_PRIVATE_KEY='+v.private_key)"
+./scripts/gen-vapid-keys.sh >> .env
 ```
+
+> KHÔNG dùng `print(v.public_key)` của py_vapid: nó in ra ĐỐI TƯỢNG khoá
+> (`<cryptography...ECPublicKey object at 0x...>`), không phải chuỗi. Đặt giá trị
+> đó vào `.env` thì container VẪN khởi động — kiểm tra `${VAR:?}` chỉ xét biến có
+> rỗng hay không — rồi Web Push hỏng âm thầm.
 
 Giá trị phụ thuộc tên miền — **phải khớp chính xác**, không có `/` cuối:
 
