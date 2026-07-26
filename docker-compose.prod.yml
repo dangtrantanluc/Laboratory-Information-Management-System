@@ -124,6 +124,18 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg2://lims:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}@postgres:5432/lims
+      # Migration m7 TẠO tài khoản admin gốc bằng settings.seed_admin_*, nên
+      # service này BẮT BUỘC nhận hai biến đó. Thiếu chúng, migration rơi về giá
+      # trị mặc định trong config.py (admin@lims.local / ChangeMe@123) và mọi bản
+      # deploy production đều sinh admin với mật khẩu công khai trong repo.
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?Set SEED_ADMIN_EMAIL in .env.prod}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD in .env.prod}
+      # ENVIRONMENT quyết định chốt an toàn trong config.py có chạy hay không.
+      # Thiếu nó thì mặc định là development, và chốt chặn giá trị mặc định
+      # (_INSECURE_SEED_PASSWORD) sẽ không bao giờ nổ — đúng lỗ hổng thứ hai của
+      # cùng một nguyên nhân.
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
     command: ["true"]
 
   lims-api:
