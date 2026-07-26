@@ -88,8 +88,9 @@ def test_scheduler_starts_when_leader_lock_acquired():
          patch.object(scheduler, "BackgroundScheduler", return_value=fake_sched):
         scheduler.start_scheduler()
     fake_sched.start.assert_called_once()
-    # 8 cron job + 1 heartbeat job
-    assert fake_sched.add_job.call_count == 9
+    # Số job cron (_JOBS) + 1 heartbeat leader-lock. Lấy từ scheduler._JOBS thay vì
+    # hard-code: thêm cron mới không nên làm test này đỏ một cách vô nghĩa.
+    assert fake_sched.add_job.call_count == len(scheduler._JOBS) + 1
     scheduler._scheduler = None  # dọn state cho test khác
 
 
