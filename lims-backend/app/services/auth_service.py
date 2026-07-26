@@ -12,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core import rate_limit as rate_limit_mod
 from app.core import security
 from app.core.exceptions import AppException, validation_error
 from app.core.redis_client import (
@@ -123,6 +124,11 @@ def login(
 ) -> dict:
     email_norm = email.strip().lower()
     _check_lockout(email_norm, ip)
+    # Rate limit theo email+IP. Dependency ở tầng router chỉ chặn theo IP, mà cả
+    # viện đi chung một IP NAT nên rổ đó bị dùng chung — xem check_rate().
+    rate_limit_mod.check_rate(
+        "login_identity", f"{email_norm}|{ip or 'unknown'}", limit=10, window_seconds=300
+    )
 
     user = db.execute(
         select(User).where(User.email == email_norm)

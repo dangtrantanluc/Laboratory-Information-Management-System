@@ -34,6 +34,36 @@ def client_ip(request: Request) -> str:
     )
 
 
+def check_rate(key_prefix: str, identity: str, *, limit: int, window_seconds: int) -> None:
+    """Rate limit theo một ĐỊNH DANH tuỳ ý (không chỉ IP).
+
+    Dùng cho /auth/login: 60 người trong cùng một văn phòng đi ra Internet qua một
+    IP NAT duy nhất. Giới hạn thuần theo IP sẽ biến "20 lần đăng nhập/phút/người"
+    thành "20 lần đăng nhập/phút cho cả viện" — người thứ 21 lúc 8h sáng bị chặn
+    dù chưa gõ sai lần nào. Ghép email vào khoá thì mỗi người một rổ riêng, mà vẫn
+    giữ được IP để kẻ tấn công không dò được nhiều tài khoản từ một chỗ.
+
+    Redis lỗi KHÔNG được chặn request — nhất quán với rate_limit().
+    """
+    key = f"ratelimit:{key_prefix}:{identity}"
+    try:
+        r = get_redis()
+        count = r.incr(key)
+        if count == 1:
+            r.expire(key, window_seconds)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "check_rate skipped (Redis unavailable)",
+            extra={"key_prefix": key_prefix, "error": str(exc)},
+        )
+        return
+    if count > limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Quá nhiều yêu cầu, vui lòng thử lại sau",
+        )
+
+
 def rate_limit(key_prefix: str, *, limit: int, window_seconds: int):
     """Trả về FastAPI dependency: tối đa `limit` request / `window_seconds` giây / IP.
 

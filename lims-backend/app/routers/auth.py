@@ -51,7 +51,10 @@ def _client_ip(request: Request) -> str | None:
     return None
 
 
-@router.post("/login", dependencies=[Depends(rate_limit("login", limit=20, window_seconds=60))])
+# Hạn mức thuần-IP giờ chỉ là chốt chống flood THÔ: cả viện đi chung một IP NAT
+# nên 20/phút là quá chặt (60 người đăng nhập lúc 8h sáng đã vượt). Giới hạn
+# per-user thật nằm ở auth_service.login qua check_rate(email+IP) — 10 lần/5 phút.
+@router.post("/login", dependencies=[Depends(rate_limit("login", limit=300, window_seconds=60))])
 def login(
     body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
 ):
