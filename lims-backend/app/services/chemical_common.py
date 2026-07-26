@@ -6,7 +6,7 @@ qty_input theo input_unit → base qua units.factor_to_base. KHÔNG float — d�
 Round-trip không sai số ở NUMERIC(18,6).
 
 Field-level RBAC (BR-CHEM-022, OWASP A01): cột giá chỉ trả cho vai trò có quyền
-chemical:cost (admin/leader/accountant). KTV (staff) bị STRIP cột giá ở TẦNG API.
+chemical:cost (admin/leader/office). KTV (staff) bị STRIP cột giá ở TẦNG API.
 """
 import re
 import uuid
@@ -59,12 +59,12 @@ def is_privileged(user: CurrentUser) -> bool:
 
 
 def can_see_cost(db: Session, user: CurrentUser) -> bool:
-    """Vai trò tài chính (admin/leader/accountant) — quyền chemical:cost (BR-CHEM-022)."""
+    """Vai trò tài chính (admin/leader/office) — quyền chemical:cost (BR-CHEM-022)."""
     return has_permission(db, user.role, "chemical", "cost")
 
 
 def assert_can_transact(db: Session, user: CurrentUser) -> None:
-    """Quyền nhập/xuất/điều chỉnh — chemical:transact. Kế toán KHÔNG có (chỉ xem giá)."""
+    """Quyền nhập/xuất/điều chỉnh — chemical:transact. Văn phòng KHÔNG có (chỉ xem giá)."""
     if not has_permission(db, user.role, "chemical", "transact"):
         raise forbidden("Vai trò của bạn không được ghi giao dịch hóa chất")
 
@@ -125,6 +125,57 @@ def user_name(db: Session, user_id: Optional[uuid.UUID]) -> Optional[str]:
 
     u = db.get(User, user_id)
     return u.full_name if u else None
+
+
+def batch_txn_refs(db: Session, txns) -> tuple[dict, dict, dict]:
+    """Batch-load lot/chemical/sample cho danh sách ChemicalTransaction — tránh N+1
+    (PRODUCTION_READINESS_REVIEW §Performance: "Systemic N+1 query pattern —
+    selectinload/joinedload used nowhere"). Trả (lots_by_id, chems_by_id, samples_by_id).
+    """
+    from app.models.chemical import Chemical, ChemicalLot
+    from app.models.sample import Sample
+
+    lot_ids = {t.lot_id for t in txns}
+    lots_by_id = {
+        lot.id: lot
+        for lot in (
+            db.execute(select(ChemicalLot).where(ChemicalLot.id.in_(lot_ids))).scalars()
+            if lot_ids
+            else []
+        )
+    }
+    chem_ids = {lot.chemical_id for lot in lots_by_id.values()}
+    chems_by_id = {
+        chem.id: chem
+        for chem in (
+            db.execute(select(Chemical).where(Chemical.id.in_(chem_ids))).scalars()
+            if chem_ids
+            else []
+        )
+    }
+    sample_ids = {t.ref_sample_id for t in txns if t.ref_sample_id}
+    samples_by_id = {
+        s.id: s
+        for s in (
+            db.execute(select(Sample).where(Sample.id.in_(sample_ids))).scalars()
+            if sample_ids
+            else []
+        )
+    }
+    return lots_by_id, chems_by_id, samples_by_id
+
+
+def batch_user_names(db: Session, user_ids) -> dict:
+    """Batch-load full_name cho tập user_id — tránh N+1 khi hiển thị 'by_user_name' theo dòng."""
+    from app.models.user import User
+
+    ids = {u for u in user_ids if u}
+    if not ids:
+        return {}
+    return {
+        u.id: u.full_name
+        for u in db.execute(select(User).where(User.id.in_(ids))).scalars()
+    }
 
 
 def dept_name(db: Session, dept_id: Optional[uuid.UUID]) -> Optional[str]:

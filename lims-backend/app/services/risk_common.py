@@ -1,7 +1,7 @@
 """M10 common helpers — RBAC/QM, sinh mã, band rủi ro, serialize.
 
 - RBAC: risk/improvement read/create/manage (admin/leader full; staff read all + create
-  dept; accountant KHÔNG). manage (biện pháp/đóng) = QM (admin/leader hoặc staff QM).
+  dept; office KHÔNG). manage (biện pháp/đóng) = QM (admin/leader hoặc staff QM).
 - band(level): low ≤4 · medium 5..12 · high ≥13 (level = likelihood×impact 1..25).
 - mã: RSK-YYYY-NNNN / IMP-YYYY-NNNN idempotent theo năm + UNIQUE chống trùng.
 """

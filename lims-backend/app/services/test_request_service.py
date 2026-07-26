@@ -14,6 +14,7 @@ from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, validation_error
 from app.models.customer import Customer
 from app.models.sample import Sample
+from app.models.sample_assignment import SampleAssignment
 from app.models.test_request import TestRequest
 from app.services import audit_service, sample_common
 
@@ -70,6 +71,7 @@ def list_requests(
     received_from: Optional[datetime],
     received_to: Optional[datetime],
     status_filter: Optional[str],
+    assigned_to: Optional[uuid.UUID] = None,
     page: int,
     limit: int,
 ) -> tuple[list[dict], int]:
@@ -87,6 +89,15 @@ def list_requests(
         conditions.append(TestRequest.received_at >= received_from)
     if received_to:
         conditions.append(TestRequest.received_at <= received_to)
+    if assigned_to:
+        # KTV chỉ thấy phiếu có ít nhất 1 mẫu được phân công cho chính mình.
+        assigned_request_ids = (
+            select(Sample.request_id)
+            .join(SampleAssignment, SampleAssignment.sample_id == Sample.id)
+            .where(SampleAssignment.assigned_to == assigned_to)
+            .distinct()
+        )
+        conditions.append(TestRequest.id.in_(assigned_request_ids))
 
     total = db.execute(
         select(func.count()).select_from(TestRequest).where(*conditions)

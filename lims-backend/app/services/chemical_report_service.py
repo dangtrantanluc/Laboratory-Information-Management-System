@@ -1,7 +1,7 @@
 """Chemical report service (M2) — xuất Excel nhật ký (FR-013) + báo cáo tiêu hao (FR-014).
 
 Cột tiền (unit_price/currency/line_value/consumption_cost) CHỈ cho vai trò có quyền
-chemical:cost (admin/leader/accountant). KTV (staff) bị STRIP cột giá ở TẦNG API — đây là
+chemical:cost (admin/leader/office). KTV (staff) bị STRIP cột giá ở TẦNG API — đây là
 biện pháp bảo mật OWASP A01 (không chỉ ẩn FE).
 
 Sync: ≤ EXPORT_MAX_ROWS dòng (contract §4.4); vượt → EXPORT_TOO_LARGE.
@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.chemical import Chemical, ChemicalLot, ChemicalTransaction
-from app.models.sample import Sample
 from app.services import audit_service, chemical_common as cc
 
 EXPORT_MAX_ROWS = 10000
@@ -31,8 +30,8 @@ _COST_COLUMNS = ["Đơn giá", "Tiền tệ", "Thành tiền"]
 
 
 def _scope_department(user: CurrentUser, requested: Optional[uuid.UUID]) -> Optional[uuid.UUID]:
-    """KTV bị ép phòng mình; admin/leader/accountant theo yêu cầu."""
-    if cc.is_privileged(user) or user.role == "accountant":
+    """KTV bị ép phòng mình; admin/leader/office theo yêu cầu."""
+    if cc.is_privileged(user) or user.role == "office":
         return requested
     return user.department_id
 
@@ -123,12 +122,18 @@ def export_transactions_xlsx(
     columns = _BASE_COLUMNS + (_COST_COLUMNS if can_cost else [])
     ws.append(columns)
 
+    # Batch-load lot/chemical/sample/user thay vì db.get() từng dòng — export tới
+    # EXPORT_MAX_ROWS dòng, mỗi dòng trước đây tốn 3-5 round trip (PRODUCTION_READINESS_REVIEW
+    # §Performance: "Severe N+1 pattern in bulk XLSX exports").
+    lots_by_id, chems_by_id, samples_by_id = cc.batch_txn_refs(db, rows)
+    user_names_by_id = cc.batch_user_names(db, (txn.by_user for txn in rows))
+
     for txn in rows:
-        lot = db.get(ChemicalLot, txn.lot_id)
-        chem = db.get(Chemical, lot.chemical_id) if lot else None
+        lot = lots_by_id.get(txn.lot_id)
+        chem = chems_by_id.get(lot.chemical_id) if lot else None
         ref_code = None
         if txn.ref_sample_id:
-            s = db.get(Sample, txn.ref_sample_id)
+            s = samples_by_id.get(txn.ref_sample_id)
             ref_code = s.sample_code if s else None
         row = [
             txn.at.strftime("%Y-%m-%d %H:%M"),
@@ -142,7 +147,7 @@ def export_transactions_xlsx(
             txn.base_unit,
             cc.s_base(txn.balance_after),
             ref_code or "",
-            cc.user_name(db, txn.by_user) or "",
+            user_names_by_id.get(txn.by_user) or "",
             txn.note or "",
         ]
         if can_cost:
@@ -208,14 +213,43 @@ def consumption_report(
         select(ChemicalTransaction).where(*conditions)
     ).scalars().all()
 
+    # Batch-load lot/chemical/sample (+ user/request theo group_by) thay vì db.get() từng
+    # dòng (N+1 — PRODUCTION_READINESS_REVIEW §Performance).
+    lots_by_id, chems_by_id, samples_by_id = cc.batch_txn_refs(db, rows)
+    user_names_by_id = (
+        cc.batch_user_names(db, (txn.by_user for txn in rows)) if group_by == "user" else {}
+    )
+    requests_by_id: dict = {}
+    if group_by == "project":
+        from app.models.test_request import TestRequest
+
+        request_ids = {
+            samples_by_id[txn.ref_sample_id].request_id
+            for txn in rows
+            if txn.ref_sample_id and txn.ref_sample_id in samples_by_id
+        }
+        if request_ids:
+            requests_by_id = {
+                r.id: r
+                for r in db.execute(
+                    select(TestRequest).where(TestRequest.id.in_(request_ids))
+                ).scalars()
+            }
+
     # groups[group_key][chemical_id] = {consumed_base, cost, chem}
     groups: dict = {}
     for txn in rows:
-        lot = db.get(ChemicalLot, txn.lot_id)
-        chem = db.get(Chemical, lot.chemical_id) if lot else None
+        lot = lots_by_id.get(txn.lot_id)
+        chem = chems_by_id.get(lot.chemical_id) if lot else None
         if chem is None:
             continue
-        gk, gl = _group_key(db, txn, group_by)
+        gk, gl = _group_key(
+            txn,
+            group_by,
+            samples_by_id=samples_by_id,
+            user_names_by_id=user_names_by_id,
+            requests_by_id=requests_by_id,
+        )
         bucket = groups.setdefault(gk, {"label": gl, "chems": {}})
         cell = bucket["chems"].setdefault(
             chem.id, {"chem": chem, "consumed_base": Decimal("0"), "cost": Decimal("0")}
@@ -249,20 +283,25 @@ def consumption_report(
     return cc.strip_price_fields(out, can_cost)
 
 
-def _group_key(db: Session, txn: ChemicalTransaction, group_by: str) -> tuple[str, str]:
+def _group_key(
+    txn: ChemicalTransaction,
+    group_by: str,
+    *,
+    samples_by_id: Optional[dict] = None,
+    user_names_by_id: Optional[dict] = None,
+    requests_by_id: Optional[dict] = None,
+) -> tuple[str, str]:
     if group_by == "month":
         key = txn.at.strftime("%Y-%m")
         return key, f"Tháng {txn.at.month}/{txn.at.year}"
     if group_by == "user":
-        name = cc.user_name(db, txn.by_user) or str(txn.by_user)
+        name = (user_names_by_id or {}).get(txn.by_user) or str(txn.by_user)
         return str(txn.by_user), name
     # project = theo mẫu (đề tài) — dùng request_id của mẫu; mẫu không gắn → "Không gắn đề tài"
     if txn.ref_sample_id:
-        s = db.get(Sample, txn.ref_sample_id)
+        s = (samples_by_id or {}).get(txn.ref_sample_id)
         if s:
-            from app.models.test_request import TestRequest
-
-            req = db.get(TestRequest, s.request_id)
+            req = (requests_by_id or {}).get(s.request_id)
             if req:
                 return str(req.id), req.request_code
     return "none", "Không gắn đề tài"

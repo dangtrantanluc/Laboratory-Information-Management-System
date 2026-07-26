@@ -29,7 +29,7 @@ def cancel_assignment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     assignment_service.cancel_assignment(
         db,
         user=user,
@@ -46,7 +46,7 @@ def get_assignment_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.get_assignment_result(
         db, user=user, assignment_id=assignment_id
     )
@@ -65,7 +65,7 @@ def enter_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.enter_result(
         db,
         user=user,

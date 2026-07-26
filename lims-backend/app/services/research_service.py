@@ -3,7 +3,7 @@
 giảng dạy, phục vụ cộng đồng, hồ sơ năng lực tổng hợp, thống kê.
 
 Scope research (BR-HR-023): admin/leader=all; staff=own (chỉ bản ghi mình tham gia);
-accountant → 403 FORBIDDEN_ACCOUNTANT (enforce ở router qua hc.assert_research_access).
+office → 403 FORBIDDEN_OFFICE (enforce ở router qua hc.assert_research_access).
 Tác giả/thành viên ngoài hệ thống qua external_name (D7, XOR).
 """
 import uuid
@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.department import Department
 from app.models.hr import (
     CommunityService,
     LabRegistration,
@@ -94,11 +93,18 @@ def _project_dict(db: Session, p: ResearchProject, *, with_members: bool) -> dic
         "title": p.title,
         "level": p.level,
         "lead_user_id": p.lead_user_id,
-        "lead_user_name": hc.user_name(db, p.lead_user_id),
+        # Chủ nhiệm: tên user nội bộ HOẶC tên ngoài HT (lead_external_name).
+        "lead_user_name": hc.user_name(db, p.lead_user_id) or p.lead_external_name,
+        "lead_external_name": p.lead_external_name,
         "department_id": p.department_id,
         "department_name": hc.dept_name(db, p.department_id),
         "start_date": p.start_date.isoformat() if p.start_date else None,
         "end_date": p.end_date.isoformat() if p.end_date else None,
+        "academic_year": p.academic_year,
+        "budget_amount": str(p.budget_amount) if p.budget_amount is not None else None,
+        "budget_currency": p.budget_currency,
+        "is_transferred": p.is_transferred,
+        "transfer_product": p.transfer_product,
         "status": p.status,
         "member_count": member_count,
         "created_at": p.created_at,
@@ -110,7 +116,8 @@ def _project_dict(db: Session, p: ResearchProject, *, with_members: bool) -> dic
         data["members"] = [
             {
                 "user_id": m.user_id,
-                "name": hc.user_name(db, m.user_id),
+                "name": hc.user_name(db, m.user_id) or m.external_name,
+                "external_name": m.external_name,
                 "role_in_project": m.role_in_project,
             }
             for m in rows
@@ -210,6 +217,7 @@ def create_project(
     if department_id is None:
         department_id = hc.user_dept(db, lead_user_id)
 
+    budget = hc.parse_decimal(payload.get("budget_amount"), field="budget_amount", positive=False)
     p = ResearchProject(
         code=payload.get("code"),
         title=str(title).strip(),
@@ -218,6 +226,11 @@ def create_project(
         department_id=department_id,
         start_date=start_date,
         end_date=end_date,
+        academic_year=payload.get("academic_year"),
+        budget_amount=budget,
+        budget_currency=payload.get("budget_currency") or "VND",
+        is_transferred=bool(payload.get("is_transferred")),
+        transfer_product=payload.get("transfer_product"),
         status=payload.get("status") or "ongoing",
         created_by=user.id,
         updated_by=user.id,
@@ -416,6 +429,7 @@ def _pub_dict(db: Session, p: Publication) -> dict:
             "name": hc.user_name(db, a.user_id) if a.user_id else a.external_name,
             "author_order": a.author_order,
             "is_corresponding": a.is_corresponding,
+            "author_role": a.author_role,
         }
         for a in rows
     ]
@@ -427,10 +441,20 @@ def _pub_dict(db: Session, p: Publication) -> dict:
         "year": p.year,
         "doi": p.doi,
         "category": p.category,
+        "pub_scope": p.pub_scope,
+        "is_scie": p.is_scie,
+        "is_ssci": p.is_ssci,
+        "is_scopus": p.is_scopus,
+        "is_aci": p.is_aci,
+        "academic_year": p.academic_year,
         "department_id": p.department_id,
         "department_name": hc.dept_name(db, p.department_id),
         "patent_no": p.patent_no,
         "issuing_authority": p.issuing_authority,
+        "application_no": p.application_no,
+        "application_date": p.application_date.isoformat() if p.application_date else None,
+        "granted_date": p.granted_date.isoformat() if p.granted_date else None,
+        "patent_holder": p.patent_holder,
         "authors": authors,
         "created_at": p.created_at,
     }
@@ -467,8 +491,8 @@ def _validate_authors(db: Session, authors: list) -> set:
 
 def _validate_pub_fields(db: Session, payload: dict) -> None:
     ptype = payload.get("type")
-    if ptype not in ("paper", "patent"):
-        raise AppException("VALIDATION_ERROR", "type phải là paper|patent", 400)
+    if ptype not in ("paper", "patent", "conference"):
+        raise AppException("VALIDATION_ERROR", "type phải là paper|patent|conference", 400)
     if not payload.get("title") or not str(payload["title"]).strip():
         raise AppException("VALIDATION_ERROR", "Thiếu title", 400)
     year = payload.get("year")
@@ -490,6 +514,10 @@ def _validate_pub_fields(db: Session, payload: dict) -> None:
             raise AppException("INVALID_INDEX", "Chỉ số bài báo ngoài danh mục", 400)
         if not payload.get("journal"):
             raise AppException("VALIDATION_ERROR", "Thiếu journal (bài báo)", 400)
+    if ptype == "conference":
+        # Báo cáo hội nghị/kỷ yếu: cần tên kỷ yếu/hội nghị (journal), KHÔNG cần category.
+        if not payload.get("journal"):
+            raise AppException("VALIDATION_ERROR", "Thiếu tên kỷ yếu/hội nghị (journal)", 400)
     if ptype == "patent":
         if not payload.get("patent_no") or not str(payload["patent_no"]).strip():
             raise AppException("VALIDATION_ERROR", "Thiếu patent_no (sáng chế)", 400)
@@ -567,6 +595,7 @@ def create_publication(
         if existing is not None:
             raise AppException("DUPLICATE_PATENT_NO", "Số bằng sáng chế đã tồn tại", 409)
 
+    is_patent = ptype == "patent"
     p = Publication(
         title=str(payload["title"]).strip(),
         journal=payload.get("journal"),
@@ -574,8 +603,18 @@ def create_publication(
         doi=payload.get("doi"),
         category=payload.get("category") if ptype == "paper" else None,
         type=ptype,
-        patent_no=payload.get("patent_no") if ptype == "patent" else None,
-        issuing_authority=payload.get("issuing_authority") if ptype == "patent" else None,
+        pub_scope=payload.get("pub_scope") if not is_patent else None,
+        is_scie=bool(payload.get("is_scie")),
+        is_ssci=bool(payload.get("is_ssci")),
+        is_scopus=bool(payload.get("is_scopus")),
+        is_aci=bool(payload.get("is_aci")),
+        academic_year=payload.get("academic_year"),
+        patent_no=payload.get("patent_no") if is_patent else None,
+        issuing_authority=payload.get("issuing_authority") if is_patent else None,
+        application_no=payload.get("application_no") if is_patent else None,
+        application_date=payload.get("application_date") if is_patent else None,
+        granted_date=payload.get("granted_date") if is_patent else None,
+        patent_holder=payload.get("patent_holder") if is_patent else None,
         department_id=payload.get("department_id"),
         created_by=user.id,
         updated_by=user.id,
@@ -590,6 +629,7 @@ def create_publication(
                 user_id=a.get("user_id"),
                 external_name=a.get("external_name"),
                 is_corresponding=bool(a.get("is_corresponding", False)),
+                author_role=a.get("author_role"),
             )
         )
     try:
@@ -1064,7 +1104,12 @@ def decide_registration(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    r = db.get(LabRegistration, reg_id)
+    # Khoá hàng trước khi check-then-act để 2 request duyệt/từ chối đồng thời KHÔNG cùng
+    # vượt qua guard 'pending' → double-decision (PRODUCTION_READINESS_REVIEW M6). Không có
+    # ràng buộc DB nào chặn việc này, nên FOR UPDATE là cơ chế duy nhất đảm bảo tuần tự hoá.
+    r = db.execute(
+        select(LabRegistration).where(LabRegistration.id == reg_id).with_for_update()
+    ).scalar_one_or_none()
     if r is None:
         raise AppException("REGISTRATION_NOT_FOUND", "Lượt đăng ký không tồn tại", 404)
     if not _can_decide_registration(db, user, r):
@@ -1107,10 +1152,17 @@ def _teaching_dict(db: Session, t: TeachingCourse) -> dict:
     return {
         "id": t.id,
         "user_id": t.user_id,
-        "user_name": hc.user_name(db, t.user_id),
+        "user_name": hc.user_name(db, t.user_id) or t.lecturer_external_name,
+        "lecturer_external_name": t.lecturer_external_name,
         "course_name": t.course_name,
         "semester": t.semester,
         "year": t.year,
+        "academic_year": t.academic_year,
+        "hk1_theory_hours": t.hk1_theory_hours,
+        "hk1_practice_hours": t.hk1_practice_hours,
+        "hk2_theory_hours": t.hk2_theory_hours,
+        "hk2_practice_hours": t.hk2_practice_hours,
+        "note": t.note,
         "department_id": t.department_id,
         "department_name": hc.dept_name(db, t.department_id),
         "created_at": t.created_at,
@@ -1179,6 +1231,12 @@ def create_teaching(
         course_name=str(payload["course_name"]).strip(),
         semester=payload.get("semester"),
         year=year,
+        academic_year=payload.get("academic_year"),
+        hk1_theory_hours=payload.get("hk1_theory_hours"),
+        hk1_practice_hours=payload.get("hk1_practice_hours"),
+        hk2_theory_hours=payload.get("hk2_theory_hours"),
+        hk2_practice_hours=payload.get("hk2_practice_hours"),
+        note=payload.get("note"),
         department_id=hc.user_dept(db, target),
         created_by=user.id,
         updated_by=user.id,
@@ -1438,8 +1496,8 @@ def delete_community(
 def competence_summary(db: Session, *, user: CurrentUser, target_user_id: uuid.UUID) -> dict:
     from app.models.hr import Competence, HrProfile
 
-    if user.role == "accountant":
-        raise hc.forbidden("Kế toán không quản lý hồ sơ năng lực")
+    if user.role == "office":
+        raise hc.forbidden("Văn phòng không quản lý hồ sơ năng lực")
     if user.role == "staff" and user.id != target_user_id:
         raise hc.forbidden("Bạn chỉ xem hồ sơ năng lực của chính mình")
     p = db.get(HrProfile, target_user_id)

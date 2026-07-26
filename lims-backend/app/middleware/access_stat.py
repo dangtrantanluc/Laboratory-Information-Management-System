@@ -4,11 +4,19 @@ Ghi event_type='page_view' cho GET request vào whitelist trang/module chính, S
 có response (không chặn). Best-effort: mọi lỗi → log WARN, KHÔNG fail request chính
 (BR-RPT-013, NFR-PERF-RPT-003 overhead < 5ms). user_id lấy từ JWT (không query DB).
 
+Ghi chạy nền qua threadpool (KHÔNG await trực tiếp trên event loop) — psycopg2 là
+driver đồng bộ, gọi insert+commit ngay trong coroutine sẽ chặn toàn bộ event loop
+cho mọi request khác đang chờ (PRODUCTION_READINESS_REVIEW §Performance: "Async
+middleware performs a blocking sync DB write on nearly every GET request"). Dùng
+asyncio.create_task để không trì hoãn việc trả response cho chính request hiện tại.
+
 Login event_type='login' KHÔNG ghi ở đây — ghi trong auth flow login thành công
 (access_stat_service.record own_transaction=False) để gắn đúng user.
 """
+import asyncio
 import logging
 
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -16,6 +24,16 @@ from app.db.database import SessionLocal
 from app.services import access_stat_service
 
 logger = logging.getLogger("lims.access_stat_mw")
+
+# Giữ tham chiếu task nền đang chạy — asyncio không giữ strong ref cho task tạo bằng
+# create_task, để rơi vào GC giữa chừng có thể khiến task bị hủy trước khi ghi xong.
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def drain_background_tasks() -> None:
+    """Chờ mọi page_view-write đang chạy hoàn tất khi tắt app (L1) — tránh mất bản ghi."""
+    if _background_tasks:
+        await asyncio.gather(*list(_background_tasks), return_exceptions=True)
 
 
 class AccessStatMiddleware(BaseHTTPMiddleware):
@@ -31,24 +49,44 @@ class AccessStatMiddleware(BaseHTTPMiddleware):
                     full_path = path
                     if request.url.query:
                         full_path = f"{path}?{request.url.query}"
-                    db = SessionLocal()
-                    try:
-                        access_stat_service.record(
-                            db,
-                            user_id=user_id,
-                            path=full_path,
-                            method="GET",
-                            status_code=response.status_code,
-                            ip=request.client.host if request.client else None,
-                            event_type="page_view",
-                            own_transaction=True,
+                    ip = request.client.host if request.client else None
+                    task = asyncio.create_task(
+                        self._record_page_view(
+                            user_id, full_path, response.status_code, ip
                         )
-                    finally:
-                        db.close()
+                    )
+                    _background_tasks.add(task)
+                    task.add_done_callback(_background_tasks.discard)
         except Exception as exc:  # noqa: BLE001 — KHÔNG bao giờ fail request vì ghi log
             logger.warning("access_stat middleware skipped", extra={"error": str(exc)})
 
         return response
+
+    @staticmethod
+    async def _record_page_view(user_id, path, status_code, ip):
+        try:
+            await run_in_threadpool(
+                AccessStatMiddleware._record_sync, user_id, path, status_code, ip
+            )
+        except Exception as exc:  # noqa: BLE001 — best-effort, KHÔNG raise trong background task
+            logger.warning("access_stat write skipped", extra={"error": str(exc)})
+
+    @staticmethod
+    def _record_sync(user_id, path, status_code, ip) -> None:
+        db = SessionLocal()
+        try:
+            access_stat_service.record(
+                db,
+                user_id=user_id,
+                path=path,
+                method="GET",
+                status_code=status_code,
+                ip=ip,
+                event_type="page_view",
+                own_transaction=True,
+            )
+        finally:
+            db.close()
 
     @staticmethod
     def _user_id_from_request(request: Request):

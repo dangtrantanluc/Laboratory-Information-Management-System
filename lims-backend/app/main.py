@@ -3,6 +3,7 @@
 Wiring: logging, CORS, correlationId middleware, exception handlers, routers.
 """
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,9 +11,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging_config import setup_logging
+from app.core.metrics import MetricsMiddleware, metrics_response
 from app.middleware.access_stat import AccessStatMiddleware
 from app.middleware.correlation_id import CorrelationIdMiddleware
+from app.middleware.idempotency import IdempotencyMiddleware
+from app.middleware.request_limits import RequestLimitsMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.routers import (
+    activities,
+    activity_reports,
     assignments,
     attachments,
     audit_logs,
@@ -26,14 +33,19 @@ from app.routers import (
     documents,
     equipment_crons,
     equipments,
+    forms,
     health,
+    sample_flow,
     hr_catalogs,
     hr_crons,
     hr_profiles,
     improvements,
+    lab_access,
     nc_crons,
     nonconformities,
     notifications,
+    push,
+    quotations,
     rbac,
     reporting,
     research,
@@ -50,14 +62,86 @@ from app.routers import (
 setup_logging()
 logger = logging.getLogger("lims.main")
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Vòng đời app (thay @app.on_event đã deprecated) — startup rồi shutdown.
+
+    Startup: init bucket MinIO + APScheduler (không chặn nếu lỗi).
+    Shutdown: dừng scheduler, drain push executor + page_view-write nền (M9/L1).
+    """
+    logger.info(
+        "LIMS Backend starting",
+        extra={"environment": settings.environment, "apiPrefix": settings.api_prefix},
+    )
+    try:
+        from app.services import storage_service
+
+        storage_service.ensure_bucket()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("MinIO bucket init skipped", extra={"error": str(exc)})
+    try:
+        from app.scheduler import start_scheduler
+
+        start_scheduler()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("APScheduler init skipped", extra={"error": str(exc)})
+
+    yield
+
+    try:
+        from app.scheduler import shutdown_scheduler
+
+        shutdown_scheduler()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from app.services import push_service
+
+        push_service.shutdown_executor()  # drain push đang chờ (M9)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from app.middleware.access_stat import drain_background_tasks
+
+        await drain_background_tasks()  # chờ page_view-write nền (L1)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 app = FastAPI(
     title=settings.app_name,
     version="1.0.0",
     docs_url="/docs" if not settings.is_production else None,
     redoc_url="/redoc" if not settings.is_production else None,
+    lifespan=lifespan,
 )
 
-# --- CORS (cho phép frontend) ---
+# LƯU Ý thứ tự: Starlette coi add_middleware GỌI SAU CÙNG là lớp NGOÀI CÙNG. Thứ tự
+# thực thi (ngoài → trong): CORS → SecurityHeaders → Idempotency → AccessStat →
+# CorrelationId → route. CORS đặt ngoài cùng để MỌI response — kể cả 409/replay do
+# IdempotencyMiddleware sinh ra và response lỗi — đều có header CORS (M4), đồng thời
+# preflight OPTIONS được xử lý sớm nhất.
+
+# --- Request limits (chặn sớm upload quá cỡ theo Content-Length) ---
+app.add_middleware(RequestLimitsMiddleware)
+
+# --- Metrics (đếm request + độ trễ theo route template) ---
+app.add_middleware(MetricsMiddleware)
+
+# --- Correlation Id ---
+app.add_middleware(CorrelationIdMiddleware)
+
+# --- Access stats (M6.3): ghi page_view whitelist, best-effort, không chặn request ---
+app.add_middleware(AccessStatMiddleware)
+
+# --- Idempotency (opt-in header Idempotency-Key trên POST — chống tạo trùng khi retry) ---
+app.add_middleware(IdempotencyMiddleware)
+
+# --- Security headers (áp cho MỌI response app kể cả replay) ---
+app.add_middleware(SecurityHeadersMiddleware)
+
+# --- CORS (thêm sau cùng → lớp NGOÀI CÙNG) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -67,14 +151,14 @@ app.add_middleware(
     expose_headers=["X-Correlation-Id"],
 )
 
-# --- Correlation Id (sau CORS để mọi response có header) ---
-app.add_middleware(CorrelationIdMiddleware)
-
-# --- Access stats (M6.3): ghi page_view whitelist, best-effort, không chặn request ---
-app.add_middleware(AccessStatMiddleware)
-
 # --- Exception handlers (response format chuẩn) ---
 register_exception_handlers(app)
+
+# --- Metrics endpoint (Prometheus scrape — no prefix, no auth: chỉ expose nội bộ) ---
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return metrics_response()
+
 
 # --- Routers ---
 api = settings.api_prefix
@@ -85,6 +169,7 @@ app.include_router(departments.router, prefix=api)
 app.include_router(rbac.router, prefix=api)
 app.include_router(customers.router, prefix=api)
 app.include_router(notifications.router, prefix=api)
+app.include_router(push.router, prefix=api)
 app.include_router(audit_logs.router, prefix=api)
 app.include_router(attachments.router, prefix=api)
 # --- M1: Sample Lifecycle ---
@@ -104,6 +189,8 @@ app.include_router(documents.router, prefix=api)
 # --- M4: HR & Research Achievement ---
 app.include_router(hr_profiles.router, prefix=api)
 app.include_router(research.router, prefix=api)
+app.include_router(activities.router, prefix=api)  # m23: hợp đồng/công tác khác/chứng nhận
+app.include_router(activity_reports.router, prefix=api)  # m25: báo cáo hoạt động tháng
 app.include_router(hr_catalogs.router, prefix=api)
 app.include_router(hr_crons.router, prefix=api)
 # --- M5: Equipment & Calibration ---
@@ -117,38 +204,13 @@ app.include_router(nc_crons.router, prefix=api)
 app.include_router(risks.router, prefix=api)
 app.include_router(improvements.router, prefix=api)
 app.include_router(risk_crons.router, prefix=api)
+# --- M11/GĐ3: Kho biểu mẫu VILAS (QLCL) ---
+app.include_router(forms.router, prefix=api)
+# --- GĐ2b: Nhận & Chuyển mẫu (reception → lab) ---
+app.include_router(sample_flow.router, prefix=api)
+# --- m29: Báo giá (quotation) — Phòng nhận mẫu lập, xuất Excel theo mẫu Viện ---
+app.include_router(quotations.router, prefix=api)
+# --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
+app.include_router(lab_access.router, prefix=api)
 # --- M6: Reporting & Analytics (module cuối, tầng tổng hợp chéo) ---
 app.include_router(reporting.router, prefix=api)
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    logger.info(
-        "LIMS Backend starting",
-        extra={"environment": settings.environment, "apiPrefix": api},
-    )
-    # Tạo bucket MinIO nếu chưa có (không chặn startup nếu MinIO chưa sẵn sàng)
-    try:
-        from app.services import storage_service
-
-        storage_service.ensure_bucket()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("MinIO bucket init skipped", extra={"error": str(exc)})
-
-    # M1 CRON-1/CRON-2 (APScheduler). Không chặn startup nếu lỗi.
-    try:
-        from app.scheduler import start_scheduler
-
-        start_scheduler()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("APScheduler init skipped", extra={"error": str(exc)})
-
-
-@app.on_event("shutdown")
-def on_shutdown() -> None:
-    try:
-        from app.scheduler import shutdown_scheduler
-
-        shutdown_scheduler()
-    except Exception:  # noqa: BLE001
-        pass

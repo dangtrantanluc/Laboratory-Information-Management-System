@@ -4,11 +4,11 @@ lương (Decimal + relativedelta), scope research, error factories, parse decima
 Field-level RBAC (BR-HR-002/003, NFR-SEC-HR-001 — CỐT LÕI, đồng bộ M2 strip giá):
 strip theo (role, item.user_id == current_user.id). Phức tạp hơn M2 một bậc: staff
 xem được lương/HĐ/PII CỦA CHÍNH MÌNH. 3 nhóm strip độc lập:
-  - SALARY: admin/leader/accountant đọc mọi người; staff chỉ của mình.
-  - CONTRACT: admin/leader/accountant đọc mọi người; staff chỉ của mình.
-  - PII: chỉ admin/accountant + chính chủ (leader KHÔNG xem PII).
+  - SALARY: admin/leader/office đọc mọi người; staff chỉ của mình.
+  - CONTRACT: admin/leader/office đọc mọi người; staff chỉ của mình.
+  - PII: chỉ admin/office + chính chủ (leader KHÔNG xem PII).
 
-Quyền SỬA lương/HĐ = chỉ admin + accountant (QUYẾT ĐỊNH #1). Leader chỉ XEM.
+Quyền SỬA lương/HĐ = chỉ admin + office (QUYẾT ĐỊNH #1). Leader chỉ XEM.
 
 NUMERIC không float — Decimal xuyên suốt; JSON trả string (giữ precision).
 """
@@ -59,36 +59,42 @@ def forbidden(message: str = "Bạn không có quyền thực hiện thao tác n
 def salary_forbidden() -> AppException:
     return AppException(
         "SALARY_FORBIDDEN",
-        "Bạn không có quyền điều chỉnh lương/hợp đồng. Chỉ Kế toán và Quản trị viên "
+        "Bạn không có quyền điều chỉnh lương/hợp đồng. Chỉ Văn phòng và Quản trị viên "
         "được thực hiện.",
         403,
-        [{"field": "salary", "required_roles": ["admin", "accountant"]}],
+        [{"field": "salary", "required_roles": ["admin", "office"]}],
     )
 
 
 # ===== RBAC field-level — quyết định strip theo (role, of_self) =====
+# QUYẾT ĐỊNH NGHIỆP VỤ (accepted debt — PRODUCTION_READINESS_REVIEW M8): 'leader' đọc
+# lương/HĐ TOÀN tổ chức, KHÔNG giới hạn theo phòng — cố ý (Ban lãnh đạo). Trái với PII
+# (leader KHÔNG xem — can_read_pii). NẾU sau này 'leader' được gán cho trưởng phòng cấp
+# phòng, PHẢI thêm điều kiện scope phòng ở đây (target.department_id ∈ phòng của leader),
+# nếu không sẽ rò lương toàn hệ thống. Hành vi hiện tại được khoá bằng test
+# test_hr_rbac_scope.py để thay đổi vô ý bị CI phát hiện.
 def can_read_salary(user: CurrentUser, target_user_id: uuid.UUID) -> bool:
-    """Đọc lương: admin/leader/accountant (toàn HT) HOẶC chính chủ (staff của mình)."""
-    if user.role in ("admin", "leader", "accountant"):
+    """Đọc lương: admin/leader/office (toàn HT) HOẶC chính chủ (staff của mình)."""
+    if user.role in ("admin", "leader", "office"):
         return True
     return user.id == target_user_id
 
 
 def can_read_contract(user: CurrentUser, target_user_id: uuid.UUID) -> bool:
-    """Đọc HĐ: như lương (admin/leader/accountant + chính chủ)."""
+    """Đọc HĐ: như lương (admin/leader/office + chính chủ)."""
     return can_read_salary(user, target_user_id)
 
 
 def can_read_pii(user: CurrentUser, target_user_id: uuid.UUID) -> bool:
-    """Đọc PII: chỉ admin/accountant + chính chủ. Leader KHÔNG xem PII."""
-    if user.role in ("admin", "accountant"):
+    """Đọc PII: chỉ admin/office + chính chủ. Leader KHÔNG xem PII."""
+    if user.role in ("admin", "office"):
         return True
     return user.id == target_user_id
 
 
 def can_edit_salary(user: CurrentUser) -> bool:
-    """Sửa lương/HĐ/chu kỳ = chỉ admin + accountant (QUYẾT ĐỊNH #1)."""
-    return user.role in ("admin", "accountant")
+    """Sửa lương/HĐ/chu kỳ = chỉ admin + office (QUYẾT ĐỊNH #1)."""
+    return user.role in ("admin", "office")
 
 
 def assert_can_edit_salary(user: CurrentUser) -> None:
@@ -97,9 +103,9 @@ def assert_can_edit_salary(user: CurrentUser) -> None:
 
 
 def assert_can_manage_profile(user: CurrentUser) -> None:
-    """Tạo/sửa hồ sơ (phi tài chính) = admin + accountant (contract #2/#5)."""
-    if user.role not in ("admin", "accountant"):
-        raise forbidden("Chỉ Kế toán và Quản trị viên được quản lý hồ sơ nhân sự")
+    """Tạo/sửa hồ sơ (phi tài chính) = admin + office (contract #2/#5)."""
+    if user.role not in ("admin", "office"):
+        raise forbidden("Chỉ Văn phòng và Quản trị viên được quản lý hồ sơ nhân sự")
 
 
 def assert_can_manage_competence(user: CurrentUser) -> None:
@@ -255,11 +261,11 @@ def assert_user_exists(db: Session, user_id: uuid.UUID) -> None:
 
 # ===== Scope research (BR-HR-023) =====
 def assert_research_access(user: CurrentUser) -> None:
-    """Kế toán KHÔNG truy cập nhóm NCKH (QUYẾT ĐỊNH #5) → 403 FORBIDDEN_ACCOUNTANT."""
-    if user.role == "accountant":
+    """Văn phòng KHÔNG truy cập nhóm NCKH (QUYẾT ĐỊNH #5) → 403 FORBIDDEN_OFFICE."""
+    if user.role == "office":
         raise AppException(
-            "FORBIDDEN_ACCOUNTANT",
-            "Kế toán không được truy cập thành tích NCKH",
+            "FORBIDDEN_OFFICE",
+            "Văn phòng không được truy cập thành tích NCKH",
             403,
         )
 

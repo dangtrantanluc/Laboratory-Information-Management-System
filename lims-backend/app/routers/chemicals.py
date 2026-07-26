@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
+from app.core.rate_limit import rate_limit
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
 from app.schemas.chemical import (
@@ -63,7 +64,7 @@ def list_units(
 def low_stock(
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -80,7 +81,7 @@ def reconcile(
     department_id: Optional[uuid.UUID] = Query(default=None),
     include_ok: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(require_roles("admin", "leader")),
     db: Session = Depends(get_db),
 ):
@@ -97,7 +98,10 @@ def reconcile(
 
 
 # ===== exports & reports =====
-@router.get("/exports/transactions.xlsx")
+@router.get(
+    "/exports/transactions.xlsx",
+    dependencies=[Depends(rate_limit("report-export", limit=10, window_seconds=60))],
+)
 def export_transactions(
     request: Request,
     date_from: date = Query(...),
@@ -164,7 +168,7 @@ def list_chemicals(
     measurement_group: Optional[str] = Query(default=None),
     has_stock: Optional[bool] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -263,7 +267,6 @@ def list_msds(
     cc.get_chemical_or_404(db, chemical_id)
     from sqlalchemy import select
 
-    from app.config import settings
     from app.models.attachment import Attachment
     from app.services import storage_service
 
@@ -328,7 +331,7 @@ def list_lots(
     status_filter: Optional[str] = Query(default=None, alias="status"),
     display_unit: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

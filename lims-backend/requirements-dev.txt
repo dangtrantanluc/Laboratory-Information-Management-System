@@ -1,0 +1,6 @@
+# ===== Dev-only deps (không cài vào image production) =====
+-r requirements.txt
+
+pytest==9.1.1
+ruff==0.15.22
+

@@ -70,6 +70,15 @@ def get_current_user(
     if user.status == "disabled":
         raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
 
+    # Thu hồi access token cấp TRƯỚC lần đổi mật khẩu gần nhất (PRODUCTION_READINESS_REVIEW
+    # H1): access token stateless nên trước đây vẫn sống tới hết TTL (≤30p) sau khi user
+    # đổi mật khẩu (vd sau khi bị mất thiết bị). So iat với password_changed_at (DB, đã cập
+    # nhật trong change_own_password) → token cũ bị 401, phiên hiện tại tự refresh lấy token mới.
+    if user.password_changed_at is not None:
+        iat = int(payload.get("iat", 0))
+        if iat and iat < int(user.password_changed_at.timestamp()):
+            raise AppException("TOKEN_INVALID", "Phiên đã bị thu hồi do đổi mật khẩu", 401)
+
     # is_dept_lead xác thực lại từ DB (claim có thể cũ; bảo mật ưu tiên DB cho thao tác lead)
     is_lead = False
     if user.department_id is not None:

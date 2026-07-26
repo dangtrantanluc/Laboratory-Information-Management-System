@@ -1,0 +1,9 @@
+# Lint tối thiểu cho CI (PRODUCTION_READINESS_REVIEW: "Minimum viable pipeline: lint,
+# pytest, ...").  Chỉ bật F (pyflakes: unused import/var, undefined name, ...) + E9
+# (lỗi cú pháp) — codebase trước đây CHƯA từng chạy lint, bật full ruleset mặc định
+# (style/E/W/…) sẽ ra hàng trăm cảnh báo không liên quan tới lỗi thật. Mở rộng dần khi
+# codebase đã quen với CI thay vì chặn cứng ngay từ đầu.
+line-length = 100
+
+[lint]
+select = ["F", "E9"]

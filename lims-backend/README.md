@@ -22,14 +22,14 @@ Backend cho phần mềm Quản lý Phòng Thí nghiệm (LIMS) theo ISO/IEC 170
   đồng), thống kê 3 chiều (cá nhân/phòng/thời gian) + xuất Excel, CRON-3 (nhắc nâng
   lương 15/7/3) + CRON-4 (nhắc hết hạn HĐ 30/15/7). **Field-level RBAC lương/HĐ/PII**:
   strip theo `(role, item.user_id == current_user)` — staff xem được lương CỦA MÌNH;
-  sửa lương = admin/accountant (leader/staff → `SALARY_FORBIDDEN`); kế toán CẤM toàn
-  bộ nhóm NCKH (`FORBIDDEN_ACCOUNTANT`). KHÔNG ghi giá trị lương/PII ra log/audit.
+  sửa lương = admin/office (leader/staff → `SALARY_FORBIDDEN`); văn phòng CẤM toàn
+  bộ nhóm NCKH (`FORBIDDEN_OFFICE`). KHÔNG ghi giá trị lương/PII ra log/audit.
 - **M6 — Reporting & Analytics** (module CUỐI, tầng TỔNG HỢP CHÉO — READ-ONLY aggregate):
   dashboard KPI chéo module 1 round-trip (mẫu/hóa chất/thiết bị/nhân sự/tài liệu/thông
   báo), biểu đồ (pie/line/bar tách nhóm đo), thống kê số mẫu + tiêu hao hóa chất theo
   bộ lọc thời gian thống nhất `[from, to)`, thống kê truy cập hệ thống R15 (lượt truy
   cập/tải/chỉnh sửa, top N user — chỉ admin/leader), xuất Excel/PDF (ghi audit
-  `REPORT_EXPORT`). Cache dashboard 60s (Redis). RBAC enforce tầng API: accountant
+  `REPORT_EXPORT`). Cache dashboard 60s (Redis). RBAC enforce tầng API: office
   KHÔNG thấy khối mẫu (B03 — response không chứa `samples`); staff ép phòng mình +
   strip field tiền; R15 chỉ admin/leader (`audit:read`). Ngoại lệ ghi duy nhất:
   middleware + `POST /analytics/page-view` ghi `access_stats` (login + page_view) +
@@ -81,6 +81,26 @@ Response trả `access_token` (gắn `Authorization: Bearer <token>`) và set co
 > ⚠️ **BẢO MẬT:** `admin@lims.local` / `ChangeMe@123` CHỈ để khởi tạo. Đổi mật khẩu
 > ngay lần đăng nhập đầu. KHÔNG để mật khẩu mặc định trên production (NFR-SEC A05).
 
+## Triển khai production
+
+`docker-compose.yml` (ở gốc repo) chỉ dành cho dev/demo — mặc định
+`ENVIRONMENT=development`, JWT secret + credential Postgres/Redis/MinIO cố định,
+và publish port DB/Redis/MinIO ra host. **Không dùng file này để deploy ra ngoài.**
+
+Dùng `docker-compose.prod.yml` (cùng cấp) cho production:
+
+```bash
+cp .env.prod.example .env.prod   # điền secret thật, KHÔNG commit .env.prod
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+File này bắt buộc mọi secret (`JWT_SECRET`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`,
+`MINIO_ROOT_USER/PASSWORD`, `SEED_ADMIN_PASSWORD`, ...) phải được set — compose sẽ
+báo lỗi và không khởi động nếu thiếu — và không publish port Postgres/Redis/MinIO
+ra host (chỉ `lims-api` reach được qua network nội bộ). Ứng dụng cũng tự chặn khởi
+động (`app/config.py`) nếu `ENVIRONMENT=production` mà vẫn còn JWT secret/credential
+mặc định của dev.
+
 ## Cổng (port) — không đụng dịch vụ khác
 
 | Dịch vụ | Cổng host | Ghi chú |
@@ -101,6 +121,41 @@ cp .env.example .env          # chỉnh DATABASE_URL/REDIS_URL/MINIO_* về loca
 alembic upgrade head          # tạo bảng + seed
 uvicorn app.main:app --reload --port 8060
 ```
+
+## Kiểm thử (Testing)
+
+```bash
+pip install -r requirements-dev.txt
+ruff check app       # lint (F/E9 — xem ruff.toml)
+pytest app/tests -q  # unit test (mock DB — integration test tự SKIP nếu thiếu TEST_DATABASE_URL)
+
+# Integration test (Postgres THẬT — chứng minh khóa hàng/atomic/giữ giao dịch):
+#   TEST_DATABASE_URL trỏ vào 1 Postgres THROWAWAY (KHÔNG phải DB dev/prod)
+TEST_DATABASE_URL=postgresql+psycopg2://lims:lims@localhost:5432/lims_test \
+  pytest app/tests/integration -q
+```
+
+**Phạm vi test hiện có** (ưu tiên theo rủi ro — state machine, RBAC/IDOR, số học tiền/tồn,
+bảo mật upload, idempotency, scheduler): state machine mẫu + RBAC read/write scope, quy đổi
+đơn vị hóa chất (Decimal), MIME allowlist + inline-safety (chống XSS), production secret
+guard, idempotency middleware, scheduler run-history, report RBAC.
+
+**Integration test** (Postgres thật, `app/tests/integration/`): khóa hàng chống double-decision
+(lab registration), giữ giao dịch kho khi notify lỗi (SAVEPOINT), atomic tồn kho + CHECK.
+
+**Quy ước bắt buộc:** mọi nghiệp vụ mới/sửa (state machine, RBAC, tính tiền/tồn) PHẢI kèm
+test tầng service. CI (`.github/workflows/backend-ci.yml`) chạy `ruff` + `pytest` (unit) +
+`pytest integration` (Postgres service) + `alembic upgrade head` + `docker build` trên mỗi
+PR — không để test đã thêm bị bỏ rơi.
+
+## Observability
+
+- **/metrics** (Prometheus, không auth — chỉ expose nội bộ/scrape): `http_requests_total`,
+  `http_request_duration_seconds` (theo route template), `scheduler_job_last_run_timestamp` /
+  `scheduler_job_last_success` (phát hiện cron bỏ lỡ).
+- **Structured JSON logs** với `correlationId` tự gắn mọi log record (contextvar + filter).
+- **/health/ready**: kiểm db/redis/minio + trả lỗi thật + run-history scheduler.
+- Sự cố / khôi phục: xem `docs/DISASTER_RECOVERY.md`. Load test: `loadtest/locustfile.py`.
 
 ## Migration
 
@@ -195,10 +250,10 @@ seed; KHÔNG đụng seed M7; không phá module cũ).
 | 14 | GET | `/calibrations/{id}/cert/download` | Tải CoC/cert (presigned 15p) |
 | 15 | POST | `/admin/crons/equipment-calibration-due/run` | Chạy thủ công CRON-5 (admin) |
 
-**RBAC M5 (KHÁC M3):** `leader` = **👁 CHỈ XEM** (không ghi/duyệt thiết bị); `accountant`
+**RBAC M5 (KHÁC M3):** `leader` = **👁 CHỈ XEM** (không ghi/duyệt thiết bị); `office`
 = **👁 read only**; `staff` = đọc **toàn lab** + ghi **CHỈ phòng mình** (create/update/
 calibration:create scope department); `admin` = full. Mọi endpoint ghi (#4/#5/#6/#9/#15) →
-403 cho leader/accountant; staff ghi chéo phòng → 403.
+403 cho leader/office; staff ghi chéo phòng → 403.
 
 **Ghi hiệu chuẩn (#9, CỐT LÕI) — 1 transaction + row-lock thiết bị:** insert
 `calibration_records` (immutable) → upload CoC MinIO (`attachments owner_type='calibration'`)
@@ -237,10 +292,10 @@ nếu đang chạy). Endpoint #15 nhận `as_of_date` (dev/staging) để test m
 
 | # | Method | Path | Mô tả | Vai trò |
 |---|--------|------|-------|---------|
-| 1 | GET | `/dashboard` | Gói KPI tổng hợp chéo module (cache 60s, scope vai trò) | admin/leader/accountant/staff |
-| 2 | GET | `/dashboard/charts` | Pie (mẫu/trạng thái) + line (mẫu/thời gian) + bar (tiêu hao tách nhóm đo) | admin/leader/accountant(chỉ hóa chất)/staff |
-| 3 | GET | `/reports/samples` | Đếm số mẫu theo bộ lọc + phân rã (status/time/department) | admin/leader/staff — **accountant 403** |
-| 4 | GET | `/reports/chemicals` | Tiêu hao/tồn tách nhóm đo; field tiền theo vai trò | admin/leader/accountant/staff(no tiền) |
+| 1 | GET | `/dashboard` | Gói KPI tổng hợp chéo module (cache 60s, scope vai trò) | admin/leader/office/staff |
+| 2 | GET | `/dashboard/charts` | Pie (mẫu/trạng thái) + line (mẫu/thời gian) + bar (tiêu hao tách nhóm đo) | admin/leader/office(chỉ hóa chất)/staff |
+| 3 | GET | `/reports/samples` | Đếm số mẫu theo bộ lọc + phân rã (status/time/department) | admin/leader/staff — **office 403** |
+| 4 | GET | `/reports/chemicals` | Tiêu hao/tồn tách nhóm đo; field tiền theo vai trò | admin/leader/office/staff(no tiền) |
 | 10 | GET | `/reports/system-access` | R15: lượt truy cập/tải/chỉnh sửa + top N user + timeline | **admin/leader CHỈ** |
 | 11 | GET | `/reports/system-access/users/{userId}` | Chi tiết hoạt động 1 user + recent_actions | **admin/leader CHỈ** |
 | 12 | GET | `/reports/{reportType}/export.xlsx` | Xuất Excel (dashboard/samples/chemicals/system-access), RBAC scope + audit | theo reportType |
@@ -252,11 +307,11 @@ hiện tại, `from >= to` → 422 `INVALID_DATE_RANGE`); `group_by` ∈ day|wee
 `INVALID_GROUP_BY`); `department_id` (staff truyền phòng khác → **ÉP về phòng mình**, không
 403). `due_within_days` (1..90, default 30) cho ngưỡng "sắp tới hạn" trên dashboard.
 
-**RBAC enforce TẦNG API (CONSTRAINT-3):** (1) **B03** — accountant KHÔNG nhận khối `samples`/
+**RBAC enforce TẦNG API (CONSTRAINT-3):** (1) **B03** — office KHÔNG nhận khối `samples`/
 `equipments`/`documents` ở `/dashboard` (response không chứa), gọi endpoint chuyên mẫu (#3,
 export samples) → **403**; (2) **field tiền** (`consumption_cost*`/`total_cost`/`cost`) chỉ
-admin/leader/accountant (`chemical:cost`), staff bị strip ở serializer; (3) **R15** (#10/#11 +
-export system-access) chỉ admin/leader (`audit:read`), accountant/staff → **403 cứng**;
+admin/leader/office (`chemical:cost`), staff bị strip ở serializer; (3) **R15** (#10/#11 +
+export system-access) chỉ admin/leader (`audit:read`), office/staff → **403 cứng**;
 (4) **scope phòng staff** — ép phòng mình ở #1–#4, #12.
 
 **Nguồn đếm R15 cố định (BR-RPT-004):** lượt truy cập = `access_stats` (event_type login +
@@ -281,7 +336,7 @@ kỳ/scope) sau khi commit (BR-RPT-012).
   equipments{available,calibration_overdue,calibration_due_soon,deep_link},
   hr{available,salary_raise_due,contract_ending,deep_link}, documents{available,pending_review,
   deep_link}, notifications{available,unread,deep_link} }` + `meta{generated_at,cached,
-  cache_ttl_seconds}`. Accountant: chỉ `chemicals`(có cost)+`hr`+`notifications` (no samples/
+  cache_ttl_seconds}`. Office: chỉ `chemicals`(có cost)+`hr`+`notifications` (no samples/
   equipments/documents). Staff: scope phòng, no `consumption_cost_month`, no `hr`. Khối lỗi →
   `{available:false,error}` (degrade mềm, HTTP vẫn 200).
 - **Charts (#2):** `{ samples_by_status{data:[{status,count}]}, samples_over_time{group_by,
@@ -296,7 +351,7 @@ kỳ/scope) sau khi commit (BR-RPT-012).
   download_count,edit_count}]] }`. User chi tiết (#11): `{ user{id,name,role,department_name},
   filter, totals{...}, recent_actions:[{at,action,resource,resource_id,correlation_id}] }`.
 - **Export (#12/#13):** binary `attachment` (xlsx: openpyxl; pdf: reportlab) + `X-Correlation-Id`
-  header. Nội dung file = đúng scope user (accountant không xuất samples; staff no tiền).
+  header. Nội dung file = đúng scope user (office không xuất samples; staff no tiền).
 
 ## M3 — Document Control (20 endpoint, FR-DOC-001..016, §8.3/§8.4)
 
@@ -314,7 +369,7 @@ từ v2), `GET/PATCH /documents/{id}/versions/{vid}` (+ `PUT .../file` thay file
 Thống kê R15: `GET /documents/{id}/access-stats`, `GET /documents/access-stats` (top N),
 `GET /documents/access-stats/export` (xlsx).
 
-**RBAC M3:** Kế toán **CHỈ XEM** version approved — mọi endpoint ghi → 403 `FORBIDDEN`.
+**RBAC M3:** Văn phòng **CHỈ XEM** version approved — mọi endpoint ghi → 403 `FORBIDDEN`.
 Staff ghi/tạo trong phòng mình (`assert_write_scope`); duyệt CHỈ trưởng nhóm phòng
 (`is_dept_lead && dept==doc.dept`) / leader / admin (`can_approve`). Tách soạn–duyệt:
 `approved_by != created_by` → 403 `SELF_APPROVAL_FORBIDDEN`. **2 mức bảo mật**:
@@ -344,7 +399,7 @@ Error codes: `INVALID_STATE_TRANSITION`, `SELF_APPROVAL_FORBIDDEN`, `DOCUMENT_NO
 - **Báo cáo / cron:** `GET /reports/sample-on-time`,
   `POST /admin/crons/{sample-due-soon,sample-overdue}/run` (Admin)
 
-**RBAC M1:** Kế toán cấm toàn bộ (`FORBIDDEN_ACCOUNTANT`). Phạm vi ghi theo phòng;
+**RBAC M1:** Văn phòng cấm toàn bộ (`FORBIDDEN_OFFICE`). Phạm vi ghi theo phòng;
 phân công/duyệt/chốt chỉ trưởng nhóm phòng (`departments.lead_user_id`)/Admin/Lãnh đạo.
 Tách nhập-duyệt (`SELF_APPROVAL_FORBIDDEN`). Kết quả approved bất biến (sửa = version mới).
 
@@ -368,9 +423,9 @@ CRON-1 07:00 nhắc sắp tới hạn (dedup Redis theo mẫu×mốc×ngày). C�
 - **Cron:** `POST /admin/crons/chem-expiry/run` (Admin)
 
 **RBAC M2 (dữ liệu hóa qua `roles_permissions`):** `chemical:read` (mọi vai trò đọc tồn/
-lịch sử toàn HT); `chemical:transact` (admin/leader all, staff theo phòng — **kế toán
+lịch sử toàn HT); `chemical:transact` (admin/leader all, staff theo phòng — **văn phòng
 KHÔNG có**, chỉ xem); `chemical:create` (admin/leader all, staff theo phòng);
-`chemical:cost` (admin/leader/accountant xem giá). **Field-level price strip:** vai trò
+`chemical:cost` (admin/leader/office xem giá). **Field-level price strip:** vai trò
 không có `chemical:cost` (KTV) bị **xóa hoàn toàn** các key `unit_price`/`price_unit`/
 `currency`/`stock_value`/`line_value`/`consumption_cost` khỏi mọi response + cột Excel —
 ở TẦNG API (OWASP A01, không chỉ ẩn FE). KTV vẫn được **gửi** `unit_price` khi nhập.
@@ -412,14 +467,14 @@ lưới an toàn cuối.
 strip theo `(role, item.user_id == current_user)`. 3 nhóm độc lập:
 - **Lương** (`salary_grade/coefficient/base_salary_amount/computed_salary_amount/
   currency/salary_history/next|last_salary_raise_date/salary_cycle_years`): admin/leader/
-  accountant đọc mọi người; **staff chỉ của mình**. Sửa lương = **admin + accountant**
+  office đọc mọi người; **staff chỉ của mình**. Sửa lương = **admin + office**
   (leader/staff → `SALARY_FORBIDDEN`).
-- **Hợp đồng** (`contract_*`): đọc như lương; sửa = admin + accountant.
+- **Hợp đồng** (`contract_*`): đọc như lương; sửa = admin + office.
 - **PII** (`id_number/dob/bank_account` — schema hiện chưa thêm cột, §8.6; tập strip
-  sẵn sàng): đọc chỉ admin/accountant + chính chủ (leader KHÔNG xem PII).
+  sẵn sàng): đọc chỉ admin/office + chính chủ (leader KHÔNG xem PII).
 
-Trong list, mỗi item strip ĐỘC LẬP theo `user_id`. **Kế toán CẤM toàn bộ nhóm NCKH**
-(#17–#37 → `FORBIDDEN_ACCOUNTANT`). Staff scope `own` ở NCKH (chỉ bản ghi mình là
+Trong list, mỗi item strip ĐỘC LẬP theo `user_id`. **Văn phòng CẤM toàn bộ nhóm NCKH**
+(#17–#37 → `FORBIDDEN_OFFICE`). Staff scope `own` ở NCKH (chỉ bản ghi mình là
 thành viên/tác giả/mentor/performer).
 
 **Lương = hệ số × lương cơ sở:** `salary_coefficient NUMERIC(6,2)` × `base_salary_amount
@@ -438,14 +493,14 @@ của lượt/trưởng nhóm phòng mentor; đã quyết → `REGISTRATION_ALRE
 chặt (members chỉ user nội bộ).
 
 **CRON-3 (07:00) / CRON-4 (07:15) UTC:** quét `next_salary_raise_date` (mốc 15/7/3) /
-`contract_end_date` (mốc 30/15/7, bỏ HĐ vô thời hạn) → notify HR (admin/leader/accountant)
+`contract_end_date` (mốc 30/15/7, bỏ HĐ vô thời hạn) → notify HR (admin/leader/office)
 + chính nhân sự (CRON-3). Idempotent qua `hr_notification_dedup`
 (UNIQUE hồ sơ×kind×mốc×ngày, dedup theo hồ sơ + fan-out nhiều người nhận) + Redis lock.
 
 ## M4 — Data shape cho Frontend (tóm tắt)
 
 ```jsonc
-// GET /hr-profiles/:userId (accountant/leader/admin/chính chủ — có đủ; staff người khác → 403)
+// GET /hr-profiles/:userId (office/leader/admin/chính chủ — có đủ; staff người khác → 403)
 { "user_id","full_name","email","department_id","department_name","job_title",
   "hired_date","phone","position",
   "contract_type","contract_signed_date","contract_end_date",          // nhóm contract (strip)
@@ -517,7 +572,7 @@ alembic/             # migration + seed
   `POST /users/:id/{enable,disable,reset-password}`
 - **Departments:** `GET /departments` (mọi vai trò), `POST/PATCH/DELETE` (admin)
 - **RBAC:** `GET /roles`, `GET /permissions`, `GET /roles/:role/permissions`
-- **Customers:** `GET/POST/GET:id/PATCH:id` (admin/staff ghi, accountant cấm)
+- **Customers:** `GET/POST/GET:id/PATCH:id` (admin/staff ghi, office cấm)
 - **Notifications (self):** `GET /notifications`, `GET /notifications/unread-count`,
   `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`
 - **Audit (admin/leader):** `GET /audit-logs`, `GET /audit-logs/:id`

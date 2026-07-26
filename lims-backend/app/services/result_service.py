@@ -4,7 +4,6 @@ trả lại, tạo phiên bản sửa (versioning immutable, D6).
 Tách nhập-duyệt (approved_by ≠ entered_by, D8). approved → bất biến + công khai nội bộ.
 """
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select

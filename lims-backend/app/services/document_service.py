@@ -126,7 +126,7 @@ def list_documents(
             )
         )
         # tài liệu chưa có current chỉ hiện cho người soạn/duyệt phòng đó (BR-DOC-011)
-        # → ẩn no-current ngoài phòng cho staff/accountant
+        # → ẩn no-current ngoài phòng cho staff/office
         conditions.append(
             or_(
                 Document.current_version_id.isnot(None),
@@ -162,7 +162,7 @@ def create_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     if not (title and title.strip()):
         raise validation_error("Tiêu đề tài liệu không được rỗng")
     dc.get_active_type_or_422(db, type_code)
@@ -194,7 +194,6 @@ def create_document(
     dvs._check_size(content)
 
     # sinh document_code + retry chống race UNIQUE (FR-DOC-003 A1)
-    last_err: Optional[Exception] = None
     for _ in range(5):
         code = dc.next_document_code(db, type_code=type_code, dept=dept)
         doc = Document(
@@ -210,9 +209,8 @@ def create_document(
         try:
             db.flush()
             break
-        except IntegrityError as exc:
+        except IntegrityError:
             db.rollback()
-            last_err = exc
             doc = None  # type: ignore
     if doc is None:
         raise AppException(
@@ -350,7 +348,7 @@ def update_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -410,7 +408,7 @@ def delete_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -527,8 +525,8 @@ def _resolve_range(from_: Optional[date], to_: Optional[date]) -> tuple[datetime
 
 
 def _assert_stats_scope(user: CurrentUser, doc: Document) -> None:
-    if user.role == "accountant":
-        raise dc.forbidden("Kế toán không xem được thống kê truy cập")
+    if user.role == "office":
+        raise dc.forbidden("Văn phòng không xem được thống kê truy cập")
     if dc.is_privileged(user):
         return
     if user.department_id != doc.department_id:
@@ -619,8 +617,8 @@ def aggregate_access_stats(
     top: int,
     sort_by: str,
 ) -> dict:
-    if user.role == "accountant":
-        raise dc.forbidden("Kế toán không xem được thống kê truy cập")
+    if user.role == "office":
+        raise dc.forbidden("Văn phòng không xem được thống kê truy cập")
     if top < 1 or top > 100:
         raise validation_error("Tham số top phải trong khoảng 1..100")
     start, end = _resolve_range(from_, to_)

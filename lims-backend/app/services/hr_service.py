@@ -7,7 +7,7 @@ last_salary_raise_date + tính lại next_salary_raise_date + audit HR_SALARY_RA
 (KHÔNG log giá trị tiền — BR-HR-024).
 """
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Optional
 
 from sqlalchemy import func, or_, select
@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.department import Department
 from app.models.hr import (
     Competence,
     ContractType,
@@ -260,7 +259,7 @@ def update_contract(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    hc.assert_can_edit_salary(user)  # HĐ = nhóm tài chính → admin/accountant
+    hc.assert_can_edit_salary(user)  # HĐ = nhóm tài chính → admin/office
     p = _get_profile_or_404(db, target_user_id)
     if not contract_type:
         raise AppException("VALIDATION_ERROR", "Thiếu contract_type", 400)
@@ -501,9 +500,9 @@ def _competence_dict(db: Session, c: Competence) -> dict:
 
 
 def _assert_competence_read(user: CurrentUser, target_user_id: uuid.UUID) -> None:
-    """Đọc năng lực: admin/leader (all); staff của mình. Accountant → 403 (không tài chính)."""
-    if user.role == "accountant":
-        raise hc.forbidden("Kế toán không quản lý hồ sơ năng lực")
+    """Đọc năng lực: admin/leader (all); staff của mình. Office → 403 (không tài chính)."""
+    if user.role == "office":
+        raise hc.forbidden("Văn phòng không quản lý hồ sơ năng lực")
     if user.role == "staff" and user.id != target_user_id:
         raise hc.forbidden("Bạn chỉ được xem năng lực của chính mình")
 

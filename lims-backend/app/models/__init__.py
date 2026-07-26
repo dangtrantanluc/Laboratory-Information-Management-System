@@ -5,6 +5,7 @@ from app.models.permission import Permission, RolePermission
 from app.models.customer import Customer
 from app.models.attachment import Attachment
 from app.models.refresh_token import RefreshToken
+from app.models.auth_token import AuthToken
 from app.models.notification import Notification
 from app.models.audit_log import AuditLog
 from app.models.access_stat import AccessStat
@@ -44,6 +45,7 @@ from app.models.equipment import (
 
 # --- M4: HR & Research Achievement ---
 from app.models.hr import (
+    ActivityReport,
     CommunityService,
     Competence,
     ContractType,
@@ -55,11 +57,14 @@ from app.models.hr import (
     Publication,
     PublicationAuthor,
     PublicationCategory,
+    ResearchContract,
     ResearchProject,
     ResearchProjectLevel,
     SalaryHistory,
+    StaffActivity,
     StudentMentorship,
     TeachingCourse,
+    TrainingCertificate,
 )
 
 # --- M8: Nonconformity & CAPA ---
@@ -78,6 +83,19 @@ from app.models.risk import (
     RiskTreatment,
 )
 
+# --- M11/GĐ3: Kho biểu mẫu VILAS (QLCL) ---
+from app.models.form import FormTemplate, FormSubmission
+
+# --- GĐ2b: Nhận & Chuyển mẫu (reception → lab) ---
+from app.models.quotation import Quotation, QuotationItem
+from app.models.sample_flow import SampleIntake, SampleDispatch, CustomerInfoRequest, TestParameter
+
+# --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
+from app.models.lab_access import LabAccessCard
+
+# --- M20: Web Push (popup thông báo desktop) ---
+from app.models.push_subscription import PushSubscription
+
 __all__ = [
     "Department",
     "User",
@@ -86,6 +104,7 @@ __all__ = [
     "Customer",
     "Attachment",
     "RefreshToken",
+    "AuthToken",
     "Notification",
     "AuditLog",
     "AccessStat",
@@ -129,6 +148,10 @@ __all__ = [
     "LabRegistration",
     "TeachingCourse",
     "CommunityService",
+    "ResearchContract",
+    "StaffActivity",
+    "TrainingCertificate",
+    "ActivityReport",
     # M8
     "Nonconformity",
     "Capa",
@@ -139,4 +162,18 @@ __all__ = [
     "RiskTreatment",
     "Improvement",
     "RiskNotificationDedup",
+    # M11/GĐ3
+    "FormTemplate",
+    "FormSubmission",
+    # GĐ2b
+    "SampleIntake",
+    "SampleDispatch",
+    "CustomerInfoRequest",
+    "TestParameter",
+    "Quotation",
+    "QuotationItem",
+    # M19
+    "LabAccessCard",
+    # M20
+    "PushSubscription",
 ]

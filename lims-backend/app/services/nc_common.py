@@ -1,13 +1,13 @@
 """M8 common helpers — RBAC/QM, sinh nc_code, serialize, nhãn nguồn, get-or-404.
 
 - RBAC: đọc roles_permissions M8 (admin/leader full; staff read all + create dept;
-  accountant KHÔNG). QM (mở/đóng CAPA + actions): admin/leader luôn được; staff CHỈ khi
+  office KHÔNG). QM (mở/đóng CAPA + actions): admin/leader luôn được; staff CHỈ khi
   is_quality_manager (cờ QM, giống pattern is_dept_lead cho duyệt mẫu M1).
 - nc_code = NC-YYYY-NNNN idempotent theo năm + UNIQUE chống trùng (caller retry).
 - Không lộ ID tuần tự (hiển thị nc_code).
 """
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select

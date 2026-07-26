@@ -2,7 +2,7 @@
 
 ĐẾM tổng hợp chéo theo bộ lọc thống nhất `[from, to)` (BR-RPT-009). KHÔNG tính lại
 on-time rate (M1) / consumption chi tiết (M2) — chỉ đếm/tổng hợp (CONSTRAINT-1, §0.10).
-RBAC: accountant 403 ở #3 (B03); staff ép phòng + strip tiền ở #4 (BR-RPT-001/002).
+RBAC: office 403 ở #3 (B03); staff ép phòng + strip tiền ở #4 (BR-RPT-001/002).
 Cache 60s (BR-RPT-011).
 """
 import uuid
@@ -34,7 +34,7 @@ def report_samples(
     time_field: str,
     breakdown: str,
 ) -> tuple[dict, dict]:
-    rc.deny_accountant_samples(user)  # B03 — accountant 403
+    rc.deny_office_samples(user)  # B03 — office 403
     rc.validate_group_by(group_by)
     if time_field not in VALID_TIME_FIELDS:
         raise rc.err("VALIDATION_ERROR", "time_field chỉ nhận received_at|completed_at")

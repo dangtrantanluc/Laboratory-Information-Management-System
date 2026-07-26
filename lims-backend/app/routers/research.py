@@ -1,7 +1,7 @@
 """Router M4.3 — Thành tích NCKH: đề tài, bài báo/sáng chế, hướng dẫn SV, đăng ký lab
 (có duyệt), giảng dạy, cộng đồng, thống kê + Excel.
 
-Kế toán bị CẤM toàn bộ nhóm NCKH (hc.assert_research_access → 403). Scope staff own
+Văn phòng bị CẤM toàn bộ nhóm NCKH (hc.assert_research_access → 403). Scope staff own
 enforce ở service. Tác giả/thành viên ngoài hệ thống qua external_name (XOR).
 """
 import uuid
@@ -52,8 +52,13 @@ def _ip(request: Request) -> Optional[str]:
 
 
 def _guard(user: CurrentUser) -> CurrentUser:
-    """Chặn accountant khỏi toàn bộ nhóm NCKH (BR-HR-023)."""
+    """GHI nhóm NCKH: chặn office (thành tích NCKH của người khác — office chỉ được XEM)."""
     hc.assert_research_access(user)
+    return user
+
+
+def _guard_read(user: CurrentUser) -> CurrentUser:
+    """ĐỌC nhóm NCKH: cho phép cả VĂN PHÒNG xem toàn bộ thông tin NCKH (read-only)."""
     return user
 
 
@@ -71,11 +76,11 @@ def list_projects(
     lead_user_id: Optional[uuid.UUID] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_projects(
         db,
@@ -115,7 +120,7 @@ def get_project(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     return ok(research_service.get_project(db, user=user, project_id=project_id))
 
 
@@ -194,11 +199,11 @@ def list_publications(
     department_id: Optional[uuid.UUID] = Query(default=None),
     author_user_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_publications(
         db,
@@ -238,7 +243,7 @@ def get_publication(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     return ok(research_service.get_publication(db, user=user, pub_id=pub_id))
 
 
@@ -339,11 +344,11 @@ def list_mentorships(
     type_filter: Optional[str] = Query(default=None, alias="type"),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_mentorships(
         db,
@@ -418,11 +423,11 @@ def list_registrations(
     mentor_id: Optional[uuid.UUID] = Query(default=None),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_registrations(
         db,
@@ -509,11 +514,11 @@ def list_teaching(
     semester: Optional[str] = Query(default=None),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_teaching(
         db,
@@ -590,11 +595,11 @@ def list_community(
     date_to: Optional[date] = Query(default=None, alias="to"),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
     items, total = research_service.list_community(
         db,
@@ -676,7 +681,7 @@ def achievement_stats(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     return ok(
         research_service.achievement_stats(
             db,
@@ -705,7 +710,7 @@ def achievement_stats_xlsx(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     content = research_report_service.export_stats_xlsx(
         db,
         user=user,

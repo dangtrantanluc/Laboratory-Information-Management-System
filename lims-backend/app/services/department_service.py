@@ -78,6 +78,8 @@ def _serialize(db: Session, dept: Department, with_members: bool = True) -> dict
         "name": dept.name,
         "code": dept.code,
         "parent_id": dept.parent_id,
+        "kind": dept.kind,
+        "is_vlab": dept.is_vlab,
         "lead_user_id": dept.lead_user_id,
         "lead_user_name": lead_name,
         "status": dept.status,

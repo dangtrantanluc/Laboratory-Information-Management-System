@@ -1,7 +1,7 @@
 """Router M5 — Thiết bị & Hiệu chuẩn (CRUD thiết bị, cảnh báo, tài liệu, hiệu chuẩn).
 
 RBAC: đọc toàn lab (mọi vai trò 👁); ghi theo phòng (admin all; staff phòng mình;
-leader/accountant cấm — enforce service). Bản ghi hiệu chuẩn IMMUTABLE — chỉ POST tạo;
+leader/office cấm — enforce service). Bản ghi hiệu chuẩn IMMUTABLE — chỉ POST tạo;
 KHÔNG PATCH/DELETE (§8.4, BR-EQP-007). Upload CoC/tài liệu qua multipart.
 
 Thứ tự khai báo: route tĩnh (/calibration-due) TRƯỚC /{equipment_id} để tránh nuốt path.
@@ -46,7 +46,7 @@ def calibration_due(
     department_id: Optional[uuid.UUID] = Query(default=None),
     bucket: str = Query(default="all"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -72,7 +72,7 @@ def list_equipments(
     calibration_status: Optional[str] = Query(default=None),
     overdue: Optional[bool] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -191,7 +191,7 @@ def list_calibrations(
     equipment_id: uuid.UUID,
     result: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

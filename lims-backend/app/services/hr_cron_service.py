@@ -6,8 +6,8 @@ BR-HR-013) + ON CONFLICT/IntegrityError. Redis lock chống chạy chồng (gi�
 Dedup chỉ theo HỒ SƠ; fan-out nhiều notifications cho từng người nhận trong 1 lần fire.
 
 Người nhận:
-  - CRON-3 (SALARY_RAISE_DUE): HR (admin/leader/accountant) + chính nhân sự + lãnh đạo.
-  - CRON-4 (CONTRACT_EXPIRY): HR (admin/leader/accountant).
+  - CRON-3 (SALARY_RAISE_DUE): HR (admin/leader/office) + chính nhân sự + lãnh đạo.
+  - CRON-4 (CONTRACT_EXPIRY): HR (admin/leader/office).
 KHÔNG ghi giá trị lương/PII vào body/log (BR-HR-024) — chỉ fact + ngày.
 """
 import logging
@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
-from app.models.department import Department
 from app.models.hr import HrNotificationDedup, HrProfile
 from app.models.user import User
 from app.services import audit_service, notification_service
@@ -45,10 +44,10 @@ def _release_lock(key: str) -> None:
 
 
 def _hr_staff(db: Session) -> set[uuid.UUID]:
-    """HR + lãnh đạo = admin/leader/accountant active (có hr:manage)."""
+    """HR + lãnh đạo = admin/leader/office active (có hr:manage)."""
     rows = db.execute(
         select(User.id).where(
-            User.role.in_(("admin", "leader", "accountant")), User.status == "active"
+            User.role.in_(("admin", "leader", "office")), User.status == "active"
         )
     ).scalars().all()
     return set(rows)

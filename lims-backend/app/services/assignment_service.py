@@ -15,6 +15,7 @@ from app.models.sample_assignment import SampleAssignment
 from app.models.sample_handover import SampleHandover
 from app.models.sample_result import SampleResult
 from app.models.user import User
+from app.models.department import Department
 from app.services import audit_service, notification_service, sample_common
 
 
@@ -61,9 +62,9 @@ def create_assignment(
 ) -> dict:
     sample = sample_common.get_sample_or_404(db, sample_id, lock=True)
 
-    if not sample_common.can_lead_action(user, sample.department_id):
+    if not sample_common.can_assign_action(user, sample.department_id):
         raise sample_common.forbidden(
-            "Chỉ trưởng nhóm / lãnh đạo / admin được phân công"
+            "Chỉ trưởng nhóm / lãnh đạo / admin / phòng nhận mẫu được phân công"
         )
     if sample.status in ("done", "returned"):
         raise sample_common.invalid_state("Mẫu đã hoàn tất, không thể phân công thêm")
@@ -111,6 +112,22 @@ def create_assignment(
         ref_type="sample",
         ref_id=sample.id,
     )
+
+    # GĐ2: "ping" phòng lab — báo trưởng phòng lab khi mẫu được điều phối vào phòng
+    # (bỏ qua nếu chính trưởng phòng là người phân công / được giao để tránh trùng).
+    dept = db.get(Department, sample.department_id) if sample.department_id else None
+    lead_id = dept.lead_user_id if dept else None
+    if lead_id and lead_id not in (assigned_to, user.id):
+        notification_service.create_notification(
+            db,
+            user_id=lead_id,
+            type="SAMPLE_DISPATCHED",
+            title="Phòng nhận mẫu mới trong phòng",
+            body=f"Mẫu {sample.sample_code} — {part_name.strip()} (giao cho "
+            f"{sample_common.user_name(db, assigned_to)})",
+            ref_type="sample",
+            ref_id=sample.id,
+        )
     audit_service.log_action(
         db,
         action="SAMPLE_ASSIGN",

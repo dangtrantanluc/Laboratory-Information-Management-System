@@ -84,19 +84,15 @@ def run_risk_review_due(
             by_milestone[days_left] += 1
             db.flush()
 
-        db.commit()
-    finally:
-        _release_lock(_LOCK_KEY)
-
-    try:
+        # Audit CRON trong CÙNG transaction → 1 commit (PRODUCTION_READINESS_REVIEW L3).
         audit_service.log_action(
             db, action="CRON_RISK_REVIEW_REMINDER", resource="risk_cron",
             user_id=actor.id if actor else None, correlation_id=None,
             detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
         )
         db.commit()
-    except Exception:  # noqa: BLE001
-        db.rollback()
+    finally:
+        _release_lock(_LOCK_KEY)
 
     logger.info(
         "CRON-8 risk-review-due done",

@@ -26,7 +26,7 @@ def list_audit_logs(
     date_to: Optional[datetime] = Query(default=None),
     ip: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(audit_roles),
     db: Session = Depends(get_db),
 ):

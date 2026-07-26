@@ -2,7 +2,7 @@
 on-time report, QR (FR-001/002/004/012/013/014/015/016/019).
 
 State transitions qua sample_common.change_status (whitelist + audit). Mọi thao tác ghi
-trong transaction với row-lock khi đụng trạng thái (finalize). Cấm Kế toán toàn bộ.
+trong transaction với row-lock khi đụng trạng thái (finalize). Cấm Văn phòng toàn bộ.
 """
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -267,8 +267,9 @@ def list_request_samples(
     return items, total
 
 
-def get_sample_detail(db: Session, sample_id: uuid.UUID) -> dict:
+def get_sample_detail(db: Session, sample_id: uuid.UUID, *, user: CurrentUser) -> dict:
     sample = sample_common.get_sample_or_404(db, sample_id)
+    sample_common.assert_read_scope(user, sample.department_id)
     req = db.get(TestRequest, sample.request_id)
     customer_name = None
     if req and req.customer_id:
@@ -356,7 +357,7 @@ def update_sample(
         detail={"diff": diff},
     )
     db.commit()
-    return get_sample_detail(db, sample_id)
+    return get_sample_detail(db, sample_id, user=user)
 
 
 def update_condition(
@@ -673,10 +674,8 @@ def on_time_report(
     groups: dict = {}
     for s in samples:
         if group_by == "user":
-            key_id = s.received_by
             key_name = sample_common.user_name(db, s.received_by) or str(s.received_by)
         else:
-            key_id = s.department_id
             key_name = sample_common.dept_name(db, s.department_id) or str(s.department_id)
         g = groups.setdefault(
             key_name, {"group": key_name, "total_done": 0, "on_time": 0, "late": 0}

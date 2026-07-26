@@ -8,8 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
 
-VALID_ROLES = ("admin", "leader", "accountant", "staff")
-VALID_USER_STATUS = ("active", "disabled")
+VALID_ROLES = (
+    "admin",
+    "leader",
+    "office",
+    "staff",
+    "reception",
+    "qms",
+    "lab_manager",
+)
+# m30: 'pending' = tự đăng ký, đã (hoặc chưa) xác thực mail nhưng CHƯA được Quản trị
+# viên duyệt → không đăng nhập được. Chỉ 'active' mới vào hệ thống.
+VALID_USER_STATUS = ("active", "disabled", "pending")
 
 
 class User(Base):
@@ -41,6 +51,14 @@ class User(Base):
     password_changed_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
+    # m30 — mốc bấm link xác thực trong mail. Tách bạch với status: xác thực mail là
+    # "đúng chủ hộp thư", còn duyệt (status='active') là "được phép vào hệ thống".
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    # m30 — object key ảnh đại diện trong MinIO. Chỉ lưu ĐƯỜNG DẪN; API trả presigned
+    # URL TTL ngắn chứ không phát tán link vĩnh viễn.
+    avatar_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
@@ -57,7 +75,9 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("email", name="uq_users_email"),
         CheckConstraint(
-            "role IN ('admin', 'leader', 'accountant', 'staff')", name="ck_users_role"
+            "role IN ('admin', 'leader', 'office', 'staff', "
+            "'reception', 'qms', 'lab_manager')",
+            name="ck_users_role",
         ),
         CheckConstraint("status IN ('active', 'disabled')", name="ck_users_status"),
         CheckConstraint("position('@' IN email) > 1", name="ck_users_email"),

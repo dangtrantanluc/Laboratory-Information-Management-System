@@ -8,6 +8,7 @@ BR-CHEM-014). Quy đổi đơn vị Decimal. balance_after snapshot. Immutable �
 - out:    ref_sample_id BẮT BUỘC; không xuất quá tồn; lô fail/quá hạn → WARNING_NEEDS_CONFIRM.
 - adjust: KTV(transact)+Admin; note BẮT BUỘC; tồn không âm.
 """
+import logging
 import uuid
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -26,6 +27,8 @@ from app.models.chemical import (
 )
 from app.models.sample import Sample
 from app.services import audit_service, chemical_common as cc, notification_service
+
+logger = logging.getLogger("lims.chemical_txn")
 
 
 def _lot_is_expired(lot: ChemicalLot) -> bool:
@@ -49,33 +52,38 @@ def _reorder_check(
     ).scalar_one()
     if Decimal(total) >= chem.reorder_threshold:
         return
+    # Bọc trong SAVEPOINT (begin_nested): nếu tạo notification lỗi thì CHỈ rollback phần
+    # notify — KHÔNG poison transaction chính khiến db.commit() sau đó ném PendingRollbackError
+    # và ĐÁNH MẤT giao dịch kho đã thực hiện (PRODUCTION_READINESS_REVIEW H3). Bare `pass` cũ
+    # nuốt luôn cả nguyên nhân → nay log WARN kèm stack.
     try:
-        from app.models.department import Department
+        with db.begin_nested():
+            from app.models.department import Department
 
-        dept = db.get(Department, chem.department_id)
-        recipients: set[uuid.UUID] = set()
-        if dept and dept.lead_user_id:
-            recipients.add(dept.lead_user_id)
-        # thêm admin (mọi admin) để không sót cảnh báo
-        from app.models.user import User
+            dept = db.get(Department, chem.department_id)
+            recipients: set[uuid.UUID] = set()
+            if dept and dept.lead_user_id:
+                recipients.add(dept.lead_user_id)
+            # thêm admin (mọi admin) để không sót cảnh báo
+            from app.models.user import User
 
-        admins = db.execute(
-            select(User.id).where(User.role == "admin", User.status == "active")
-        ).scalars().all()
-        recipients.update(admins)
-        for uid in recipients:
-            notification_service.create_notification(
-                db,
-                user_id=uid,
-                type="CHEM_LOW_STOCK",
-                title="Hóa chất dưới ngưỡng tồn",
-                body=f"{chem.name} còn {cc.s_base(Decimal(total))} {chem.base_unit} "
-                f"(ngưỡng {cc.s_base(chem.reorder_threshold)})",
-                ref_type="chemical",
-                ref_id=chem.id,
-            )
-    except Exception:  # noqa: BLE001 — notify lỗi không chặn giao dịch
-        pass
+            admins = db.execute(
+                select(User.id).where(User.role == "admin", User.status == "active")
+            ).scalars().all()
+            recipients.update(admins)
+            for uid in recipients:
+                notification_service.create_notification(
+                    db,
+                    user_id=uid,
+                    type="CHEM_LOW_STOCK",
+                    title="Hóa chất dưới ngưỡng tồn",
+                    body=f"{chem.name} còn {cc.s_base(Decimal(total))} {chem.base_unit} "
+                    f"(ngưỡng {cc.s_base(chem.reorder_threshold)})",
+                    ref_type="chemical",
+                    ref_id=chem.id,
+                )
+    except Exception:  # noqa: BLE001 — notify lỗi không chặn giao dịch kho
+        logger.warning("reorder-check notify skipped", exc_info=True)
 
 
 def create_transaction(
@@ -95,7 +103,10 @@ def create_transaction(
     # ====== TRANSACTION + ROW-LOCK ======
     lot = cc.get_lot_or_404(db, lot_id, lock=True)
     chem = db.get(Chemical, lot.chemical_id)
-    cc.assert_write_scope(user, chem.department_id)
+    # Xuất (out) cho phép LIÊN PHÒNG: mọi KTV được xuất hóa chất của bất kỳ lab nào
+    # (nới lỏng BR-CHEM-018 cho riêng 'out'). Nhập/điều chỉnh vẫn giới hạn trong phòng của KTV.
+    if txn_type != "out":
+        cc.assert_write_scope(user, chem.department_id)
 
     if txn_type == "in":
         result = _do_in(db, user, lot, chem, payload, at, correlation_id, ip)
@@ -409,13 +420,19 @@ def list_transactions(
         .limit(limit)
     ).scalars().all()
 
+    # Batch-load lot/chemical/sample/user thay vì db.get() từng dòng (N+1 — xem
+    # PRODUCTION_READINESS_REVIEW §Performance: "Same N+1 pattern hits the
+    # interactive transaction-list hot path, not just exports").
+    lots_by_id, chems_by_id, samples_by_id = cc.batch_txn_refs(db, rows)
+    user_names_by_id = cc.batch_user_names(db, (txn.by_user for txn in rows))
+
     items = []
     for txn in rows:
-        lot = db.get(ChemicalLot, txn.lot_id)
-        chem = db.get(Chemical, lot.chemical_id) if lot else None
+        lot = lots_by_id.get(txn.lot_id)
+        chem = chems_by_id.get(lot.chemical_id) if lot else None
         ref_code = None
         if txn.ref_sample_id:
-            s = db.get(Sample, txn.ref_sample_id)
+            s = samples_by_id.get(txn.ref_sample_id)
             ref_code = s.sample_code if s else None
         line_value = None
         if txn.unit_price is not None and chem:
@@ -437,7 +454,7 @@ def list_transactions(
             "balance_after": cc.s_base(txn.balance_after),
             "ref_sample_code": ref_code,
             "warning_override": txn.warning_override,
-            "by_user_name": cc.user_name(db, txn.by_user),
+            "by_user_name": user_names_by_id.get(txn.by_user),
             "at": txn.at,
             "note": txn.note,
             "unit_price": cc.s_money(txn.unit_price),

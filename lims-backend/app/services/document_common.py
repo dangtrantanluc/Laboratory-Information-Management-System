@@ -1,7 +1,7 @@
 """M3 common helpers — RBAC scope, state machine, sinh mã, mức bảo mật, access log.
 
 Tập trung logic dùng chung cho mọi service M3 để khớp contract (15-contract-m3-api.md):
-- Cấm Kế toán mọi endpoint GHI (FORBIDDEN — tầng API/service, BR-DOC-005).
+- Cấm Văn phòng mọi endpoint GHI (FORBIDDEN — tầng API/service, BR-DOC-005).
 - Phạm vi phòng cho ghi (staff chỉ phòng mình — BR-DOC-004).
 - Quyền duyệt = trưởng nhóm phòng đó / leader / admin (đọc is_dept_lead — BR-DOC-010).
 - 2 mức bảo mật internal/restricted enforce list/get/download (BR-DOC-006).
@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found
+from app.core.exceptions import AppException
 from app.models.department import Department
 from app.models.document import Document, DocumentAccessLog, DocumentType, DocumentVersion
 
@@ -60,10 +60,10 @@ def version_not_found() -> AppException:
 
 
 # ===== RBAC =====
-def deny_accountant_write(user: CurrentUser) -> None:
-    """Cấm Kế toán mọi endpoint GHI M3 (BR-DOC-005). Gọi đầu mọi endpoint ghi."""
-    if user.role == "accountant":
-        raise forbidden("Kế toán không được phép thao tác ghi trên tài liệu")
+def deny_office_write(user: CurrentUser) -> None:
+    """Cấm Văn phòng mọi endpoint GHI M3 (BR-DOC-005). Gọi đầu mọi endpoint ghi."""
+    if user.role == "office":
+        raise forbidden("Văn phòng không được phép thao tác ghi trên tài liệu")
 
 
 def is_privileged(user: CurrentUser) -> bool:

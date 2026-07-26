@@ -8,7 +8,7 @@ WORKDIR /app
 
 # psycopg2-binary cần libpq; build tools cho 1 vài wheel
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 curl \
+    libpq5 curl fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -17,6 +17,12 @@ RUN pip install -r requirements.txt
 COPY . .
 
 RUN chmod +x /app/entrypoint.sh
+
+# Chạy dưới user không phải root — giảm blast radius nếu có lỗ hổng RCE trong deps
+# (PRODUCTION_READINESS_REVIEW §Reliability: "Dockerfile runs as root").
+RUN groupadd --system lims && useradd --system --gid lims --no-create-home lims \
+    && chown -R lims:lims /app
+USER lims
 
 EXPOSE 8060
 

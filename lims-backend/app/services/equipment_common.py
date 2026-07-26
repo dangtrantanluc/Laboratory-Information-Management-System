@@ -2,7 +2,7 @@
 nhuận), badge cảnh báo runtime, người phụ trách cùng phòng, error factories, MIME whitelist.
 
 Tập trung logic dùng chung mọi service M5 để khớp contract (18-contract-m5-api.md):
-- RBAC: đọc roles_permissions M5 (leader=👁 / accountant=read / staff=read all + ghi
+- RBAC: đọc roles_permissions M5 (leader=👁 / office=read / staff=read all + ghi
   phòng mình / admin=full). Endpoint ghi → has_permission(equipment:create/update,
   calibration:create); scope phòng (staff chỉ phòng mình — BR-EQP-003).
 - Badge cảnh báo (FR-EQP-010, BR-EQP-009/010): runtime từ next_due_date vs today +
@@ -77,19 +77,19 @@ def is_privileged(user: CurrentUser) -> bool:
 
 
 def assert_can_create(db: Session, user: CurrentUser) -> None:
-    """Quyền tạo thiết bị — equipment:create (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền tạo thiết bị — equipment:create (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "equipment", "create"):
         raise forbidden("Vai trò của bạn không được tạo thiết bị")
 
 
 def assert_can_update(db: Session, user: CurrentUser) -> None:
-    """Quyền sửa thiết bị — equipment:update (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền sửa thiết bị — equipment:update (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "equipment", "update"):
         raise forbidden("Vai trò của bạn không được sửa thiết bị")
 
 
 def assert_can_calibrate(db: Session, user: CurrentUser) -> None:
-    """Quyền ghi hiệu chuẩn — calibration:create (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền ghi hiệu chuẩn — calibration:create (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "calibration", "create"):
         raise forbidden("Vai trò của bạn không được ghi hiệu chuẩn")
 

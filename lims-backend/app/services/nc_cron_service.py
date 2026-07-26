@@ -103,11 +103,8 @@ def run_capa_due(
             by_milestone[ms] += 1
             db.flush()
 
-        db.commit()
-    finally:
-        _release_lock(_LOCK_KEY)
-
-    try:
+        # Ghi audit CRON trong CÙNG transaction với notifications → 1 commit duy nhất
+        # (PRODUCTION_READINESS_REVIEW L3: tránh notifications commit mà audit bị mất).
         audit_service.log_action(
             db,
             action="CRON_CAPA_REMINDER",
@@ -117,8 +114,8 @@ def run_capa_due(
             detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
         )
         db.commit()
-    except Exception:  # noqa: BLE001
-        db.rollback()
+    finally:
+        _release_lock(_LOCK_KEY)
 
     logger.info(
         "CRON-7 capa-due done",

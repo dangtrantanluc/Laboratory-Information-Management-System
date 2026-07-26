@@ -1,7 +1,7 @@
 """M1 common helpers — RBAC scope, state machine, code generation, error factories.
 
 Tập trung logic dùng chung cho mọi service M1 để khớp contract:
-- Cấm Kế toán toàn M1 (FORBIDDEN_ACCOUNTANT).
+- Cấm Văn phòng toàn M1 (FORBIDDEN_OFFICE).
 - Phạm vi phòng ban cho ghi (FORBIDDEN).
 - Quyền trưởng nhóm/Admin/Lãnh đạo (assign/approve/finalize) — đọc is_dept_lead (M7).
 - State machine whitelist (FR-017, §7.1).
@@ -35,10 +35,10 @@ STATE_WHITELIST: set[tuple[str, str]] = {
 
 
 # ===== Error factories (đồng bộ danh mục error code §3 contract) =====
-def forbidden_accountant() -> AppException:
+def forbidden_office() -> AppException:
     return AppException(
-        "FORBIDDEN_ACCOUNTANT",
-        "Kế toán không được phép truy cập module Quản lý Mẫu",
+        "FORBIDDEN_OFFICE",
+        "Văn phòng không được phép truy cập module Quản lý Mẫu",
         403,
     )
 
@@ -52,10 +52,10 @@ def invalid_state(message: str = "Chuyển trạng thái không hợp lệ") -> 
 
 
 # ===== RBAC =====
-def deny_accountant(user: CurrentUser) -> None:
-    """Cấm Kế toán toàn bộ M1 (B03, BR-014). Gọi đầu mọi endpoint."""
-    if user.role == "accountant":
-        raise forbidden_accountant()
+def deny_office(user: CurrentUser) -> None:
+    """Cấm Văn phòng toàn bộ M1 (B03, BR-014). Gọi đầu mọi endpoint."""
+    if user.role == "office":
+        raise forbidden_office()
 
 
 def is_privileged(user: CurrentUser) -> bool:
@@ -76,12 +76,35 @@ def can_lead_action(user: CurrentUser, sample_dept_id: uuid.UUID) -> bool:
     )
 
 
+def can_assign_action(user: CurrentUser, sample_dept_id: uuid.UUID) -> bool:
+    """Quyền PHÂN CÔNG / điều phối mẫu (GĐ2): như can_lead_action + Phòng nhận mẫu.
+    Reception điều phối mẫu tới bất kỳ phòng lab; KHÔNG có quyền duyệt/chốt kết quả.
+    """
+    if user.role == "reception":
+        return True
+    return can_lead_action(user, sample_dept_id)
+
+
 def assert_write_scope(user: CurrentUser, dept_id: uuid.UUID) -> None:
     """Phạm vi ghi theo phòng (BR-014): KTV chỉ ghi trong phòng mình."""
     if is_privileged(user):
         return
     if user.department_id is None or user.department_id != dept_id:
         raise forbidden("Bạn chỉ được thao tác trong phạm vi phòng ban của mình")
+
+
+def assert_read_scope(user: CurrentUser, dept_id: uuid.UUID) -> None:
+    """Phạm vi đọc chi tiết mẫu (IDOR fix — PRODUCTION_READINESS_REVIEW §Security:
+    "Sample detail read path has no department read-scope check"). admin/leader
+    và reception/qms (điều phối liên phòng — cùng quy ước đã dùng ở
+    sample_flow_service, thấy toàn bộ mẫu) được xem mọi phòng; còn lại (staff/
+    lab_manager/trưởng nhóm) chỉ xem chi tiết mẫu thuộc phòng mình, mirror
+    assert_write_scope.
+    """
+    if is_privileged(user) or user.role in ("reception", "qms"):
+        return
+    if user.department_id is None or user.department_id != dept_id:
+        raise forbidden("Bạn chỉ được xem mẫu trong phạm vi phòng ban của mình")
 
 
 # ===== Helpers tra cứu tên (cho response shape contract) =====

@@ -11,7 +11,7 @@ Mọi thao tác qua 1 transaction + audit (§8.4). NC đã closed/cancelled → 
 """
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select
@@ -171,7 +171,7 @@ def update_nc(
     ip: Optional[str],
 ) -> dict:
     entity = nc.get_nc_or_404(db, nc_id, lock=True)
-    # người tạo hoặc QM được sửa; accountant đã bị chặn ở read/create
+    # người tạo hoặc QM được sửa; office đã bị chặn ở read/create
     if not (entity.raised_by == user.id or nc.is_quality_manager(user)):
         raise nc.forbidden("Chỉ người tạo hoặc QM được sửa phiếu này")
     if entity.status in ("closed", "cancelled"):

@@ -28,7 +28,7 @@ def pub_indexes(
 
 @router.get("/contract-types")
 def contract_types(
-    user: CurrentUser = Depends(require_roles("admin", "leader", "accountant")),
+    user: CurrentUser = Depends(require_roles("admin", "leader", "office")),
     db: Session = Depends(get_db),
 ):
     return ok(hr_catalog_service.contract_types(db))

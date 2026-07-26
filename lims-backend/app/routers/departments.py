@@ -77,6 +77,8 @@ def update_department(
     return ok(data)
 
 
+# CỐ Ý trả 200 + body (KHÔNG 204) — soft-delete trả trạng thái cho client. Giữ có chủ đích
+# (PRODUCTION_READINESS_REVIEW L5), khác quy ước 204 của các DELETE cứng khác.
 @router.delete("/{dept_id}")
 def delete_department(
     dept_id: uuid.UUID,

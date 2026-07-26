@@ -1,7 +1,7 @@
 """M1 attachment service — upload/list file cho sample / test_request / sample_result.
 
 Tái dùng storage_service (MinIO) + bảng attachments (polymorphic). RBAC M1:
-- Cấm Kế toán.
+- Cấm Văn phòng.
 - Ghi (upload) theo phạm vi phòng (sample/test_request) hoặc người nhập (sample_result).
 - Đọc raw data kết quả: theo phạm vi xem kết quả (RESULT_NOT_PUBLISHED nếu pending ngoài nhóm).
 - Whitelist MIME PDF/PNG/JPG/XLSX/CSV; size <= cấu hình.
@@ -17,26 +17,15 @@ from app.config import settings
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, unprocessable
 from app.models.attachment import Attachment
-from app.models.sample import Sample
 from app.models.sample_assignment import SampleAssignment
 from app.models.sample_result import SampleResult
 from app.models.test_request import TestRequest
-from app.services import audit_service, sample_common, storage_service
-
-# Whitelist MIME (BR-SAMPLE-012)
-_ALLOWED_MIME = {
-    "application/pdf",
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel",
-    "text/csv",
-}
+from app.services import attachment_common, audit_service, sample_common, storage_service
 
 
 def _check_mime(mime: Optional[str]) -> None:
-    if mime is None or mime.lower() not in _ALLOWED_MIME:
+    # BR-SAMPLE-012: allowlist nền tảng dùng chung (xem app/services/attachment_common.py)
+    if mime is None or mime.lower() not in attachment_common.BASE_ALLOWED_MIME:
         raise unprocessable(
             "INVALID_FILE_TYPE",
             "Định dạng tệp không hợp lệ (chỉ PDF/PNG/JPG/XLSX/CSV)",
@@ -44,11 +33,7 @@ def _check_mime(mime: Optional[str]) -> None:
 
 
 def _check_size(content: bytes) -> None:
-    if len(content) > settings.max_upload_size_bytes:
-        raise unprocessable(
-            "FILE_TOO_LARGE",
-            f"Tệp vượt quá giới hạn {settings.max_upload_size_bytes // (1024 * 1024)}MB",
-        )
+    attachment_common.check_size(content)
 
 
 def _serialize_list(db: Session, att: Attachment) -> dict:

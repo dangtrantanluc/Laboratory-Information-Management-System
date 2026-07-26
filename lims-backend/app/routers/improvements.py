@@ -28,7 +28,7 @@ def list_improvements(
     status_filter: Optional[str] = Query(default=None, alias="status"),
     source: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

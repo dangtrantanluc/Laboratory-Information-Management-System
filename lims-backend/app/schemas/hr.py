@@ -12,7 +12,9 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 CompetenceKind = Literal["degree", "certificate", "authorization"]
-PublicationType = Literal["paper", "patent"]
+PublicationType = Literal["paper", "patent", "conference"]
+PubScope = Literal["domestic", "international"]
+AuthorRole = Literal["main", "co", "corresponding"]
 
 
 # ===================== Hồ sơ nhân sự =====================
@@ -101,6 +103,11 @@ class CreateProjectRequest(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     status: Optional[str] = Field(default="ongoing", max_length=16)
+    academic_year: Optional[str] = Field(default=None, max_length=16)
+    budget_amount: Optional[str] = Field(default=None, max_length=32)  # decimal-string
+    budget_currency: Optional[str] = Field(default=None, max_length=8)
+    is_transferred: Optional[bool] = None
+    transfer_product: Optional[str] = Field(default=None, max_length=2000)
     members: List[MemberItem] = Field(min_length=1)
 
     model_config = {"extra": "forbid"}
@@ -115,6 +122,11 @@ class UpdateProjectRequest(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     status: Optional[str] = Field(default=None, max_length=16)
+    academic_year: Optional[str] = Field(default=None, max_length=16)
+    budget_amount: Optional[str] = Field(default=None, max_length=32)
+    budget_currency: Optional[str] = Field(default=None, max_length=8)
+    is_transferred: Optional[bool] = None
+    transfer_product: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -131,6 +143,7 @@ class AuthorItem(BaseModel):
     external_name: Optional[str] = Field(default=None, max_length=255)
     author_order: int = Field(ge=1)
     is_corresponding: bool = False
+    author_role: Optional[AuthorRole] = None
 
     model_config = {"extra": "forbid"}
 
@@ -143,8 +156,18 @@ class CreatePublicationRequest(BaseModel):
     doi: Optional[str] = Field(default=None, max_length=255)
     index_code: Optional[str] = Field(default=None, max_length=32)  # alias category
     category: Optional[str] = Field(default=None, max_length=32)
+    pub_scope: Optional[PubScope] = None
+    is_scie: Optional[bool] = None
+    is_ssci: Optional[bool] = None
+    is_scopus: Optional[bool] = None
+    is_aci: Optional[bool] = None
+    academic_year: Optional[str] = Field(default=None, max_length=16)
     patent_no: Optional[str] = Field(default=None, max_length=64)
     issuing_authority: Optional[str] = Field(default=None, max_length=255)
+    application_no: Optional[str] = Field(default=None, max_length=64)
+    application_date: Optional[date] = None
+    granted_date: Optional[date] = None
+    patent_holder: Optional[str] = Field(default=None, max_length=255)
     department_id: Optional[uuid.UUID] = None
     authors: List[AuthorItem] = Field(min_length=1)
 
@@ -158,8 +181,18 @@ class UpdatePublicationRequest(BaseModel):
     doi: Optional[str] = Field(default=None, max_length=255)
     index_code: Optional[str] = Field(default=None, max_length=32)
     category: Optional[str] = Field(default=None, max_length=32)
+    pub_scope: Optional[PubScope] = None
+    is_scie: Optional[bool] = None
+    is_ssci: Optional[bool] = None
+    is_scopus: Optional[bool] = None
+    is_aci: Optional[bool] = None
+    academic_year: Optional[str] = Field(default=None, max_length=16)
     patent_no: Optional[str] = Field(default=None, max_length=64)
     issuing_authority: Optional[str] = Field(default=None, max_length=255)
+    application_no: Optional[str] = Field(default=None, max_length=64)
+    application_date: Optional[date] = None
+    granted_date: Optional[date] = None
+    patent_holder: Optional[str] = Field(default=None, max_length=255)
     department_id: Optional[uuid.UUID] = None
 
     model_config = {"extra": "forbid"}
@@ -214,6 +247,12 @@ class CreateTeachingRequest(BaseModel):
     course_name: str = Field(min_length=1, max_length=255)
     semester: str = Field(min_length=1, max_length=32)
     year: int = Field(ge=1900, le=2100)
+    academic_year: Optional[str] = Field(default=None, max_length=16)
+    hk1_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk1_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk2_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk2_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    note: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -222,6 +261,12 @@ class UpdateTeachingRequest(BaseModel):
     course_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     semester: Optional[str] = Field(default=None, max_length=32)
     year: Optional[int] = Field(default=None, ge=1900, le=2100)
+    academic_year: Optional[str] = Field(default=None, max_length=16)
+    hk1_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk1_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk2_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk2_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    note: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 

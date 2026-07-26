@@ -1,7 +1,7 @@
 """Router M8 — NC & CAPA (§7.10/§8.7).
 
 RBAC (enforce service): read/create theo roles_permissions; manage (mở/đóng CAPA + actions)
-theo QM (admin/leader hoặc staff is_quality_manager). accountant KHÔNG truy cập.
+theo QM (admin/leader hoặc staff is_quality_manager). office KHÔNG truy cập.
 
 Thứ tự khai báo: route tĩnh (/stats) TRƯỚC /{nc_id} để tránh nuốt path.
 """
@@ -55,7 +55,7 @@ def list_ncs(
     source_type: Optional[str] = Query(default=None),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

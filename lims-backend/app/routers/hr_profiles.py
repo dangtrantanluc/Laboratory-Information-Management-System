@@ -1,11 +1,10 @@
 """Router M4.1 — Hồ sơ nhân sự, lương (hệ số×cơ sở), HĐ, chu kỳ, lịch sử lương, năng lực.
 
 Field-level RBAC lương/HĐ/PII strip ở service (hr_common.strip_profile). Quyền sửa lương/HĐ
-= admin/accountant (SALARY_FORBIDDEN). LƯU Ý thứ tự đăng ký: /hr-profiles/me tĩnh đăng ký
+= admin/office (SALARY_FORBIDDEN). LƯU Ý thứ tự đăng ký: /hr-profiles/me tĩnh đăng ký
 trước /hr-profiles/{user_id} động.
 """
 import uuid
-from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
@@ -48,8 +47,8 @@ def list_profiles(
     contract_expiring_within_days: Optional[int] = Query(default=None, ge=1, le=3650),
     salary_raise_within_days: Optional[int] = Query(default=None, ge=1, le=3650),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
-    user: CurrentUser = Depends(require_roles("admin", "leader", "accountant")),
+    limit: int = Query(default=20, ge=1, le=100),
+    user: CurrentUser = Depends(require_roles("admin", "leader", "office")),
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
@@ -199,7 +198,7 @@ def create_salary_raise(
 def list_salary_history(
     user_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

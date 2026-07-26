@@ -2,7 +2,7 @@
 
 LƯU Ý thứ tự đăng ký: các path tĩnh (/documents/pending-review, /documents/access-stats,
 /documents/access-stats/export) PHẢI khai báo TRƯỚC /documents/{document_id} (tránh
-nuốt path). Kế toán cấm mọi endpoint ghi; phạm vi phòng + 2 mức bảo mật enforce service.
+nuốt path). Văn phòng cấm mọi endpoint ghi; phạm vi phòng + 2 mức bảo mật enforce service.
 """
 import uuid
 from datetime import date
@@ -58,7 +58,7 @@ def list_confidentiality_levels(
 def pending_review(
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -134,7 +134,7 @@ def list_documents(
     security_level: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -219,6 +219,9 @@ def update_document(
 
 
 # ===== 7. Soft-delete document =====
+# CỐ Ý trả 200 + body {id, status:"deleted"} (KHÔNG 204) — đây là SOFT-delete, client dùng
+# status trả về để cập nhật UI. Khác quy ước 204 của các DELETE cứng khác; giữ có chủ đích
+# (PRODUCTION_READINESS_REVIEW L5) để không phá vỡ wire-contract của frontend.
 @router.delete("/{document_id}")
 def delete_document(
     document_id: uuid.UUID,
@@ -275,7 +278,7 @@ def list_versions(
     document_id: uuid.UUID,
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

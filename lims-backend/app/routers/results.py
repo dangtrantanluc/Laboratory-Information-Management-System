@@ -34,7 +34,7 @@ def approve_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.approve_result(
         db,
         user=user,
@@ -54,7 +54,7 @@ def return_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.return_result(
         db,
         user=user,
@@ -74,7 +74,7 @@ def revise_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.revise_result(
         db,
         user=user,
@@ -93,7 +93,7 @@ def list_result_attachments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(
         sample_attachment_service.list_result_attachments(
             db, user=user, result_id=result_id
@@ -109,7 +109,7 @@ async def upload_result_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     content = await file.read()
     data = sample_attachment_service.upload_result_attachment(
         db,

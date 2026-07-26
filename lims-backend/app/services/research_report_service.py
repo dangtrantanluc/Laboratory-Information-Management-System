@@ -1,7 +1,7 @@
 """Research report service M4 (#37b) — xuất Excel báo cáo thành tích §6.2 (FR-HR-018).
 
 KHÔNG chứa lương (chỉ đếm thành tích). Reuse research_service.achievement_stats để giữ
-1 nguồn số liệu (scope staff own + accountant 403 đã enforce ở router). Audit
+1 nguồn số liệu (scope staff own + office 403 đã enforce ở router). Audit
 RESEARCH_REPORT_EXPORT (đếm lượt tải — R15).
 """
 import io

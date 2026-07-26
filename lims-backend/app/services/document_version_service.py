@@ -18,19 +18,11 @@ from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, unprocessable, validation_error
 from app.models.attachment import Attachment
 from app.models.document import Document, DocumentVersion
-from app.services import audit_service, document_common as dc, notification_service, storage_service
+from app.services import attachment_common, audit_service, document_common as dc, notification_service, storage_service
 
-# Whitelist MIME tài liệu (BR-DOC-013): PDF/DOCX/XLSX/PNG/JPG
-_ALLOWED_MIME = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/msword",
-    "application/vnd.ms-excel",
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-}
+# Whitelist MIME tài liệu (BR-DOC-013): PDF/DOCX/XLSX/PNG/JPG — allowlist nền tảng
+# dùng chung (attachment_common.GENERIC_ALLOWED_MIME) đã bao gồm đúng bộ này.
+_ALLOWED_MIME = attachment_common.GENERIC_ALLOWED_MIME
 _OWNER_TYPE = "document_version"
 
 
@@ -43,11 +35,7 @@ def _check_mime(mime: Optional[str]) -> None:
 
 
 def _check_size(content: bytes) -> None:
-    if len(content) > settings.max_upload_size_bytes:
-        raise unprocessable(
-            "FILE_TOO_LARGE",
-            f"Tệp vượt quá giới hạn {settings.max_upload_size_bytes // (1024 * 1024)}MB",
-        )
+    attachment_common.check_size(content)
 
 
 def _version_file(db: Session, version_id: uuid.UUID) -> Optional[Attachment]:
@@ -143,7 +131,7 @@ def create_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -239,7 +227,7 @@ def update_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -306,7 +294,7 @@ def submit_review(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -385,7 +373,7 @@ def approve_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     # row-lock document → tuần tự hóa approve cùng tài liệu (NFR-CONCUR-DOC-001)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
@@ -524,7 +512,7 @@ def reject_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -609,10 +597,10 @@ def download_version(
             "Phiên bản chưa ban hành — bạn không có quyền tải",
             403,
         )
-    # kế toán chỉ tải approved (BR-DOC-005)
-    if user.role == "accountant" and version.status != "approved":
+    # văn phòng chỉ tải approved (BR-DOC-005)
+    if user.role == "office" and version.status != "approved":
         raise AppException(
-            "VERSION_NOT_PUBLISHED", "Kế toán chỉ được tải phiên bản đã ban hành", 403
+            "VERSION_NOT_PUBLISHED", "Văn phòng chỉ được tải phiên bản đã ban hành", 403
         )
 
     att = _version_file(db, version.id)
@@ -728,7 +716,7 @@ def list_pending_review(
     page: int,
     limit: int,
 ) -> tuple[list[dict], int]:
-    dc.deny_accountant_write(user)  # nghiệp vụ quản lý — kế toán cấm
+    dc.deny_office_write(user)  # nghiệp vụ quản lý — văn phòng cấm
     if not (dc.is_privileged(user) or user.is_dept_lead):
         raise dc.forbidden("Chỉ trưởng nhóm / lãnh đạo / admin xem hàng chờ duyệt")
 

@@ -1,6 +1,6 @@
 """Router test_requests (M1) — phiếu yêu cầu thử nghiệm + mẫu/đính kèm nested (FR-018/001/003).
 
-Kế toán cấm toàn bộ (FORBIDDEN_ACCOUNTANT). Phạm vi phòng cho ghi.
+Văn phòng cấm toàn bộ (FORBIDDEN_OFFICE). Phạm vi phòng cho ghi.
 """
 import uuid
 from datetime import datetime
@@ -45,12 +45,14 @@ def list_requests(
     received_to: Optional[datetime] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
+    # KTV chỉ được xem phiếu có mẫu gán cho chính mình — bỏ qua department_id do client gửi.
+    forced_assigned_to = user.id if user.role == "staff" else None
     items, total = test_request_service.list_requests(
         db,
         q=q,
@@ -59,6 +61,7 @@ def list_requests(
         received_from=received_from,
         received_to=received_to,
         status_filter=status_filter,
+        assigned_to=forced_assigned_to,
         page=page,
         limit=limit,
     )
@@ -72,7 +75,7 @@ def create_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = test_request_service.create_request(
         db,
         user=user,
@@ -94,7 +97,7 @@ def get_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(test_request_service.get_request_detail(db, request_id))
 
 
@@ -106,7 +109,7 @@ def update_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     changes = body.model_dump(exclude_unset=True)
     data = test_request_service.update_request(
         db,
@@ -124,11 +127,11 @@ def update_request(
 def list_request_samples(
     request_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
     items, total = sample_service.list_request_samples(
         db, request_id=request_id, page=page, limit=limit
@@ -144,7 +147,7 @@ def add_sample(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.add_sample(
         db,
         user=user,
@@ -166,7 +169,7 @@ def list_request_attachments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(
         sample_attachment_service.list_request_attachments(db, request_id=request_id)
     )
@@ -180,7 +183,7 @@ async def upload_request_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     content = await file.read()
     data = sample_attachment_service.upload_request_attachment(
         db,

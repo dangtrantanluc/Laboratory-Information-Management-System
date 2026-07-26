@@ -66,7 +66,15 @@ def invalidate_role_cache(role: Optional[str] = None) -> None:
         if role:
             r.delete(rbac_role_key(role))
         else:
-            for role_name in ("admin", "leader", "accountant", "staff"):
+            for role_name in (
+                "admin",
+                "leader",
+                "office",
+                "staff",
+                "reception",
+                "qms",
+                "lab_manager",
+            ):
                 r.delete(rbac_role_key(role_name))
     except Exception as exc:  # noqa: BLE001
         logger.warning("RBAC cache invalidate failed: %s", exc)

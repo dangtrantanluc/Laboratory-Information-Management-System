@@ -1,8 +1,8 @@
 """M5 equipment service — CRUD thiết bị + tìm/lọc + chi tiết + cảnh báo (calibration-due)
 + đính kèm tài liệu thiết bị (FR-EQP-001..005, 010).
 
-RBAC: đọc toàn lab (staff/leader/accountant 👁); ghi theo phòng (staff phòng mình; admin
-all; leader/accountant cấm — equipment_common). Mã equipment_code sinh server-side
+RBAC: đọc toàn lab (staff/leader/office 👁); ghi theo phòng (staff phòng mình; admin
+all; leader/office cấm — equipment_common). Mã equipment_code sinh server-side
 (BR-EQP-014, không lộ tuần tự). Badge cảnh báo tính runtime, KHÔNG khóa cứng (OQ#3).
 Soft-delete qua deleted_at; thiết bị có hồ sơ hiệu chuẩn KHÔNG hard-delete (§8.4).
 """
@@ -19,7 +19,7 @@ from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, validation_error
 from app.models.attachment import Attachment
 from app.models.department import Department
-from app.models.equipment import CalibrationRecord, Equipment
+from app.models.equipment import Equipment
 from app.services import audit_service, attachment_service
 from app.services import equipment_common as ec
 
@@ -216,7 +216,6 @@ def list_calibration_due(
 
     rows = db.execute(select(Equipment).where(*conditions)).scalars().all()
 
-    today = date.today()
     out: list[dict] = []
     for eq in rows:
         last = ec.latest_calibration(db, eq.id)
@@ -299,7 +298,6 @@ def create_equipment(
     status_val = payload.get("status") or "active"
 
     # Sinh code + retry nếu trùng UNIQUE (FR-EQP-003 A1)
-    last_exc: Optional[Exception] = None
     for _ in range(5):
         code = ec.next_equipment_code(db, dept=dept)
         eq = Equipment(
@@ -322,7 +320,6 @@ def create_equipment(
             break
         except IntegrityError:
             db.rollback()
-            last_exc = None
             eq = None  # type: ignore
     else:
         logger.warning("Cannot generate unique equipment_code after retries")

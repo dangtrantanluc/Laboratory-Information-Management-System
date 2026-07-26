@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core import security
 from app.core.exceptions import (
     AppException,
@@ -20,7 +21,7 @@ from app.core.exceptions import (
 from app.models.department import Department
 from app.models.refresh_token import RefreshToken
 from app.models.user import User, VALID_ROLES
-from app.services import audit_service
+from app.services import audit_service, avatar_service, email_service
 
 
 def _get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
@@ -104,6 +105,7 @@ def _serialize_user_list(db: Session, user: User) -> dict:
         "department_name": dept.name if dept else None,
         "is_dept_lead": bool(dept and dept.lead_user_id == user.id),
         "status": user.status,
+        "email_verified_at": user.email_verified_at,
         "last_login_at": user.last_login_at,
         "created_at": user.created_at,
     }
@@ -121,6 +123,8 @@ def serialize_user_detail(db: Session, user: User) -> dict:
         ),
         "is_dept_lead": bool(dept and dept.lead_user_id == user.id),
         "status": user.status,
+        "email_verified_at": user.email_verified_at,
+        "avatar_url": avatar_service.avatar_url(user.avatar_key),
         "last_login_at": user.last_login_at,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
@@ -357,3 +361,123 @@ def reset_password(
         "must_change_password": must_change,
         "reset_at": user.updated_at,
     }
+
+
+# ──────────────────────── m30: duyệt tài khoản tự đăng ký ────────────────────────
+
+ROLE_LABELS_VI = {
+    "admin": "Quản trị viên",
+    "leader": "Ban lãnh đạo",
+    "office": "Văn phòng",
+    "staff": "Nhân viên / KTV",
+    "reception": "Phòng nhận mẫu",
+    "qms": "Quản lý chất lượng",
+    "lab_manager": "Trưởng phòng lab",
+}
+
+
+def approve_registration(
+    db: Session,
+    *,
+    actor_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    department_id: Optional[uuid.UUID],
+    is_dept_lead: bool = False,
+    correlation_id: Optional[str] = None,
+    ip: Optional[str] = None,
+) -> dict:
+    """Kích hoạt tài khoản đang chờ, gán vai trò + phòng ban thật.
+
+    Đây là điểm DUY NHẤT biến 'pending' → 'active'. Vai trò do Quản trị viên chọn ở
+    bước này, không phải do người đăng ký khai — chặn tự cấp quyền.
+    """
+    user = _get_user_or_404(db, user_id)
+
+    if user.status != "pending":
+        raise unprocessable(
+            "NOT_PENDING", "Tài khoản này không ở trạng thái chờ duyệt"
+        )
+    if user.email_verified_at is None:
+        raise unprocessable(
+            "EMAIL_NOT_VERIFIED",
+            "Người dùng chưa xác thực địa chỉ email. Chưa thể duyệt tài khoản.",
+        )
+    if role not in VALID_ROLES:
+        raise unprocessable("INVALID_ROLE", "Vai trò không hợp lệ")
+
+    dept = _validate_department(db, department_id) if department_id else None
+
+    user.role = role
+    user.department_id = department_id
+    user.status = "active"
+    user.updated_by = actor_id
+    user.updated_at = func.now()
+
+    # is_dept_lead không phải cột của users — nó là quan hệ departments.lead_user_id
+    # (giữ đúng mô hình hiện có, không nhân bản trạng thái).
+    if dept is not None and is_dept_lead:
+        dept.lead_user_id = user.id
+
+    audit_service.log_action(
+        db,
+        action="APPROVE_REGISTRATION",
+        resource="user",
+        user_id=actor_id,
+        resource_id=user.id,
+        correlation_id=correlation_id,
+        ip=ip,
+        detail={"role": role, "department_id": str(department_id) if department_id else None},
+    )
+    db.commit()
+    db.refresh(user)
+
+    email_service.send_account_approved(
+        to=str(user.email),
+        full_name=user.full_name,
+        role_label=ROLE_LABELS_VI.get(role, role),
+        login_url=f"{settings.app_public_url}/login",
+    )
+    return serialize_user_detail(db, user)
+
+
+def reject_registration(
+    db: Session,
+    *,
+    actor_id: uuid.UUID,
+    user_id: uuid.UUID,
+    reason: str,
+    correlation_id: Optional[str] = None,
+    ip: Optional[str] = None,
+) -> dict:
+    """Từ chối yêu cầu mở tài khoản → chuyển sang 'disabled'.
+
+    Cố ý KHÔNG xoá bản ghi: audit trail của ISO/IEC 17025 cần lưu vết ai đã yêu cầu
+    và ai đã từ chối. Ngoài ra giữ hàng users cũng chặn đăng ký lại spam cùng email.
+    """
+    user = _get_user_or_404(db, user_id)
+    if user.status != "pending":
+        raise unprocessable(
+            "NOT_PENDING", "Tài khoản này không ở trạng thái chờ duyệt"
+        )
+
+    user.status = "disabled"
+    user.updated_by = actor_id
+    user.updated_at = func.now()
+
+    audit_service.log_action(
+        db,
+        action="REJECT_REGISTRATION",
+        resource="user",
+        user_id=actor_id,
+        resource_id=user.id,
+        correlation_id=correlation_id,
+        ip=ip,
+        detail={"reason": reason},
+    )
+    db.commit()
+
+    email_service.send_account_rejected(
+        to=str(user.email), full_name=user.full_name, reason=reason
+    )
+    return {"id": user.id, "status": "disabled"}

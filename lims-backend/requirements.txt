@@ -37,3 +37,9 @@ reportlab==4.2.5
 
 # Excel generation (M2 FR-013/014 — nhật ký nhập/xuất + báo cáo tiêu hao)
 openpyxl==3.1.5
+
+# Web Push (M20 — popup thông báo desktop qua VAPID)
+pywebpush==2.0.3
+
+# Observability — metrics Prometheus (/metrics) cho request + scheduler gauges
+prometheus-client==0.21.1

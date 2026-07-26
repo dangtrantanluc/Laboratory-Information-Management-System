@@ -11,8 +11,11 @@ from app.models.user import VALID_ROLES
 ROLE_META = {
     "admin": {"label": "Quản trị viên", "description": "Toàn quyền hệ thống", "scope": "global"},
     "leader": {"label": "Ban lãnh đạo", "description": "Xem toàn hệ thống, duyệt nghiệp vụ", "scope": "global"},
-    "accountant": {"label": "Kế toán", "description": "Tài chính; không xem mẫu/kết quả", "scope": "global"},
-    "staff": {"label": "Nhân sự/KTV", "description": "Nghiệp vụ lab theo phòng ban", "scope": "department"},
+    "office": {"label": "Văn phòng", "description": "Tài chính; không xem mẫu/kết quả", "scope": "global"},
+    "staff": {"label": "KTV", "description": "Kỹ thuật viên — nghiệp vụ lab theo phòng ban", "scope": "department"},
+    "reception": {"label": "Phòng nhận mẫu", "description": "Nhận mẫu, khách hàng, phân công mẫu tới phòng lab", "scope": "global"},
+    "qms": {"label": "Quản lý chất lượng", "description": "Quản trị kho biểu mẫu VILAS, kiểm soát tài liệu", "scope": "global"},
+    "lab_manager": {"label": "Trưởng phòng lab", "description": "Điều hành & duyệt nghiệp vụ trong phòng lab", "scope": "department"},
 }
 
 # Quyền trưởng nhóm phái sinh từ is_dept_lead (không nằm trong matrix theo role)
