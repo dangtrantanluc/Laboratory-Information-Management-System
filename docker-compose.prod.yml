@@ -14,6 +14,12 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: lims-postgres
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     mem_limit: 2g
     # max_connections phải >= workers x (pool_size + max_overflow) + dự phòng
     #   4 x (8 + 12) + 20 (migrate/psql/backup) = 100  ->  đặt 200 cho an toàn
@@ -43,6 +49,12 @@ services:
   redis:
     image: redis:7-alpine
     container_name: lims-redis
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     mem_limit: 512m
     command:
       - redis-server
@@ -72,6 +84,12 @@ services:
   minio:
     image: minio/minio:latest
     container_name: lims-minio
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     mem_limit: 1g
     command: server /data --console-address ":9001"
     environment:
@@ -103,6 +121,23 @@ services:
   lims-api:
     build: ./lims-backend
     container_name: lims-api
+    restart: unless-stopped
+    healthcheck:
+      # Cố ý dùng /health (liveness thuần) chứ KHÔNG dùng /health/ready.
+      # /health/ready chạm DB+Redis+MinIO; nếu MinIO chết, container bị đánh
+      # unhealthy và restart — nhưng restart lims-api không cứu được MinIO, chỉ
+      # tạo restart loop. Readiness để dành cho load balancer và cảnh báo.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8060/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 90s   # chờ migrate xong, tránh restart loop lúc khởi động
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
     # Giới hạn tài nguyên — 1 export/request ngốn RAM không được OOM cả host
     # (PRODUCTION_READINESS_REVIEW §Reliability: "no resource limits declared anywhere").
     mem_limit: 1g
@@ -164,6 +199,17 @@ services:
       args:
         VITE_API_BASE_URL: /api/v1
     container_name: lims-web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     depends_on:
       - lims-api
     ports:
