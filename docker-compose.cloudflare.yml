@@ -1,0 +1,41 @@
+# Overlay Cloudflare Tunnel cho LIMS — dùng KÈM docker-compose.prod.yml.
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml \
+#                  --env-file .env.prod up -d --build
+#
+# Vì sao chỉ cần 1 tunnel: nginx trong lims-web đã reverse-proxy sẵn
+#   /api/               → lims-api:8060
+#   /lims-attachments/  → minio:9000   (giữ nguyên Host để chữ ký presigned s3v4 khớp)
+# nên toàn bộ ứng dụng đi qua đúng một origin. Tunnel chỉ trỏ vào lims-web:80.
+#
+# Overlay này KHÔNG mở cổng nào ra host: máy chủ không cần IP public, không cần
+# NAT/port-forward, không cần chứng chỉ TLS (Cloudflare cấp ở biên).
+services:
+  # Gỡ cổng đã publish ở docker-compose.prod.yml — sau khi có tunnel thì việc
+  # mở 3060/8060 ra host chỉ làm tăng bề mặt tấn công.
+  lims-web:
+    ports: !reset []
+
+  lims-api:
+    ports: !reset []
+    # docker-compose.prod.yml đặt cpus: 2.0 — Docker TỪ CHỐI khởi động nếu host
+    # có ít hơn 2 nhân. Đặt qua biến để máy 1 nhân vẫn chạy được.
+    cpus: ${LIMS_API_CPUS:-2.0}
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.2.1
+    container_name: lims-cloudflared
+    restart: unless-stopped
+    mem_limit: 256m
+    # Tunnel kiểu token (remote-managed): cấu hình public hostname ở dashboard
+    # Cloudflare, không cần file config trong repo.
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env.prod}
+    depends_on:
+      - lims-web
+    healthcheck:
+      test: ["CMD", "cloudflared", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

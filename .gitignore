@@ -1,0 +1,14 @@
+.env
+.env.prod
+.env.local
+.env.*.local
+
+# Dump database — chứa dữ liệu thật, không bao giờ commit
+*.dump
+*.sql.gz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+tmp/
