@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
@@ -27,10 +28,6 @@ router = APIRouter(tags=["m2-lots"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== global transactions list (đăng ký trước /lots/{id} để tránh nuốt path) =====
@@ -110,7 +107,7 @@ def upload_coa(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -130,7 +127,7 @@ def create_transaction(
         lot_id=lot_id,
         payload=body.model_dump(),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
         can_cost=cc.can_see_cost(db, user),
     )
     return ok(data)
@@ -155,6 +152,6 @@ def create_recheck(
         note=body.note,
         attachment_file_key=body.attachment_file_key,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

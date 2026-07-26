@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, require_permission
 from app.core.responses import ok, paginated, normalize_pagination
 from app.db.database import get_db
@@ -38,10 +39,6 @@ def _cid(r: Request) -> Optional[str]:
     return getattr(r.state, "correlation_id", None)
 
 
-def _ip(r: Request) -> Optional[str]:
-    return r.client.host if r.client else None
-
-
 # ===== Intakes =====
 @router.get("/intakes")
 def list_intakes(
@@ -65,7 +62,7 @@ def create_intake(
     db: Session = Depends(get_db),
 ):
     data = svc.create_intake(
-        db, user=user, fields=body.model_dump(), correlation_id=_cid(request), ip=_ip(request),
+        db, user=user, fields=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -90,7 +87,7 @@ def update_intake(
     changes = body.model_dump(exclude_unset=True)
     data = svc.update_intake(
         db, user=user, intake_id=intake_id, changes=changes,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -106,7 +103,7 @@ def change_intake_status(
     """Đổi trạng thái phiếu theo luồng: tiếp nhận → báo giá → đồng ý → thanh toán → chuyển lab → trả KQ."""
     return ok(svc.change_status(
         db, user=user, intake_id=intake_id, new_status=body.status, note=body.note,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -121,7 +118,7 @@ def update_intake_payment(
     """Ghi nhận thanh toán (khách chuyển khoản): trạng thái, số tiền, ngày, mã giao dịch."""
     return ok(svc.update_payment(
         db, user=user, intake_id=intake_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -139,7 +136,7 @@ def add_dispatch(
         don_vi=body.don_vi, phuong_phap=body.phuong_phap,
         test_parameter_id=body.test_parameter_id,
         sample_name=body.sample_name, quantity=body.quantity,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -157,7 +154,7 @@ def add_dispatches_batch(
     data = svc.add_dispatches_batch(
         db, user=user, intake_id=intake_id,
         items=[i.model_dump() for i in body.items],
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -194,7 +191,7 @@ def update_dispatch(
 ):
     data = svc.update_dispatch(
         db, user=user, dispatch_id=dispatch_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -211,7 +208,7 @@ def create_info_request(
     """Phòng lab gửi yêu cầu xin xem thông tin khách hàng của phiếu."""
     return ok(cir_svc.create_request(
         db, user=user, intake_id=intake_id, reason=body.reason,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -242,7 +239,7 @@ def approve_info_request(
 ):
     return ok(cir_svc.decide_request(
         db, user=user, request_id=request_id, approve=True, note=body.note,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -256,7 +253,7 @@ def reject_info_request(
 ):
     return ok(cir_svc.decide_request(
         db, user=user, request_id=request_id, approve=False, note=body.note,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -306,7 +303,7 @@ def create_test_parameter(
 ):
     return ok(tp_svc.create_parameter(
         db, user=user, fields=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -320,7 +317,7 @@ def update_test_parameter(
 ):
     return ok(tp_svc.update_parameter(
         db, user=user, parameter_id=parameter_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -332,5 +329,5 @@ def delete_test_parameter(
     db: Session = Depends(get_db),
 ):
     tp_svc.delete_parameter(
-        db, user=user, parameter_id=parameter_id, correlation_id=_cid(request), ip=_ip(request),
+        db, user=user, parameter_id=parameter_id, correlation_id=_cid(request), ip=client_ip(request),
     )

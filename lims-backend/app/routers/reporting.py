@@ -16,6 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.rate_limit import rate_limit
 from app.db.database import get_db
@@ -36,10 +37,6 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 def _csv(value: Optional[str]) -> Optional[list[str]]:
@@ -222,7 +219,7 @@ def export_xlsx(
     }
     content, filename = report_export_service.export_xlsx(
         db, user=user, report_type=report_type, params=params,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return Response(
         content=content,
@@ -256,7 +253,7 @@ def export_pdf(
     }
     content, filename = report_export_service.export_pdf(
         db, user=user, report_type=report_type, params=params,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return Response(
         content=content,
@@ -282,6 +279,6 @@ def page_view(
     if access_stat_service.is_whitelisted(path):
         access_stat_service.record(
             db, user_id=user.id, path=path, method="PAGE_VIEW",
-            status_code=200, ip=_ip(request), event_type="page_view",
+            status_code=200, ip=client_ip(request), event_type="page_view",
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

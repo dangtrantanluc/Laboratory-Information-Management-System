@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import ok
 from app.db.database import get_db
@@ -16,10 +17,6 @@ router = APIRouter(prefix="/assignments", tags=["m1-assignments"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -35,7 +32,7 @@ def cancel_assignment(
         user=user,
         assignment_id=assignment_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -73,6 +70,6 @@ def enter_result(
         result_data=body.result_data,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

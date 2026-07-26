@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -28,10 +29,6 @@ router = APIRouter(tags=["m4-activities"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 def _assert_contract_read(user: CurrentUser) -> None:
@@ -66,7 +63,7 @@ def create_contract(
 ):
     _assert_contract_read(user)
     return ok(activity_service.create_contract(
-        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=_ip(request)))
+        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.patch("/research-contracts/{contract_id}")
@@ -77,7 +74,7 @@ def update_contract(
     _assert_contract_read(user)
     return ok(activity_service.update_contract(
         db, user=user, contract_id=contract_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request)))
+        correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.delete("/research-contracts/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -87,7 +84,7 @@ def delete_contract(
 ):
     _assert_contract_read(user)
     activity_service.delete_contract(
-        db, user=user, contract_id=contract_id, correlation_id=_cid(request), ip=_ip(request))
+        db, user=user, contract_id=contract_id, correlation_id=_cid(request), ip=client_ip(request))
 
 
 # ===================== staff_activities (Công tác khác) =====================
@@ -112,7 +109,7 @@ def create_activity(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     return ok(activity_service.create_activity(
-        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=_ip(request)))
+        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.patch("/staff-activities/{activity_id}")
@@ -122,7 +119,7 @@ def update_activity(
 ):
     return ok(activity_service.update_activity(
         db, user=user, activity_id=activity_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request)))
+        correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.delete("/staff-activities/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -131,7 +128,7 @@ def delete_activity(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     activity_service.delete_activity(
-        db, user=user, activity_id=activity_id, correlation_id=_cid(request), ip=_ip(request))
+        db, user=user, activity_id=activity_id, correlation_id=_cid(request), ip=client_ip(request))
 
 
 # ===================== training_certificates (Phục vụ CĐ → Cấp GCN) =====================
@@ -156,7 +153,7 @@ def create_certificate(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     return ok(activity_service.create_certificate(
-        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=_ip(request)))
+        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.patch("/training-certificates/{cert_id}")
@@ -166,7 +163,7 @@ def update_certificate(
 ):
     return ok(activity_service.update_certificate(
         db, user=user, cert_id=cert_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request)))
+        correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.delete("/training-certificates/{cert_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -175,4 +172,4 @@ def delete_certificate(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     activity_service.delete_certificate(
-        db, user=user, cert_id=cert_id, correlation_id=_cid(request), ip=_ip(request))
+        db, user=user, cert_id=cert_id, correlation_id=_cid(request), ip=client_ip(request))

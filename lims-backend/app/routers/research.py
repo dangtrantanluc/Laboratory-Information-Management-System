@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
@@ -57,10 +58,6 @@ _PUB_MIME_WHITELIST = {"application/pdf", "image/png", "image/jpeg"}
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 def _guard(user: CurrentUser) -> CurrentUser:
@@ -121,7 +118,7 @@ def create_project(
     payload["members"] = _members_payload(body.members)
     return ok(
         project_service.create_project(
-            db, user=user, payload=payload, correlation_id=_cid(request), ip=_ip(request)
+            db, user=user, payload=payload, correlation_id=_cid(request), ip=client_ip(request)
         )
     )
 
@@ -152,7 +149,7 @@ def update_project(
             project_id=project_id,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -166,7 +163,7 @@ def delete_project(
 ):
     _guard(user)
     project_service.delete_project(
-        db, user=user, project_id=project_id, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, project_id=project_id, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -186,7 +183,7 @@ def replace_members(
             project_id=project_id,
             members=_members_payload(body.members),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -244,7 +241,7 @@ def create_publication(
     payload["authors"] = [a.model_dump() for a in body.authors]
     return ok(
         publication_service.create_publication(
-            db, user=user, payload=payload, correlation_id=_cid(request), ip=_ip(request)
+            db, user=user, payload=payload, correlation_id=_cid(request), ip=client_ip(request)
         )
     )
 
@@ -279,7 +276,7 @@ def update_publication(
             pub_id=pub_id,
             changes=changes,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -293,7 +290,7 @@ def delete_publication(
 ):
     _guard(user)
     publication_service.delete_publication(
-        db, user=user, pub_id=pub_id, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, pub_id=pub_id, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -313,7 +310,7 @@ def replace_authors(
             pub_id=pub_id,
             authors=[a.model_dump() for a in body.authors],
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -344,7 +341,7 @@ def upload_publication_attachment(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -390,7 +387,7 @@ def create_mentorship(
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -411,7 +408,7 @@ def update_mentorship(
             mid=mid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -425,7 +422,7 @@ def delete_mentorship(
 ):
     _guard(user)
     mentorship_service.delete_mentorship(
-        db, user=user, mid=mid, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, mid=mid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -468,7 +465,7 @@ def create_registration(
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -491,7 +488,7 @@ def approve_registration(
             decision="approved",
             reason=reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -514,7 +511,7 @@ def reject_registration(
             decision="rejected",
             reason=reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -560,7 +557,7 @@ def create_teaching(
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -581,7 +578,7 @@ def update_teaching(
             tid=tid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -595,7 +592,7 @@ def delete_teaching(
 ):
     _guard(user)
     teaching_service.delete_teaching(
-        db, user=user, tid=tid, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, tid=tid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -642,7 +639,7 @@ def create_community(
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -663,7 +660,7 @@ def update_community(
             cid=cid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -677,7 +674,7 @@ def delete_community(
 ):
     _guard(user)
     community_service.delete_community(
-        db, user=user, cid=cid, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, cid=cid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -735,7 +732,7 @@ def achievement_stats_xlsx(
         level=level,
         category=index_code,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=content,

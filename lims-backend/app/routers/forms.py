@@ -20,6 +20,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, require_permission
 from app.core.rate_limit import rate_limit
@@ -38,10 +39,6 @@ router = APIRouter(prefix="/forms", tags=["forms"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== Templates =====
@@ -74,7 +71,7 @@ def create_template(
     data = form_service.create_template(
         db, user=user, code=body.code, title=body.title, iso_clause=body.iso_clause,
         category=body.category, year=body.year, note=body.note,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -90,7 +87,7 @@ def update_template(
     changes = body.model_dump(exclude_unset=True)
     data = form_service.update_template(
         db, user=user, template_id=template_id, changes=changes,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -116,7 +113,7 @@ def upload_template_file(
             db, user=user, owner_type=form_file_service.OWNER_TEMPLATE, owner_id=template_id,
             file_name=file.filename or "file", content=content, mime=file.content_type,
             reason=reason, expected_attachment_id=expected_attachment_id,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
         return ok(data)
 
@@ -131,7 +128,7 @@ def delete_template_file(
 ):
     data = form_file_service.delete_file(
         db, user=user, owner_type=form_file_service.OWNER_TEMPLATE, owner_id=template_id,
-        reason=reason, correlation_id=_cid(request), ip=_ip(request),
+        reason=reason, correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -163,7 +160,7 @@ def download_template_file(
         form_file_service.history_download_url(
             db, user=user, owner_type=form_file_service.OWNER_TEMPLATE,
             owner_id=template_id, attachment_id=attachment_id,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -219,7 +216,7 @@ def export_submissions(
 ):
     content = form_service.export_submissions_xlsx(
         db, user=user, template_id=template_id, department_id=department_id, year=year,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     filename = f"vilas-minh-chung{f'-{year}' if year else ''}.xlsx"
     return Response(
@@ -238,7 +235,7 @@ def create_submission(
 ):
     data = form_service.create_submission(
         db, user=user, template_id=body.template_id, department_id=body.department_id,
-        year=body.year, note=body.note, correlation_id=_cid(request), ip=_ip(request),
+        year=body.year, note=body.note, correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -252,7 +249,7 @@ def approve_submission(
 ):
     data = form_service.approve_submission(
         db, user=user, submission_id=submission_id,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -267,7 +264,7 @@ def reject_submission(
 ):
     data = form_service.reject_submission(
         db, user=user, submission_id=submission_id, reject_reason=body.reason,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -294,7 +291,7 @@ def upload_submission_file(
             owner_id=submission_id, file_name=file.filename or "file", content=content,
             mime=file.content_type, reason=reason,
             expected_attachment_id=expected_attachment_id,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
         return ok(data)
 
@@ -325,7 +322,7 @@ def download_submission_file(
         form_file_service.history_download_url(
             db, user=user, owner_type=form_file_service.OWNER_SUBMISSION,
             owner_id=submission_id, attachment_id=attachment_id,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 

@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -30,10 +31,6 @@ router = APIRouter(prefix="/nonconformities", tags=["m8-nonconformities"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== #10 GET /nonconformities/stats (khai trước /{id}) =====
@@ -85,7 +82,7 @@ def create_nc(
     return ok(
         nc_service.create_nc(
             db, user=user, payload=body.model_dump(),
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -114,7 +111,7 @@ def update_nc(
     return ok(
         nc_service.update_nc(
             db, user=user, nc_id=nc_id, changes=body.model_dump(exclude_unset=True),
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -131,7 +128,7 @@ def cancel_nc(
     return ok(
         nc_service.cancel_nc(
             db, user=user, nc_id=nc_id, reason=body.reason,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -148,7 +145,7 @@ def open_capa(
     return ok(
         nc_service.open_capa(
             db, user=user, nc_id=nc_id, payload=body.model_dump(),
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -165,7 +162,7 @@ def add_action(
     return ok(
         nc_service.add_action(
             db, user=user, nc_id=nc_id, payload=body.model_dump(),
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -184,7 +181,7 @@ def update_action(
         nc_service.update_action(
             db, user=user, nc_id=nc_id, action_id=action_id,
             new_status=body.status, note=body.note,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )
 
@@ -203,6 +200,6 @@ def close_capa(
             db, user=user, nc_id=nc_id,
             effectiveness_result=body.effectiveness_result,
             effectiveness_note=body.effectiveness_note,
-            correlation_id=_cid(request), ip=_ip(request),
+            correlation_id=_cid(request), ip=client_ip(request),
         )
     )

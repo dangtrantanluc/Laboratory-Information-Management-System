@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
@@ -34,10 +35,6 @@ _COMPETENCE_MIME_WHITELIST = {"application/pdf", "image/png", "image/jpeg"}
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===================== #1 LIST =====================
@@ -84,7 +81,7 @@ def create_profile(
         hired_date=body.hired_date,
         phone=body.phone,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -124,7 +121,7 @@ def update_profile(
         target_user_id=user_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -146,7 +143,7 @@ def update_contract(
         contract_type=body.contract_type,
         contract_end_date=body.contract_end_date,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -166,7 +163,7 @@ def update_salary_cycle(
         target_user_id=user_id,
         salary_cycle_years=body.salary_cycle_years,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -190,7 +187,7 @@ def create_salary_raise(
         raise_date=body.raise_date,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -241,7 +238,7 @@ def create_competence(
         target_user_id=user_id,
         payload=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -274,7 +271,7 @@ def update_competence(
         competence_id=competence_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -292,7 +289,7 @@ def delete_competence(
         user=user,
         competence_id=competence_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
 
 
@@ -325,6 +322,6 @@ def upload_competence_attachment(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)

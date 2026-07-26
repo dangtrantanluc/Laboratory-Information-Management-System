@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -21,10 +22,6 @@ router = APIRouter(tags=["m4-activity-reports"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("/activity-reports")
@@ -51,7 +48,7 @@ def create_report(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     return ok(svc.create_report(
-        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=_ip(request)))
+        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.get("/activity-reports/{report_id}")
@@ -68,7 +65,7 @@ def review_report(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     return ok(svc.review_report(
-        db, user=user, report_id=report_id, correlation_id=_cid(request), ip=_ip(request)))
+        db, user=user, report_id=report_id, correlation_id=_cid(request), ip=client_ip(request)))
 
 
 @router.delete("/activity-reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -76,4 +73,4 @@ def delete_report(
     report_id: uuid.UUID, request: Request,
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
-    svc.delete_report(db, user=user, report_id=report_id, correlation_id=_cid(request), ip=_ip(request))
+    svc.delete_report(db, user=user, report_id=report_id, correlation_id=_cid(request), ip=client_ip(request))

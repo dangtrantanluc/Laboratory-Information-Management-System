@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
@@ -48,10 +49,6 @@ _MSDS_MIME_WHITELIST = {
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== units =====
@@ -133,7 +130,7 @@ def export_transactions(
         department_id=department_id,
         can_cost=cc.can_see_cost(db, user),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     filename = f"chem-journal-{date_from.isoformat()}_{date_to.isoformat()}.xlsx"
     return Response(
@@ -211,7 +208,7 @@ def create_chemical(
         department_id=body.department_id,
         reorder_threshold=body.reorder_threshold,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -242,7 +239,7 @@ def update_chemical(
         chemical_id=chemical_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -259,7 +256,7 @@ def deactivate_chemical(
         user=user,
         chemical_id=chemical_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -327,7 +324,7 @@ def upload_msds(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -375,7 +372,7 @@ def create_lot(
         recheck_date=body.recheck_date,
         initial_intake=intake,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     data = cc.strip_price_fields(data, cc.can_see_cost(db, user))
     return ok(data)

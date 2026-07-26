@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -16,10 +17,6 @@ router = APIRouter(prefix="/improvements", tags=["m10-improvements"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("")
@@ -46,7 +43,7 @@ def create_improvement(
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
     return ok(risk_service.create_improvement(
-        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)
     ))
 
 
@@ -66,5 +63,5 @@ def update_improvement(
     risk_common.assert_can_read(db, user, "improvement")
     return ok(risk_service.update_improvement(
         db, user=user, imp_id=imp_id, changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))

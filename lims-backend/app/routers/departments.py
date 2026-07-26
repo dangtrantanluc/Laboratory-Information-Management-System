@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.responses import ok
 from app.db.database import get_db
@@ -17,10 +18,6 @@ admin_only = require_roles("admin")
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("")
@@ -51,7 +48,7 @@ def create_department(
         parent_id=body.parent_id,
         lead_user_id=body.lead_user_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -72,7 +69,7 @@ def update_department(
         dept_id=dept_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -91,6 +88,6 @@ def delete_department(
         actor_id=user.id,
         dept_id=dept_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

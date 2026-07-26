@@ -22,6 +22,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
@@ -34,10 +35,6 @@ router = APIRouter(prefix="/equipments", tags=["m5-equipments"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== #2 GET /equipments/calibration-due (khai trước /{id}) =====
@@ -105,7 +102,7 @@ def create_equipment(
         user=user,
         payload=body.model_dump(),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -135,7 +132,7 @@ def update_equipment(
         equipment_id=equipment_id,
         raw_body=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -161,7 +158,7 @@ def add_attachment(
             mime=file.content_type,
             doc_type=doc_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -182,7 +179,7 @@ def download_attachment(
             equipment_id=equipment_id,
             attachment_id=attachment_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -237,6 +234,6 @@ def create_calibration(
             cert_content=cert_content,
             cert_mime=cert.content_type if cert is not None else None,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)

@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, require_permission
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -21,10 +22,6 @@ router = APIRouter(prefix="/lab-access-cards", tags=["lab-access-cards"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("")
@@ -55,7 +52,7 @@ def create_card(
 ):
     data = lab_access_service.create_card(
         db, user=user, payload=body.model_dump(),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -71,7 +68,7 @@ def update_card(
     changes = body.model_dump(exclude_unset=True)
     data = lab_access_service.update_card(
         db, user=user, card_id=card_id, changes=changes,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return ok(data)
 
@@ -84,5 +81,5 @@ def delete_card(
     db: Session = Depends(get_db),
 ):
     lab_access_service.delete_card(
-        db, user=user, card_id=card_id, correlation_id=_cid(request), ip=_ip(request)
+        db, user=user, card_id=card_id, correlation_id=_cid(request), ip=client_ip(request)
     )

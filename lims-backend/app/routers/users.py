@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, require_roles
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -25,10 +26,6 @@ admin_only = require_roles("admin")
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("")
@@ -73,7 +70,7 @@ def create_user(
         password=body.password,
         is_dept_lead=body.is_dept_lead,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -103,7 +100,7 @@ def update_user(
         user_id=user_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -122,7 +119,7 @@ def enable_user(
             user_id=user_id,
             enable=True,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -141,7 +138,7 @@ def disable_user(
             user_id=user_id,
             enable=False,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -161,7 +158,7 @@ def reset_password(
             user_id=user_id,
             new_password=body.new_password,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -189,7 +186,7 @@ def approve_registration(
         department_id=body.department_id,
         is_dept_lead=body.is_dept_lead,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -209,6 +206,6 @@ def reject_registration(
         user_id=user_id,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

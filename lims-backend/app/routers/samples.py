@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
@@ -38,10 +39,6 @@ router = APIRouter(prefix="/samples", tags=["m1-samples"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== List / search =====
@@ -132,7 +129,7 @@ def update_sample(
         sample_id=sample_id,
         changes=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -153,7 +150,7 @@ def update_condition(
         condition_status=body.condition_status,
         condition_note=body.condition_note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -173,7 +170,7 @@ def update_deadline(
         sample_id=sample_id,
         deadline_at=body.deadline_at,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -218,7 +215,7 @@ def upload_sample_attachment(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -250,7 +247,7 @@ def create_assignment(
         part_name=body.part_name,
         assigned_to=body.assigned_to,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -272,7 +269,7 @@ def create_handover(
         to_user=body.to_user,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -314,7 +311,7 @@ def finalize_sample(
         sample_id=sample_id,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -335,7 +332,7 @@ def add_overdue_reason(
         sample_id=sample_id,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -356,7 +353,7 @@ def export_report(
         sample_id=sample_id,
         reissue=reissue,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=pdf_bytes,

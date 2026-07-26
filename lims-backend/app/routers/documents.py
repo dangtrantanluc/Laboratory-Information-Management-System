@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
@@ -31,10 +32,6 @@ lookup_router = APIRouter(tags=["m3-documents"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== 1. Danh mục loại tài liệu =====
@@ -115,7 +112,7 @@ def access_stats_export(
         department_id=department_id,
         action=action,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=data,
@@ -181,7 +178,7 @@ def create_document(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -215,7 +212,7 @@ def update_document(
         type_code=body.type,
         security_level=body.security_level,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -237,7 +234,7 @@ def delete_document(
             user=user,
             document_id=document_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -317,7 +314,7 @@ def create_version(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -355,7 +352,7 @@ def update_version(
         content=None,
         mime=None,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -383,7 +380,7 @@ def replace_version_file(
             content=content,
             mime=file.content_type,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
         return ok(data)
 
@@ -404,7 +401,7 @@ def submit_review(
             document_id=document_id,
             version_id=version_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -427,7 +424,7 @@ def approve_version(
             version_id=version_id,
             note=body.note if body else None,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -450,7 +447,7 @@ def reject_version(
             version_id=version_id,
             reject_reason=body.reject_reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -471,6 +468,6 @@ def download_version(
             document_id=document_id,
             version_id=version_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )

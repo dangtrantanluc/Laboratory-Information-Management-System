@@ -15,23 +15,18 @@ import logging
 from fastapi import HTTPException, Request, status
 
 from app.core.redis_client import get_redis
+from app.core.request_meta import client_ip as _real_ip
 
 logger = logging.getLogger("lims.rate_limit")
 
 
 def client_ip(request: Request) -> str:
-    """IP thật của người dùng cuối.
+    """Như `request_meta.client_ip` nhưng luôn trả chuỗi.
 
-    Tin X-Real-IP vì nginx GHI ĐÈ header này bằng giá trị nó tự xác định (không
-    cộng dồn như $proxy_add_x_forwarded_for), và lims-api không publish cổng ra
-    host nên không ai gọi thẳng để giả mạo được.
-
-    Không có header (gọi nội bộ, test) thì rơi về request.client.host.
+    Ở đây giá trị dùng làm KHOÁ Redis nên không được None; còn `audit_logs.ip` là
+    cột INET nên phải nhận None. Hai nhu cầu khác nhau, một nguồn sự thật.
     """
-    return (
-        request.headers.get("x-real-ip")
-        or (request.client.host if request.client else "unknown")
-    )
+    return _real_ip(request) or "unknown"
 
 
 def check_rate(key_prefix: str, identity: str, *, limit: int, window_seconds: int) -> None:

@@ -10,6 +10,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -28,10 +29,6 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 def _cid(r: Request) -> Optional[str]:
     return getattr(r.state, "correlation_id", None)
-
-
-def _ip(r: Request) -> Optional[str]:
-    return r.client.host if r.client else None
 
 
 @router.get("/quotations")
@@ -90,7 +87,7 @@ def create_quotation(
     db: Session = Depends(get_db),
 ):
     return ok(svc.create_quotation(
-        db, user=user, fields=body.model_dump(), correlation_id=_cid(request), ip=_ip(request),
+        db, user=user, fields=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -103,7 +100,7 @@ def create_from_intake(
 ):
     """Tạo báo giá tự động từ các chỉ tiêu đã phân của phiếu nhận mẫu."""
     return ok(svc.create_from_intake(
-        db, user=user, intake_id=intake_id, correlation_id=_cid(request), ip=_ip(request),
+        db, user=user, intake_id=intake_id, correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -118,7 +115,7 @@ def update_quotation(
     return ok(svc.update_quotation(
         db, user=user, quotation_id=quotation_id,
         changes=body.model_dump(exclude_unset=True),
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -132,7 +129,7 @@ def change_status(
 ):
     return ok(svc.change_status(
         db, user=user, quotation_id=quotation_id, new_status=body.status,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     ))
 
 
@@ -144,5 +141,5 @@ def delete_quotation(
     db: Session = Depends(get_db),
 ):
     svc.delete_quotation(
-        db, user=user, quotation_id=quotation_id, correlation_id=_cid(request), ip=_ip(request),
+        db, user=user, quotation_id=quotation_id, correlation_id=_cid(request), ip=client_ip(request),
     )
