@@ -13,6 +13,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.department import Department
@@ -31,7 +32,7 @@ MASK_PLACEHOLDER = "••• Đã ẩn •••"
 
 
 def _forbidden(msg: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", msg, 403)
+    return AppException(ErrorCode.FORBIDDEN, msg, 403)
 
 
 def is_masked_role(user: CurrentUser) -> bool:
@@ -127,7 +128,7 @@ def create_request(
     if not is_masked_role(user):
         raise _forbidden("Chỉ phòng lab cần gửi yêu cầu xem thông tin khách hàng")
     if user.department_id is None:
-        raise AppException("VALIDATION_ERROR", "Tài khoản chưa gắn phòng ban", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Tài khoản chưa gắn phòng ban", 400)
 
     intake = db.get(SampleIntake, intake_id)
     if intake is None:
@@ -135,12 +136,12 @@ def create_request(
 
     if has_access(db, user, intake_id):
         raise AppException(
-            "ALREADY_GRANTED", "Phòng bạn đã được duyệt xem thông tin của phiếu này", 409
+            ErrorCode.ALREADY_GRANTED, "Phòng bạn đã được duyệt xem thông tin của phiếu này", 409
         )
     existing = _pending_request(db, intake_id, user.department_id)
     if existing is not None:
         raise AppException(
-            "DUPLICATE_REQUEST", "Đã có yêu cầu đang chờ Phòng nhận mẫu duyệt", 409
+            ErrorCode.DUPLICATE_REQUEST, "Đã có yêu cầu đang chờ Phòng nhận mẫu duyệt", 409
         )
 
     r = CustomerInfoRequest(
@@ -212,7 +213,7 @@ def decide_request(
     if r is None:
         raise not_found("Không tìm thấy yêu cầu")
     if r.status != "pending":
-        raise AppException("INVALID_STATE", "Yêu cầu đã được xử lý", 409)
+        raise AppException(ErrorCode.INVALID_STATE, "Yêu cầu đã được xử lý", 409)
 
     r.status = "approved" if approve else "rejected"
     r.decided_by = user.id

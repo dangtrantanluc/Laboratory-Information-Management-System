@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
@@ -23,7 +24,7 @@ EXPORT_MAX_ROWS = 10000
 
 
 def _forbidden(msg: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", msg, 403)
+    return AppException(ErrorCode.FORBIDDEN, msg, 403)
 
 
 def _files_of(db: Session, owner_type: str, owner_id: uuid.UUID) -> list[dict]:
@@ -109,7 +110,7 @@ def create_template(
         select(FormTemplate.id).where(FormTemplate.code == code.strip())
     ).scalar_one_or_none()
     if dup is not None:
-        raise AppException("DUPLICATE_CODE", "Mã biểu mẫu đã tồn tại", 409)
+        raise AppException(ErrorCode.DUPLICATE_CODE, "Mã biểu mẫu đã tồn tại", 409)
     t = FormTemplate(
         code=code.strip(),
         title=title.strip(),
@@ -364,7 +365,7 @@ def export_submissions_xlsx(
             ).scalar_one()
             if total > EXPORT_MAX_ROWS:
                 raise AppException(
-                    "EXPORT_TOO_LARGE",
+                    ErrorCode.EXPORT_TOO_LARGE,
                     f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp bộ lọc.",
                     422,
                 )
@@ -506,7 +507,7 @@ def create_submission(
         if department_id is not None and department_id != user.department_id:
             raise _forbidden("Bạn chỉ được nộp minh chứng cho phòng của mình")
     if dept_id is None:
-        raise AppException("VALIDATION_ERROR", "Cần chỉ định phòng nộp minh chứng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Cần chỉ định phòng nộp minh chứng", 400)
 
     sub = FormSubmission(
         template_id=template_id,
@@ -565,7 +566,7 @@ def approve_submission(
     sub = _get_submission_or_404(db, submission_id)
     if sub.status != "pending":
         raise AppException(
-            "INVALID_STATE",
+            ErrorCode.INVALID_STATE,
             f"Minh chứng đã được xử lý (trạng thái hiện tại: '{sub.status}')",
             422,
         )
@@ -605,7 +606,7 @@ def reject_submission(
     sub = _get_submission_or_404(db, submission_id)
     if sub.status != "pending":
         raise AppException(
-            "INVALID_STATE",
+            ErrorCode.INVALID_STATE,
             f"Minh chứng đã được xử lý (trạng thái hiện tại: '{sub.status}')",
             422,
         )

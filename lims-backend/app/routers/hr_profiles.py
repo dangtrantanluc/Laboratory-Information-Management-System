@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
@@ -311,7 +312,7 @@ def upload_competence_attachment(
         comp = hr_service.get_competence_or_404(db, competence_id)
         if file.content_type not in _COMPETENCE_MIME_WHITELIST:
             raise AppException(
-                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+                ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
             )
         content = file.file.read()
         # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)

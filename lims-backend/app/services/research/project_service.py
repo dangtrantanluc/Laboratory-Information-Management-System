@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -134,13 +135,13 @@ def create_project(
 ) -> dict:
     title = payload.get("title")
     if not title or not str(title).strip():
-        raise AppException("VALIDATION_ERROR", "Thiếu title", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu title", 400)
     level = payload.get("level")
     if not level or db.get(ResearchProjectLevel, level) is None:
-        raise AppException("INVALID_PROJECT_LEVEL", "Cấp đề tài ngoài danh mục", 400)
+        raise AppException(ErrorCode.INVALID_PROJECT_LEVEL, "Cấp đề tài ngoài danh mục", 400)
     lead_user_id = payload.get("lead_user_id")
     if not lead_user_id:
-        raise AppException("LEAD_REQUIRED", "Thiếu chủ nhiệm (lead_user_id)", 400)
+        raise AppException(ErrorCode.LEAD_REQUIRED, "Thiếu chủ nhiệm (lead_user_id)", 400)
     members = payload.get("members") or []
     internal_users = _validate_members(
         db, members, allow_external=False, lead_user_id=lead_user_id
@@ -150,7 +151,7 @@ def create_project(
     start_date = payload.get("start_date")
     end_date = payload.get("end_date")
     if start_date and end_date and end_date < start_date:
-        raise AppException("INVALID_DATE_ORDER", "end_date < start_date", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "end_date < start_date", 422)
 
     department_id = payload.get("department_id")
     if department_id is None:
@@ -203,7 +204,7 @@ def create_project(
 def _get_project_or_404(db: Session, project_id: uuid.UUID) -> ResearchProject:
     p = db.get(ResearchProject, project_id)
     if p is None:
-        raise AppException("PROJECT_NOT_FOUND", "Đề tài không tồn tại", 404)
+        raise AppException(ErrorCode.PROJECT_NOT_FOUND, "Đề tài không tồn tại", 404)
     return p
 
 
@@ -237,10 +238,10 @@ def update_project(
     p = _get_project_or_404(db, project_id)
     _assert_project_scope(db, user, p)
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     if "level" in changes and changes["level"] is not None:
         if db.get(ResearchProjectLevel, changes["level"]) is None:
-            raise AppException("INVALID_PROJECT_LEVEL", "Cấp đề tài ngoài danh mục", 400)
+            raise AppException(ErrorCode.INVALID_PROJECT_LEVEL, "Cấp đề tài ngoài danh mục", 400)
     if "lead_user_id" in changes and changes["lead_user_id"]:
         member = db.execute(
             select(ProjectMember).where(
@@ -250,12 +251,12 @@ def update_project(
         ).scalar_one_or_none()
         if member is None:
             raise AppException(
-                "LEAD_REQUIRED", "Chủ nhiệm mới phải là thành viên đề tài", 400
+                ErrorCode.LEAD_REQUIRED, "Chủ nhiệm mới phải là thành viên đề tài", 400
             )
     new_start = changes.get("start_date", p.start_date)
     new_end = changes.get("end_date", p.end_date)
     if new_start and new_end and new_end < new_start:
-        raise AppException("INVALID_DATE_ORDER", "end_date < start_date", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "end_date < start_date", 422)
     for field in (
         "code",
         "title",

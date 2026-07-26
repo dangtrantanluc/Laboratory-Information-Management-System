@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException
 from app.models.permission import RolePermission
 from app.models.user import VALID_ROLES
@@ -72,7 +73,7 @@ def list_permissions(
 
 def get_role_permissions(db: Session, role: str) -> dict:
     if role not in VALID_ROLES:
-        raise AppException("ROLE_NOT_FOUND", "Vai trò không tồn tại", 404)
+        raise AppException(ErrorCode.ROLE_NOT_FOUND, "Vai trò không tồn tại", 404)
     rows = db.execute(
         select(RolePermission)
         .where(RolePermission.role == role)

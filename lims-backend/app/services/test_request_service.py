@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, validation_error
 from app.models.customer import Customer
@@ -187,7 +188,7 @@ def create_request(
             )
         ).scalar_one_or_none()
         if c is None:
-            raise AppException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng", 404)
+            raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
 
     recv_by = received_by or user.id
 
@@ -213,7 +214,7 @@ def create_request(
             db.rollback()
     else:
         raise AppException(
-            "INTERNAL_ERROR", "Không sinh được mã phiếu, vui lòng thử lại", 500
+            ErrorCode.INTERNAL_ERROR, "Không sinh được mã phiếu, vui lòng thử lại", 500
         )
 
     audit_service.log_action(
@@ -253,7 +254,7 @@ def update_request(
                 )
             ).scalar_one_or_none()
             if c is None:
-                raise AppException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng", 404)
+                raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
         req.customer_id = cid
         diff["customer_id"] = str(cid) if cid else None
     if "sender_name" in changes and changes["sender_name"] is not None:

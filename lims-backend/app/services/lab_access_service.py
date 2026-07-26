@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.lab_access import LabAccessCard
@@ -36,7 +37,7 @@ def _serialize(c: LabAccessCard) -> dict:
 
 def _check_period(valid_from: Optional[date], valid_to: Optional[date]) -> None:
     if valid_from and valid_to and valid_to < valid_from:
-        raise AppException("INVALID_PERIOD", "Thời gian đến phải sau thời gian từ", 422)
+        raise AppException(ErrorCode.INVALID_PERIOD, "Thời gian đến phải sau thời gian từ", 422)
 
 
 def list_cards(

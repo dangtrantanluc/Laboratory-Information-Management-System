@@ -11,6 +11,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.quotation import (
@@ -25,7 +26,7 @@ CENT = Decimal("0.01")
 
 
 def _forbidden(msg: str = "Chỉ Phòng nhận mẫu / Quản trị / Ban lãnh đạo được lập báo giá") -> AppException:
-    return AppException("FORBIDDEN", msg, 403)
+    return AppException(ErrorCode.FORBIDDEN, msg, 403)
 
 
 def can_manage(user: CurrentUser) -> bool:
@@ -43,9 +44,9 @@ def _dec(v, field: str = "số tiền") -> Decimal:
     try:
         d = Decimal(str(v))
     except (InvalidOperation, ValueError):
-        raise AppException("VALIDATION_ERROR", f"{field} không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, f"{field} không hợp lệ", 400)
     if d < 0:
-        raise AppException("VALIDATION_ERROR", f"{field} không được âm", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, f"{field} không được âm", 400)
     return d
 
 
@@ -163,7 +164,7 @@ def _apply_items(db: Session, q: Quotation, items: list[dict]) -> None:
         tp = db.get(TestParameter, raw["test_parameter_id"]) if raw.get("test_parameter_id") else None
         name = (raw.get("parameter_name") or (tp.name if tp else "")).strip()
         if not name:
-            raise AppException("VALIDATION_ERROR", f"Dòng {i + 1}: thiếu tên chỉ tiêu", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, f"Dòng {i + 1}: thiếu tên chỉ tiêu", 400)
         # Đơn giá: ưu tiên giá nhập tay (cho phép thương lượng), không có thì lấy bảng giá
         price = raw.get("unit_price")
         unit_price = _dec(price, "Đơn giá") if price not in (None, "") else Decimal(tp.unit_price or 0) if tp else Decimal("0")
@@ -188,7 +189,7 @@ def create_quotation(
     _assert_manage(user)
     name = (fields.get("customer_name") or "").strip()
     if not name:
-        raise AppException("VALIDATION_ERROR", "Nhập tên khách hàng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Nhập tên khách hàng", 400)
 
     today = date.today()
     q = Quotation(
@@ -235,7 +236,7 @@ def create_from_intake(
     ).scalars().all()
     if not dispatches:
         raise AppException(
-            "NO_ITEMS",
+            ErrorCode.NO_ITEMS,
             "Phiếu chưa có chỉ tiêu nào — hãy phân chỉ tiêu trước khi lập báo giá",
             400,
         )
@@ -275,7 +276,7 @@ def update_quotation(
     if q is None:
         raise not_found("Không tìm thấy báo giá")
     if q.status == "accepted":
-        raise AppException("LOCKED", "Báo giá đã được khách đồng ý — không sửa được", 409)
+        raise AppException(ErrorCode.LOCKED, "Báo giá đã được khách đồng ý — không sửa được", 409)
 
     for f in ("customer_name", "customer_address", "customer_email", "customer_phone",
               "issue_date", "valid_until", "note", "intake_id"):
@@ -310,7 +311,7 @@ def change_status(
     allowed = QUOTATION_NEXT.get(q.status, ())
     if new_status not in allowed:
         raise AppException(
-            "INVALID_TRANSITION",
+            ErrorCode.INVALID_TRANSITION,
             f"Không thể chuyển báo giá từ '{QUOTATION_STATUS_LABELS.get(q.status)}' sang "
             f"'{QUOTATION_STATUS_LABELS.get(new_status)}'",
             409,
@@ -351,7 +352,7 @@ def delete_quotation(
     if q is None:
         raise not_found("Không tìm thấy báo giá")
     if q.status == "accepted":
-        raise AppException("LOCKED", "Báo giá đã được khách đồng ý — không xóa được", 409)
+        raise AppException(ErrorCode.LOCKED, "Báo giá đã được khách đồng ý — không xóa được", 409)
     code = q.code
     db.delete(q)  # items CASCADE
     audit_service.log_action(

@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.exceptions import AppException
@@ -331,7 +332,7 @@ def upload_publication_attachment(
         publication_service.get_publication(db, user=user, pub_id=pub_id)
         if file.content_type not in _PUB_MIME_WHITELIST:
             raise AppException(
-                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+                ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
             )
         content = file.file.read()
         data = attachment_service.create_attachment(

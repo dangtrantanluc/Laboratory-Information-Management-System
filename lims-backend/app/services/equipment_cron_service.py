@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
@@ -59,7 +60,7 @@ def run_calibration_due(
 ) -> dict:
     """CRON-5 — quét next_due_date tới mốc 30/15/7 ngày, nhắc in-app idempotent."""
     if not _acquire_lock(_LOCK_KEY):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-5 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-5 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = as_of_date or now.date()

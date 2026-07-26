@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.chemical import (
@@ -147,7 +148,7 @@ def create_chemical(
     except IntegrityError:
         db.rollback()
         raise AppException(
-            "DUPLICATE_CHEMICAL",
+            ErrorCode.DUPLICATE_CHEMICAL,
             "Hóa chất (tên + CAS) đã tồn tại trong phòng ban này",
             409,
         )
@@ -256,7 +257,7 @@ def update_chemical(
         # Đổi base_unit chỉ khi chưa có lô/giao dịch (BR-CHEM-003 → UNIT_LOCKED)
         if _lot_count(db, chem.id) > 0:
             raise AppException(
-                "UNIT_LOCKED",
+                ErrorCode.UNIT_LOCKED,
                 "Không thể đổi đơn vị cơ sở khi hóa chất đã có lô/giao dịch",
                 422,
             )
@@ -266,7 +267,7 @@ def update_chemical(
         diff["base_unit"] = new_unit.code
 
     if not diff:
-        raise AppException("VALIDATION_ERROR", "Không có thay đổi nào hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Không có thay đổi nào hợp lệ", 400)
 
     chem.updated_by = user.id
     chem.updated_at = func.now()
@@ -275,7 +276,7 @@ def update_chemical(
     except IntegrityError:
         db.rollback()
         raise AppException(
-            "DUPLICATE_CHEMICAL", "Tên/CAS gây trùng trong phòng ban", 409
+            ErrorCode.DUPLICATE_CHEMICAL, "Tên/CAS gây trùng trong phòng ban", 409
         )
     audit_service.log_action(
         db,
@@ -304,7 +305,7 @@ def deactivate_chemical(
     cc.assert_write_scope(user, chem.department_id)
     if _total_stock_base(db, chem.id) > 0:
         raise AppException(
-            "CHEMICAL_HAS_STOCK",
+            ErrorCode.CHEMICAL_HAS_STOCK,
             "Còn lô tồn > 0 — phải xử lý tồn trước khi vô hiệu hóa",
             422,
         )

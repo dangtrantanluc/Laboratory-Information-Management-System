@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, validation_error
 from app.models.overdue_reason import OverdueReason
@@ -72,11 +73,11 @@ def add_sample(
 
     if deadline_at <= req.received_at:
         raise AppException(
-            "INVALID_DEADLINE", "Hạn hoàn thành phải sau ngày nhận mẫu", 422
+            ErrorCode.INVALID_DEADLINE, "Hạn hoàn thành phải sau ngày nhận mẫu", 422
         )
     if condition_status == "not_acceptable" and not (condition_note and condition_note.strip()):
         raise AppException(
-            "CONDITION_REASON_REQUIRED",
+            ErrorCode.CONDITION_REASON_REQUIRED,
             "Mẫu không đạt điều kiện phải ghi lý do",
             400,
         )
@@ -108,7 +109,7 @@ def add_sample(
             req = db.get(TestRequest, request_id)
     else:
         raise AppException(
-            "INTERNAL_ERROR", "Không sinh được mã mẫu, vui lòng thử lại", 500
+            ErrorCode.INTERNAL_ERROR, "Không sinh được mã mẫu, vui lòng thử lại", 500
         )
 
     audit_service.log_action(
@@ -374,7 +375,7 @@ def update_condition(
     sample_common.assert_write_scope(user, sample.department_id)
     if condition_status == "not_acceptable" and not (condition_note and condition_note.strip()):
         raise AppException(
-            "CONDITION_REASON_REQUIRED", "Mẫu không đạt điều kiện phải ghi lý do", 400
+            ErrorCode.CONDITION_REASON_REQUIRED, "Mẫu không đạt điều kiện phải ghi lý do", 400
         )
     sample.condition_status = condition_status
     sample.condition_note = condition_note
@@ -413,7 +414,7 @@ def update_deadline(
     if sample.status == "returned":
         raise sample_common.invalid_state("Không thể sửa deadline mẫu đã trả kết quả")
     if deadline_at <= sample.received_at:
-        raise AppException("INVALID_DEADLINE", "Hạn mới phải sau ngày nhận mẫu", 422)
+        raise AppException(ErrorCode.INVALID_DEADLINE, "Hạn mới phải sau ngày nhận mẫu", 422)
 
     previous = sample.deadline_at
     sample.deadline_at = deadline_at
@@ -526,7 +527,7 @@ def add_overdue_reason(
     sample_common.assert_write_scope(user, sample.department_id)
     if sample.status != "overdue":
         raise AppException(
-            "SAMPLE_NOT_OVERDUE", "Mẫu không ở trạng thái trễ hạn", 422
+            ErrorCode.SAMPLE_NOT_OVERDUE, "Mẫu không ở trạng thái trễ hạn", 422
         )
     ovr = OverdueReason(sample_id=sample.id, reason=reason.strip(), by_user=user.id)
     db.add(ovr)
@@ -576,7 +577,7 @@ def finalize_sample(
     total_a, approved_a = _assignment_stats(db, sample.id)
     if total_a == 0 or approved_a != total_a:
         raise AppException(
-            "RESULTS_NOT_APPROVED",
+            ErrorCode.RESULTS_NOT_APPROVED,
             "Còn phần việc chưa được duyệt, không thể chốt mẫu",
             422,
         )
@@ -591,7 +592,7 @@ def finalize_sample(
         ).scalar_one() > 0
         if not has_reason:
             raise AppException(
-                "OVERDUE_REASON_REQUIRED",
+                ErrorCode.OVERDUE_REASON_REQUIRED,
                 "Mẫu trễ hạn phải nhập lý do trễ trước khi chốt",
                 422,
             )

@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.attachment import Attachment
@@ -78,7 +79,7 @@ def _check_submission_scope(user: CurrentUser, sub: FormSubmission) -> None:
         return
     if user.department_id is None or user.department_id != sub.department_id:
         raise AppException(
-            "FORBIDDEN", "Bạn chỉ được sửa minh chứng của phòng mình", 403
+            ErrorCode.FORBIDDEN, "Bạn chỉ được sửa minh chứng của phòng mình", 403
         )
 
 
@@ -86,7 +87,7 @@ def _check_submission_writable(sub: FormSubmission) -> None:
     """Đã duyệt thì khóa tệp — sửa tệp sau khi duyệt làm mất giá trị của chữ ký duyệt."""
     if sub.status == "approved":
         raise AppException(
-            "INVALID_STATE",
+            ErrorCode.INVALID_STATE,
             "Minh chứng đã được duyệt — không thể đổi tệp. "
             "Hãy nộp minh chứng mới hoặc đề nghị Phòng QLCL mở lại.",
             422,
@@ -178,7 +179,7 @@ def replace_file(
     attachment_common.check_mime(mime, allowed=attachment_common.GENERIC_ALLOWED_MIME)
     attachment_common.check_size(content)
     if not content:
-        raise AppException("VALIDATION_ERROR", "Tệp rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Tệp rỗng", 400)
 
     olds = _current_attachments(db, owner_type, owner_id)
     old = olds[0] if olds else None
@@ -188,7 +189,7 @@ def replace_file(
         current_id = old.id if old else None
         if current_id != expected_attachment_id:
             raise AppException(
-                "CONFLICT",
+                ErrorCode.CONFLICT,
                 "Tệp đã được người khác thay đổi. Hãy tải lại trang rồi thử lại.",
                 409,
             )
@@ -296,7 +297,7 @@ def delete_file(
     # Minh chứng bắt buộc có tệp — gỡ tệp cuối cùng sẽ để lại minh chứng rỗng vô nghĩa.
     if owner_type == OWNER_SUBMISSION:
         raise AppException(
-            "INVALID_STATE",
+            ErrorCode.INVALID_STATE,
             "Minh chứng phải có tệp — hãy dùng chức năng Thay tệp thay vì gỡ.",
             422,
         )

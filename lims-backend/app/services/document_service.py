@@ -12,6 +12,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, validation_error
@@ -171,7 +172,7 @@ def create_document(
     sec = security_level or "internal"
     if sec not in _VALID_SECURITY:
         raise AppException(
-            "INVALID_CONFIDENTIALITY", "Mức bảo mật không hợp lệ", 422
+            ErrorCode.INVALID_CONFIDENTIALITY, "Mức bảo mật không hợp lệ", 422
         )
 
     # phòng sở hữu: staff ép = phòng mình
@@ -188,7 +189,7 @@ def create_document(
 
     dept = db.get(Department, dept_id)
     if dept is None:
-        raise AppException("DEPARTMENT_NOT_FOUND", "Không tìm thấy phòng ban", 404)
+        raise AppException(ErrorCode.DEPARTMENT_NOT_FOUND, "Không tìm thấy phòng ban", 404)
 
     # validate file sớm (tránh tạo tài liệu rỗng nếu file sai)
     dvs._check_mime(mime)
@@ -215,7 +216,7 @@ def create_document(
             doc = None  # type: ignore
     if doc is None:
         raise AppException(
-            "DUPLICATE_DOCUMENT_CODE",
+            ErrorCode.DUPLICATE_DOCUMENT_CODE,
             "Không sinh được mã tài liệu duy nhất, vui lòng thử lại",
             409,
         )
@@ -371,7 +372,7 @@ def update_document(
     if security_level is not None:
         if security_level not in _VALID_SECURITY:
             raise AppException(
-                "INVALID_CONFIDENTIALITY", "Mức bảo mật không hợp lệ", 422
+                ErrorCode.INVALID_CONFIDENTIALITY, "Mức bảo mật không hợp lệ", 422
             )
         doc.security_level = security_level
     doc.updated_by = user.id
@@ -423,7 +424,7 @@ def delete_document(
     ).scalar_one()
     if has_published > 0:
         raise AppException(
-            "DOCUMENT_HAS_APPROVED_VERSION",
+            ErrorCode.DOCUMENT_HAS_APPROVED_VERSION,
             "Tài liệu đã có phiên bản ban hành — không được xóa (giữ hồ sơ §8.4)",
             422,
         )

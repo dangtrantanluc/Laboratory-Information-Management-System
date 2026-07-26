@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -86,17 +87,17 @@ def create_teaching(
 ) -> dict:
     target = payload.get("user_id")
     if not target:
-        raise AppException("VALIDATION_ERROR", "Thiếu user_id", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu user_id", 400)
     if user.role == "staff" and target != user.id:
         raise hc.forbidden("Bạn chỉ khai môn giảng dạy của chính mình")
     hc.assert_user_exists(db, target)
     if not payload.get("course_name"):
-        raise AppException("VALIDATION_ERROR", "Thiếu course_name", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu course_name", 400)
     if not payload.get("semester"):
-        raise AppException("VALIDATION_ERROR", "Thiếu semester", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu semester", 400)
     year = payload.get("year")
     if year is None or not (1900 <= int(year) <= date.today().year + 1):
-        raise AppException("VALIDATION_ERROR", "year ngoài khoảng hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "year ngoài khoảng hợp lệ", 400)
     t = TeachingCourse(
         user_id=target,
         course_name=str(payload["course_name"]).strip(),
@@ -117,7 +118,7 @@ def create_teaching(
         db.flush()
     except IntegrityError:
         db.rollback()
-        raise AppException("DUPLICATE_COURSE", "Trùng môn (user+môn+kỳ+năm)", 409)
+        raise AppException(ErrorCode.DUPLICATE_COURSE, "Trùng môn (user+môn+kỳ+năm)", 409)
     audit_service.log_action(
         db,
         action="TEACHING_COURSE_CREATE",
@@ -144,11 +145,11 @@ def update_teaching(
 ) -> dict:
     t = db.get(TeachingCourse, tid)
     if t is None:
-        raise AppException("TEACHING_COURSE_NOT_FOUND", "Môn học không tồn tại", 404)
+        raise AppException(ErrorCode.TEACHING_COURSE_NOT_FOUND, "Môn học không tồn tại", 404)
     if not hc.is_research_all(user) and t.user_id != user.id:
         raise hc.forbidden("Bạn chỉ sửa môn giảng dạy của chính mình")
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     for field in ("course_name", "semester", "year"):
         if field in changes:
             setattr(t, field, changes[field])
@@ -158,7 +159,7 @@ def update_teaching(
         db.flush()
     except IntegrityError:
         db.rollback()
-        raise AppException("DUPLICATE_COURSE", "Trùng môn (user+môn+kỳ+năm)", 409)
+        raise AppException(ErrorCode.DUPLICATE_COURSE, "Trùng môn (user+môn+kỳ+năm)", 409)
     audit_service.log_action(
         db,
         action="TEACHING_COURSE_UPDATE",
@@ -184,7 +185,7 @@ def delete_teaching(
 ) -> None:
     t = db.get(TeachingCourse, tid)
     if t is None:
-        raise AppException("TEACHING_COURSE_NOT_FOUND", "Môn học không tồn tại", 404)
+        raise AppException(ErrorCode.TEACHING_COURSE_NOT_FOUND, "Môn học không tồn tại", 404)
     if not hc.is_research_all(user) and t.user_id != user.id:
         raise hc.forbidden("Bạn chỉ xóa môn giảng dạy của chính mình")
     db.delete(t)

@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, unprocessable
 from app.models.attachment import Attachment, VALID_OWNER_TYPES
@@ -26,7 +27,7 @@ def _check_owner_read_permission(user: CurrentUser, owner_type: str) -> None:
     """
     if owner_type in _M1_OWNER_TYPES and user.role == "office":
         raise AppException(
-            "FORBIDDEN_OFFICE",
+            ErrorCode.FORBIDDEN_OFFICE,
             "Văn phòng không được truy cập tài nguyên mẫu/kết quả",
             403,
         )
@@ -120,7 +121,7 @@ def create_attachment(
     sẽ được module tương ứng bổ sung. M7 chỉ chấp nhận owner_type trong whitelist.
     """
     if owner_type not in VALID_OWNER_TYPES:
-        raise unprocessable("INVALID_OWNER_TYPE", "Loại đối tượng đính kèm không hợp lệ")
+        raise unprocessable(ErrorCode.INVALID_OWNER_TYPE, "Loại đối tượng đính kèm không hợp lệ")
 
     attachment_common.check_mime(mime, allowed=attachment_common.GENERIC_ALLOWED_MIME)
     attachment_common.check_size(content)

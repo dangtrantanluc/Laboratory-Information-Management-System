@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, unprocessable
 from app.models.attachment import Attachment
@@ -27,7 +28,7 @@ def _check_mime(mime: Optional[str]) -> None:
     # BR-SAMPLE-012: allowlist nền tảng dùng chung (xem app/services/attachment_common.py)
     if mime is None or mime.lower() not in attachment_common.BASE_ALLOWED_MIME:
         raise unprocessable(
-            "INVALID_FILE_TYPE",
+            ErrorCode.INVALID_FILE_TYPE,
             "Định dạng tệp không hợp lệ (chỉ PDF/PNG/JPG/XLSX/CSV)",
         )
 
@@ -180,7 +181,7 @@ def upload_result_attachment(
         raise sample_common.forbidden("Chỉ người nhập kết quả được đính kèm raw data")
     if result.approved_by is not None:
         raise unprocessable(
-            "RESULT_LOCKED",
+            ErrorCode.RESULT_LOCKED,
             "Kết quả đã duyệt — sửa phải tạo phiên bản mới",
         )
     return _upload(
@@ -206,7 +207,7 @@ def list_result_attachments(
         can_view = result_service._can_view_pending(db, user, assignment, result)
         if not can_view:
             raise AppException(
-                "RESULT_NOT_PUBLISHED",
+                ErrorCode.RESULT_NOT_PUBLISHED,
                 "Kết quả chưa được duyệt — không thể xem raw data",
                 403,
             )

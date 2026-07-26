@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.sample_assignment import SampleAssignment
@@ -71,10 +72,10 @@ def create_assignment(
 
     assignee = db.get(User, assigned_to)
     if assignee is None or assignee.status != "active":
-        raise AppException("ASSIGNEE_NOT_FOUND", "Không tìm thấy người được giao", 404)
+        raise AppException(ErrorCode.ASSIGNEE_NOT_FOUND, "Không tìm thấy người được giao", 404)
     if assignee.department_id != sample.department_id:
         raise AppException(
-            "ASSIGNEE_OUT_OF_DEPT",
+            ErrorCode.ASSIGNEE_OUT_OF_DEPT,
             "Người được giao phải cùng phòng ban với mẫu",
             422,
         )
@@ -179,7 +180,7 @@ def cancel_assignment(
     ).scalar_one() > 0
     if has_result:
         raise AppException(
-            "RESULT_EXISTS", "Phân công đã có kết quả, không thể hủy", 422
+            ErrorCode.RESULT_EXISTS, "Phân công đã có kết quả, không thể hủy", 422
         )
 
     db.delete(assignment)
@@ -234,7 +235,7 @@ def create_handover(
     is_custodian = sample.current_custodian_id == user.id
     if not (is_custodian or sample_common.can_lead_action(user, sample.department_id)):
         raise AppException(
-            "NOT_CURRENT_CUSTODIAN",
+            ErrorCode.NOT_CURRENT_CUSTODIAN,
             "Bạn không phải người giữ mẫu hiện tại",
             403,
         )
@@ -244,11 +245,11 @@ def create_handover(
         raise not_found("Không tìm thấy người nhận")
     if recipient.department_id != sample.department_id:
         raise AppException(
-            "HANDOVER_OUT_OF_DEPT", "Người nhận phải cùng phòng ban với mẫu", 422
+            ErrorCode.HANDOVER_OUT_OF_DEPT, "Người nhận phải cùng phòng ban với mẫu", 422
         )
     if to_user == sample.current_custodian_id:
         raise AppException(
-            "INVALID_HANDOVER", "Người nhận đang là người giữ mẫu hiện tại", 422
+            ErrorCode.INVALID_HANDOVER, "Người nhận đang là người giữ mẫu hiện tại", 422
         )
 
     from_user = sample.current_custodian_id

@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -38,15 +39,15 @@ def band(level: int) -> str:
 
 # ===== Error factories =====
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def risk_not_found() -> AppException:
-    return AppException("RISK_NOT_FOUND", "Không tìm thấy rủi ro", 404)
+    return AppException(ErrorCode.RISK_NOT_FOUND, "Không tìm thấy rủi ro", 404)
 
 
 def improvement_not_found() -> AppException:
-    return AppException("IMPROVEMENT_NOT_FOUND", "Không tìm thấy cải tiến", 404)
+    return AppException(ErrorCode.IMPROVEMENT_NOT_FOUND, "Không tìm thấy cải tiến", 404)
 
 
 # ===== RBAC =====
@@ -81,7 +82,7 @@ def resolve_create_department(
             return requested
         if user.department_id is not None:
             return user.department_id
-        raise AppException("VALIDATION_ERROR", "Cần chỉ định department_id", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Cần chỉ định department_id", 400)
     if user.department_id is None:
         raise forbidden("Người dùng chưa thuộc phòng ban nào")
     if requested is not None and requested != user.department_id:

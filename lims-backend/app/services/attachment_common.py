@@ -12,6 +12,7 @@ rộng từ `BASE_ALLOWED_MIME` thay vì tự định nghĩa lại từ đầu.
 from typing import Optional
 
 from app.config import settings
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import unprocessable
 
 # Allowlist nền tảng (gốc từ sample_attachment_service — BR-SAMPLE-012).
@@ -39,7 +40,7 @@ def check_mime(mime: Optional[str], *, allowed: Optional[set] = None) -> None:
     allowed_set = allowed if allowed is not None else BASE_ALLOWED_MIME
     if mime is None or mime.lower() not in allowed_set:
         raise unprocessable(
-            "INVALID_FILE_TYPE",
+            ErrorCode.INVALID_FILE_TYPE,
             "Định dạng tệp không hợp lệ",
         )
 
@@ -49,7 +50,7 @@ def check_size(content: bytes) -> None:
     # với chunked). Chặn sớm theo Content-Length do RequestLimitsMiddleware đảm nhiệm (M7).
     if len(content) > settings.max_upload_size_bytes:
         raise unprocessable(
-            "FILE_TOO_LARGE",
+            ErrorCode.FILE_TOO_LARGE,
             f"Tệp vượt quá giới hạn {settings.max_upload_size_bytes // (1024 * 1024)}MB",
         )
 

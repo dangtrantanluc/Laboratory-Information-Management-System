@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core import security
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.exceptions import AppException
@@ -87,7 +88,7 @@ def refresh(
     if not refresh_raw and body and body.refresh_token:
         refresh_raw = body.refresh_token
     if not refresh_raw:
-        raise AppException("TOKEN_INVALID", "Thiếu refresh token", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Thiếu refresh token", 401)
 
     result = auth_service.refresh(
         db,

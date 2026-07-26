@@ -9,6 +9,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -30,7 +31,7 @@ def competence_summary(db: Session, *, user: CurrentUser, target_user_id: uuid.U
         raise hc.forbidden("Bạn chỉ xem hồ sơ năng lực của chính mình")
     p = db.get(HrProfile, target_user_id)
     if p is None:
-        raise AppException("PROFILE_NOT_FOUND", "Hồ sơ nhân sự không tồn tại", 404)
+        raise AppException(ErrorCode.PROFILE_NOT_FOUND, "Hồ sơ nhân sự không tồn tại", 404)
     u = db.get(User, target_user_id)
     comps = db.execute(
         select(Competence).where(Competence.user_id == target_user_id)

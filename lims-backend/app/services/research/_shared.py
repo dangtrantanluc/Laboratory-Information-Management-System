@@ -7,6 +7,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.services import hr_common as hc
@@ -19,21 +20,21 @@ def _validate_members(db: Session, members: list, *, allow_external: bool, lead_
     Đề tài: lead_user_id phải nằm trong members.
     """
     if not members:
-        raise AppException("VALIDATION_ERROR", "members không được rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "members không được rỗng", 400)
     seen_users: set[uuid.UUID] = set()
     for idx, m in enumerate(members):
         uid = m.get("user_id")
         ext = m.get("external_name")
         if (uid is None) == (ext is None):
             raise AppException(
-                "INVALID_AUTHOR",
+                ErrorCode.INVALID_AUTHOR,
                 "Mỗi thành viên phải là user_id HOẶC external_name, không cả hai/để trống",
                 422,
                 [{"field": f"members[{idx}]", "message": "XOR user_id/external_name"}],
             )
         if ext is not None and not allow_external:
             raise AppException(
-                "INVALID_AUTHOR",
+                ErrorCode.INVALID_AUTHOR,
                 "Thành viên đề tài phải là người nội bộ (user_id)",
                 422,
                 [{"field": f"members[{idx}]", "message": "external_name không cho phép"}],
@@ -41,13 +42,13 @@ def _validate_members(db: Session, members: list, *, allow_external: bool, lead_
         if uid is not None:
             if uid in seen_users:
                 raise AppException(
-                    "DUPLICATE_MEMBER", "Một người là thành viên 2 lần", 409
+                    ErrorCode.DUPLICATE_MEMBER, "Một người là thành viên 2 lần", 409
                 )
             hc.assert_user_exists(db, uid)
             seen_users.add(uid)
     if lead_user_id is not None and lead_user_id not in seen_users:
         raise AppException(
-            "LEAD_REQUIRED", "Chủ nhiệm phải nằm trong danh sách thành viên", 400
+            ErrorCode.LEAD_REQUIRED, "Chủ nhiệm phải nằm trong danh sách thành viên", 400
         )
     return seen_users
 

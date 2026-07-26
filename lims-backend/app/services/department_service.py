@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException, conflict, not_found, unprocessable
 from app.models.department import Department
 from app.models.user import User
@@ -58,13 +59,13 @@ def _would_create_cycle(
 def _validate_lead(db: Session, dept_id: uuid.UUID, lead_user_id: uuid.UUID) -> User:
     lead = db.get(User, lead_user_id)
     if lead is None:
-        raise AppException("USER_NOT_FOUND", "Người dùng trưởng nhóm không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng trưởng nhóm không tồn tại", 404)
     if lead.department_id != dept_id:
         raise unprocessable(
-            "LEAD_NOT_IN_DEPARTMENT", "Trưởng nhóm phải thuộc đúng phòng ban này"
+            ErrorCode.LEAD_NOT_IN_DEPARTMENT, "Trưởng nhóm phải thuộc đúng phòng ban này"
         )
     if lead.status != "active":
-        raise unprocessable("LEAD_USER_INACTIVE", "Trưởng nhóm đang bị vô hiệu hóa")
+        raise unprocessable(ErrorCode.LEAD_USER_INACTIVE, "Trưởng nhóm đang bị vô hiệu hóa")
     return lead
 
 
@@ -127,10 +128,10 @@ def create_department(
     ip: Optional[str],
 ) -> dict:
     if _code_exists(db, code):
-        raise conflict("DUPLICATE_CODE", "Mã phòng ban đã tồn tại")
+        raise conflict(ErrorCode.DUPLICATE_CODE, "Mã phòng ban đã tồn tại")
     if parent_id is not None:
         if db.get(Department, parent_id) is None:
-            raise AppException("PARENT_NOT_FOUND", "Phòng ban cha không tồn tại", 404)
+            raise AppException(ErrorCode.PARENT_NOT_FOUND, "Phòng ban cha không tồn tại", 404)
 
     dept = Department(
         name=name.strip(),
@@ -146,13 +147,13 @@ def create_department(
     if lead_user_id is not None:
         lead = db.get(User, lead_user_id)
         if lead is None:
-            raise AppException("USER_NOT_FOUND", "Người dùng trưởng nhóm không tồn tại", 404)
+            raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng trưởng nhóm không tồn tại", 404)
         if lead.department_id != dept.id:
             raise unprocessable(
-                "LEAD_NOT_IN_DEPARTMENT", "Trưởng nhóm phải thuộc đúng phòng ban này"
+                ErrorCode.LEAD_NOT_IN_DEPARTMENT, "Trưởng nhóm phải thuộc đúng phòng ban này"
             )
         if lead.status != "active":
-            raise unprocessable("LEAD_USER_INACTIVE", "Trưởng nhóm đang bị vô hiệu hóa")
+            raise unprocessable(ErrorCode.LEAD_USER_INACTIVE, "Trưởng nhóm đang bị vô hiệu hóa")
         dept.lead_user_id = lead_user_id
 
     audit_service.log_action(
@@ -192,7 +193,7 @@ def update_department(
         new_code = changes["code"]
         if new_code != dept.code:
             if _code_exists(db, new_code, exclude_id=dept.id):
-                raise conflict("DUPLICATE_CODE", "Mã phòng ban đã tồn tại")
+                raise conflict(ErrorCode.DUPLICATE_CODE, "Mã phòng ban đã tồn tại")
             diff["code"] = {"from": dept.code, "to": new_code}
             dept.code = new_code
 
@@ -200,10 +201,10 @@ def update_department(
         new_parent = changes["parent_id"]
         if new_parent is not None:
             if db.get(Department, new_parent) is None:
-                raise AppException("PARENT_NOT_FOUND", "Phòng ban cha không tồn tại", 404)
+                raise AppException(ErrorCode.PARENT_NOT_FOUND, "Phòng ban cha không tồn tại", 404)
             if _would_create_cycle(db, dept.id, new_parent):
                 raise unprocessable(
-                    "INVALID_PARENT", "Không thể tạo vòng lặp trong cây phòng ban"
+                    ErrorCode.INVALID_PARENT, "Không thể tạo vòng lặp trong cây phòng ban"
                 )
         diff["parent_id"] = {
             "from": str(dept.parent_id) if dept.parent_id else None,
@@ -220,7 +221,7 @@ def update_department(
             dept.lead_user_id = new_lead
 
     if not diff and not lead_changed:
-        raise AppException("VALIDATION_ERROR", "Không có thay đổi nào hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Không có thay đổi nào hợp lệ", 400)
 
     dept.updated_by = actor_id
     dept.updated_at = func.now()
@@ -268,14 +269,14 @@ def delete_department(
     # Chỉ cho vô hiệu khi rỗng: không user, không phòng con
     if _member_count(db, dept.id) > 0:
         raise unprocessable(
-            "DEPARTMENT_NOT_EMPTY", "Phòng ban còn người dùng — không thể xóa"
+            ErrorCode.DEPARTMENT_NOT_EMPTY, "Phòng ban còn người dùng — không thể xóa"
         )
     has_child = db.execute(
         select(Department.id).where(Department.parent_id == dept.id)
     ).first()
     if has_child:
         raise unprocessable(
-            "DEPARTMENT_NOT_EMPTY", "Phòng ban còn phòng con — không thể xóa"
+            ErrorCode.DEPARTMENT_NOT_EMPTY, "Phòng ban còn phòng con — không thể xóa"
         )
 
     # Soft-deactivate (giữ truy vết VILAS)

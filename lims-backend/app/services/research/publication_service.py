@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -68,7 +69,7 @@ def _pub_dict(db: Session, p: Publication) -> dict:
 
 def _validate_authors(db: Session, authors: list) -> set:
     if not authors:
-        raise AppException("VALIDATION_ERROR", "authors không được rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "authors không được rỗng", 400)
     seen_order: set[int] = set()
     internal_users: set[uuid.UUID] = set()
     for idx, a in enumerate(authors):
@@ -76,17 +77,17 @@ def _validate_authors(db: Session, authors: list) -> set:
         ext = a.get("external_name")
         if (uid is None) == (ext is None):
             raise AppException(
-                "INVALID_AUTHOR",
+                ErrorCode.INVALID_AUTHOR,
                 "Mỗi tác giả phải là user_id HOẶC external_name, không cả hai/để trống",
                 422,
                 [{"field": f"authors[{idx}]", "message": "XOR user_id/external_name"}],
             )
         order = a.get("author_order")
         if order is None or int(order) < 1:
-            raise AppException("VALIDATION_ERROR", "author_order phải >= 1", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "author_order phải >= 1", 400)
         if order in seen_order:
             raise AppException(
-                "DUPLICATE_AUTHOR_ORDER", "author_order trùng trong cùng bài", 422
+                ErrorCode.DUPLICATE_AUTHOR_ORDER, "author_order trùng trong cùng bài", 422
             )
         seen_order.add(order)
         if uid is not None:
@@ -98,37 +99,37 @@ def _validate_authors(db: Session, authors: list) -> set:
 def _validate_pub_fields(db: Session, payload: dict) -> None:
     ptype = payload.get("type")
     if ptype not in ("paper", "patent", "conference"):
-        raise AppException("VALIDATION_ERROR", "type phải là paper|patent|conference", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "type phải là paper|patent|conference", 400)
     if not payload.get("title") or not str(payload["title"]).strip():
-        raise AppException("VALIDATION_ERROR", "Thiếu title", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu title", 400)
     year = payload.get("year")
     if year is None:
-        raise AppException("VALIDATION_ERROR", "Thiếu year", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu year", 400)
     if not (1900 <= int(year) <= date.today().year + 1):
-        raise AppException("VALIDATION_ERROR", "year ngoài khoảng hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "year ngoài khoảng hợp lệ", 400)
     doi = payload.get("doi")
     if doi:
         import re
 
         if not re.match(r"^10\.\d{4,}/.+", doi):
-            raise AppException("VALIDATION_ERROR", "DOI sai định dạng (10.xxxx/...)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "DOI sai định dạng (10.xxxx/...)", 400)
     if ptype == "paper":
         cat = payload.get("category")
         if not cat:
-            raise AppException("INVALID_INDEX", "Thiếu chỉ số bài báo (category)", 400)
+            raise AppException(ErrorCode.INVALID_INDEX, "Thiếu chỉ số bài báo (category)", 400)
         if db.get(PublicationCategory, cat) is None:
-            raise AppException("INVALID_INDEX", "Chỉ số bài báo ngoài danh mục", 400)
+            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số bài báo ngoài danh mục", 400)
         if not payload.get("journal"):
-            raise AppException("VALIDATION_ERROR", "Thiếu journal (bài báo)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu journal (bài báo)", 400)
     if ptype == "conference":
         # Báo cáo hội nghị/kỷ yếu: cần tên kỷ yếu/hội nghị (journal), KHÔNG cần category.
         if not payload.get("journal"):
-            raise AppException("VALIDATION_ERROR", "Thiếu tên kỷ yếu/hội nghị (journal)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu tên kỷ yếu/hội nghị (journal)", 400)
     if ptype == "patent":
         if not payload.get("patent_no") or not str(payload["patent_no"]).strip():
-            raise AppException("VALIDATION_ERROR", "Thiếu patent_no (sáng chế)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu patent_no (sáng chế)", 400)
         if not payload.get("issuing_authority"):
-            raise AppException("VALIDATION_ERROR", "Thiếu issuing_authority (sáng chế)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu issuing_authority (sáng chế)", 400)
 
 
 def list_publications(
@@ -199,7 +200,7 @@ def create_publication(
             )
         ).scalar_one_or_none()
         if existing is not None:
-            raise AppException("DUPLICATE_PATENT_NO", "Số bằng sáng chế đã tồn tại", 409)
+            raise AppException(ErrorCode.DUPLICATE_PATENT_NO, "Số bằng sáng chế đã tồn tại", 409)
 
     is_patent = ptype == "patent"
     p = Publication(
@@ -242,7 +243,7 @@ def create_publication(
         db.flush()
     except IntegrityError:
         db.rollback()
-        raise AppException("DUPLICATE_PATENT_NO", "Số bằng sáng chế đã tồn tại", 409)
+        raise AppException(ErrorCode.DUPLICATE_PATENT_NO, "Số bằng sáng chế đã tồn tại", 409)
     action = "RESEARCH_PATENT_CREATE" if ptype == "patent" else "RESEARCH_PUBLICATION_CREATE"
     audit_service.log_action(
         db,
@@ -262,7 +263,7 @@ def create_publication(
 def _get_pub_or_404(db: Session, pub_id: uuid.UUID) -> Publication:
     p = db.get(Publication, pub_id)
     if p is None:
-        raise AppException("PUBLICATION_NOT_FOUND", "Bài báo/sáng chế không tồn tại", 404)
+        raise AppException(ErrorCode.PUBLICATION_NOT_FOUND, "Bài báo/sáng chế không tồn tại", 404)
     return p
 
 
@@ -297,10 +298,10 @@ def update_publication(
     p = _get_pub_or_404(db, pub_id)
     _assert_pub_scope(db, user, p)
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     if "category" in changes and changes["category"]:
         if db.get(PublicationCategory, changes["category"]) is None:
-            raise AppException("INVALID_INDEX", "Chỉ số bài báo ngoài danh mục", 400)
+            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số bài báo ngoài danh mục", 400)
     if "patent_no" in changes and changes["patent_no"] and p.type == "patent":
         existing = db.execute(
             select(Publication.id).where(
@@ -310,7 +311,7 @@ def update_publication(
             )
         ).scalar_one_or_none()
         if existing is not None:
-            raise AppException("DUPLICATE_PATENT_NO", "Số bằng sáng chế đã tồn tại", 409)
+            raise AppException(ErrorCode.DUPLICATE_PATENT_NO, "Số bằng sáng chế đã tồn tại", 409)
     for field in (
         "title",
         "journal",

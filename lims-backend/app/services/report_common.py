@@ -19,6 +19,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -52,20 +53,20 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def invalid_date_range() -> AppException:
-    return AppException("INVALID_DATE_RANGE", "from phải nhỏ hơn to", 422)
+    return AppException(ErrorCode.INVALID_DATE_RANGE, "from phải nhỏ hơn to", 422)
 
 
 def invalid_group_by() -> AppException:
-    return AppException("INVALID_GROUP_BY", "group_by chỉ nhận day|week|month", 422)
+    return AppException(ErrorCode.INVALID_GROUP_BY, "group_by chỉ nhận day|week|month", 422)
 
 
 def date_range_too_wide() -> AppException:
     return AppException(
-        "DATE_RANGE_TOO_WIDE", f"Khoảng thời gian tối đa {MAX_RANGE_DAYS} ngày", 422,
+        ErrorCode.DATE_RANGE_TOO_WIDE, f"Khoảng thời gian tối đa {MAX_RANGE_DAYS} ngày", 422,
     )
 
 
@@ -106,7 +107,7 @@ def resolve_scope_department(
     if requested is not None and not is_staff_forced(user):
         if db.get(Department, requested) is None:
             raise AppException(
-                "DEPARTMENT_NOT_FOUND", "Phòng ban không tồn tại", 404
+                ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng ban không tồn tại", 404
             )
         return requested
     if is_staff_forced(user):
@@ -217,7 +218,7 @@ def dept_name(db: Session, dept_id: Optional[uuid.UUID]) -> Optional[str]:
 def get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
     u = db.get(User, user_id)
     if u is None:
-        raise AppException("USER_NOT_FOUND", "Người dùng không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
     return u
 
 

@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -81,14 +82,14 @@ def create_community(
 ) -> dict:
     performer = payload.get("performer_user_id")
     if not performer:
-        raise AppException("VALIDATION_ERROR", "Thiếu performer_user_id", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu performer_user_id", 400)
     if user.role == "staff" and performer != user.id:
         raise hc.forbidden("Bạn chỉ khai hoạt động của chính mình")
     hc.assert_user_exists(db, performer)
     if not payload.get("content"):
-        raise AppException("VALIDATION_ERROR", "Thiếu content", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu content", 400)
     if not payload.get("performed_at"):
-        raise AppException("VALIDATION_ERROR", "Thiếu performed_at", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu performed_at", 400)
     c = CommunityService(
         content=str(payload["content"]).strip(),
         performed_at=payload.get("performed_at"),
@@ -126,11 +127,11 @@ def update_community(
 ) -> dict:
     c = db.get(CommunityService, cid)
     if c is None:
-        raise AppException("COMMUNITY_SERVICE_NOT_FOUND", "Hoạt động không tồn tại", 404)
+        raise AppException(ErrorCode.COMMUNITY_SERVICE_NOT_FOUND, "Hoạt động không tồn tại", 404)
     if not hc.is_research_all(user) and c.performer_user_id != user.id:
         raise hc.forbidden("Bạn chỉ sửa hoạt động của chính mình")
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     for field in ("content", "performed_at", "host"):
         if field in changes:
             setattr(c, field, changes[field])
@@ -162,7 +163,7 @@ def delete_community(
 ) -> None:
     c = db.get(CommunityService, cid)
     if c is None:
-        raise AppException("COMMUNITY_SERVICE_NOT_FOUND", "Hoạt động không tồn tại", 404)
+        raise AppException(ErrorCode.COMMUNITY_SERVICE_NOT_FOUND, "Hoạt động không tồn tại", 404)
     if not hc.is_research_all(user) and c.performer_user_id != user.id:
         raise hc.forbidden("Bạn chỉ xóa hoạt động của chính mình")
     db.delete(c)

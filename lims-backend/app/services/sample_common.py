@@ -14,6 +14,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 
@@ -37,18 +38,18 @@ STATE_WHITELIST: set[tuple[str, str]] = {
 # ===== Error factories (đồng bộ danh mục error code §3 contract) =====
 def forbidden_office() -> AppException:
     return AppException(
-        "FORBIDDEN_OFFICE",
+        ErrorCode.FORBIDDEN_OFFICE,
         "Văn phòng không được phép truy cập module Quản lý Mẫu",
         403,
     )
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def invalid_state(message: str = "Chuyển trạng thái không hợp lệ") -> AppException:
-    return AppException("INVALID_STATE_TRANSITION", message, 422)
+    return AppException(ErrorCode.INVALID_STATE_TRANSITION, message, 422)
 
 
 # ===== RBAC =====

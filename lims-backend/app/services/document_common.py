@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.department import Department
@@ -38,25 +39,25 @@ VERSION_STATE_WHITELIST: set[tuple[str, str]] = {
 
 # ===== Error factories (đồng bộ danh mục error code §3 contract) =====
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def invalid_state(message: str = "Chuyển trạng thái không hợp lệ") -> AppException:
-    return AppException("INVALID_STATE_TRANSITION", message, 422)
+    return AppException(ErrorCode.INVALID_STATE_TRANSITION, message, 422)
 
 
 def restricted_access(
     message: str = "Tài liệu hạn chế — bạn không thuộc phòng sở hữu",
 ) -> AppException:
-    return AppException("RESTRICTED_ACCESS", message, 403)
+    return AppException(ErrorCode.RESTRICTED_ACCESS, message, 403)
 
 
 def document_not_found() -> AppException:
-    return AppException("DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu", 404)
+    return AppException(ErrorCode.DOCUMENT_NOT_FOUND, "Không tìm thấy tài liệu", 404)
 
 
 def version_not_found() -> AppException:
-    return AppException("VERSION_NOT_FOUND", "Không tìm thấy phiên bản tài liệu", 404)
+    return AppException(ErrorCode.VERSION_NOT_FOUND, "Không tìm thấy phiên bản tài liệu", 404)
 
 
 # ===== RBAC =====
@@ -165,7 +166,7 @@ def get_active_type_or_422(db: Session, type_code: str) -> DocumentType:
     dt = db.get(DocumentType, type_code)
     if dt is None or not dt.is_active:
         raise AppException(
-            "INVALID_DOC_TYPE", "Loại tài liệu không hợp lệ hoặc đã ngừng dùng", 422
+            ErrorCode.INVALID_DOC_TYPE, "Loại tài liệu không hợp lệ hoặc đã ngừng dùng", 422
         )
     return dt
 

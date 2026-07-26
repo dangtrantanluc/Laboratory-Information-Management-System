@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.customer import Customer
@@ -148,7 +149,7 @@ def export_report(
 
     if sample.status not in ("done", "returned"):
         raise AppException(
-            "SAMPLE_NOT_FINALIZED", "Mẫu chưa được chốt hoàn thành", 422
+            ErrorCode.SAMPLE_NOT_FINALIZED, "Mẫu chưa được chốt hoàn thành", 422
         )
 
     # mẫu từng overdue chưa nhập lý do trễ → chặn
@@ -160,7 +161,7 @@ def export_report(
         ).scalar_one() > 0
         if not has_reason:
             raise AppException(
-                "OVERDUE_REASON_REQUIRED",
+                ErrorCode.OVERDUE_REASON_REQUIRED,
                 "Mẫu trễ hạn phải nhập lý do trễ trước khi xuất phiếu",
                 422,
             )

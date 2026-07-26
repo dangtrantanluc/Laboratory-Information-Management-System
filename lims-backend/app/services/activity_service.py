@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.hr import ResearchContract, StaffActivity, TrainingCertificate
@@ -62,7 +63,7 @@ def create_contract(db: Session, *, user: CurrentUser, payload: dict, correlatio
     _assert_can_write(user)
     start, end = payload.get("start_date"), payload.get("end_date")
     if start and end and end < start:
-        raise AppException("INVALID_DATE_ORDER", "end_date < start_date", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "end_date < start_date", 422)
     c = ResearchContract(
         title=str(payload["title"]).strip(),
         contract_type=payload.get("contract_type"),

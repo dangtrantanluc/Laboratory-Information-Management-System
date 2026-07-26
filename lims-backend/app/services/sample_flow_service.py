@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.attachment import Attachment
@@ -23,7 +24,7 @@ from app.services import audit_service, customer_info_service, notification_serv
 
 
 def _forbidden(msg: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", msg, 403)
+    return AppException(ErrorCode.FORBIDDEN, msg, 403)
 
 
 def _privileged(user: CurrentUser) -> bool:
@@ -282,16 +283,16 @@ def _build_dispatch(
     """Dựng 1 dòng phiếu chuyển (CHƯA commit, CHƯA notify) — dùng cho cả tạo lẻ và tạo loạt."""
     dept = db.get(Department, target_department_id)
     if dept is None:
-        raise AppException("DEPT_NOT_FOUND", "Phòng lab không tồn tại", 404)
+        raise AppException(ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng lab không tồn tại", 404)
 
     # m27: chọn từ danh mục chỉ tiêu → lấy tên/phương pháp/đơn giá; hoặc nhập tự do.
     unit_price = None
     if test_parameter_id is not None:
         tp = db.get(TestParameter, test_parameter_id)
         if tp is None:
-            raise AppException("PARAM_NOT_FOUND", "Chỉ tiêu thử nghiệm không tồn tại", 404)
+            raise AppException(ErrorCode.PARAM_NOT_FOUND, "Chỉ tiêu thử nghiệm không tồn tại", 404)
         if not tp.is_active:
-            raise AppException("PARAM_INACTIVE", f"Chỉ tiêu '{tp.name}' đã ngưng sử dụng", 400)
+            raise AppException(ErrorCode.PARAM_INACTIVE, f"Chỉ tiêu '{tp.name}' đã ngưng sử dụng", 400)
         chi_tieu = (chi_tieu or tp.name).strip()
         phuong_phap = phuong_phap or tp.method
         don_vi = don_vi or tp.unit
@@ -300,7 +301,7 @@ def _build_dispatch(
         chi_tieu = (chi_tieu or "").strip()
         if not chi_tieu:
             raise AppException(
-                "VALIDATION_ERROR", "Nhập chỉ tiêu hoặc chọn từ danh mục chỉ tiêu", 400
+                ErrorCode.VALIDATION_ERROR, "Nhập chỉ tiêu hoặc chọn từ danh mục chỉ tiêu", 400
             )
 
     d = SampleDispatch(
@@ -365,9 +366,9 @@ def add_dispatches_batch(
     Thông báo GỘP theo phòng lab (chọn 10 chỉ tiêu cùng phòng → 1 thông báo, không phải 10).
     """
     if not items:
-        raise AppException("VALIDATION_ERROR", "Chưa chọn chỉ tiêu nào để chuyển", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Chưa chọn chỉ tiêu nào để chuyển", 400)
     if len(items) > 100:
-        raise AppException("VALIDATION_ERROR", "Tối đa 100 chỉ tiêu mỗi lần chuyển", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Tối đa 100 chỉ tiêu mỗi lần chuyển", 400)
 
     it = db.get(SampleIntake, intake_id)
     if it is None:
@@ -505,7 +506,7 @@ def change_status(
     allowed = INTAKE_NEXT.get(it.status, ())
     if new_status not in allowed:
         raise AppException(
-            "INVALID_TRANSITION",
+            ErrorCode.INVALID_TRANSITION,
             f"Không thể chuyển từ '{INTAKE_STATUS_LABELS.get(it.status, it.status)}' sang "
             f"'{INTAKE_STATUS_LABELS.get(new_status, new_status)}'",
             409,
@@ -541,7 +542,7 @@ def update_payment(
     ps = changes.get("payment_status")
     if ps is not None:
         if ps not in VALID_PAYMENT_STATUS:
-            raise AppException("VALIDATION_ERROR", "Trạng thái thanh toán không hợp lệ", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Trạng thái thanh toán không hợp lệ", 400)
         it.payment_status = ps
     for f in ("paid_amount", "payment_date", "payment_ref", "payment_note"):
         if f in changes:

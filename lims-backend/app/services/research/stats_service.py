@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -38,9 +39,9 @@ def achievement_stats(
     category: Optional[str],
 ) -> dict:
     if group_by not in ("individual", "department"):
-        raise AppException("VALIDATION_ERROR", "group_by phải là individual|department", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "group_by phải là individual|department", 400)
     if date_from and date_to and date_from > date_to:
-        raise AppException("INVALID_DATE_RANGE", "from > to", 400)
+        raise AppException(ErrorCode.INVALID_DATE_RANGE, "from > to", 400)
 
     # Staff scope own: ép về dữ liệu chính mình
     if not hc.is_research_all(user):
@@ -49,10 +50,10 @@ def achievement_stats(
         department_id = None
 
     if group_by == "individual" and user_id is None:
-        raise AppException("VALIDATION_ERROR", "Thiếu user_id (group_by=individual)", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu user_id (group_by=individual)", 400)
     if group_by == "department" and department_id is None:
         raise AppException(
-            "VALIDATION_ERROR", "Thiếu department_id (group_by=department)", 400
+            ErrorCode.VALIDATION_ERROR, "Thiếu department_id (group_by=department)", 400
         )
 
     def _project_scope():

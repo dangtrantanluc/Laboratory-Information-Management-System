@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
@@ -61,7 +62,7 @@ def list_units(
     db: Session = Depends(get_db),
 ):
     if group and group not in ("mass", "volume", "count"):
-        raise AppException("VALIDATION_ERROR", "group không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "group không hợp lệ", 400)
     return ok(catalog_service.list_units(db, group=group))
 
 
@@ -234,7 +235,7 @@ def update_chemical(
 ):
     changes = body.model_dump(exclude_unset=True)
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     data = catalog_service.update_chemical(
         db,
         user=user,
@@ -314,7 +315,7 @@ def upload_msds(
         cc.assert_write_scope(user, chem.department_id)
         if file.content_type not in _MSDS_MIME_WHITELIST:
             raise AppException(
-                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG/XLSX)", 422
+                ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG/XLSX)", 422
             )
         content = file.file.read()
         data = attachment_service.create_attachment(

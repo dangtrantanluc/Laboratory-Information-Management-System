@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.chemical import (
@@ -115,7 +116,7 @@ def create_transaction(
     elif txn_type == "adjust":
         result = _do_adjust(db, user, lot, chem, payload, at, correlation_id, ip)
     else:
-        raise AppException("VALIDATION_ERROR", "Loại giao dịch không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Loại giao dịch không hợp lệ", 400)
 
     db.commit()
     return cc.strip_price_fields(result, can_cost)
@@ -124,11 +125,11 @@ def create_transaction(
 def _do_in(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
     qty_input = cc.parse_decimal(payload.get("qty_input"), field="qty_input")
     if qty_input is None or qty_input <= 0:
-        raise AppException("INVALID_QUANTITY", "qty_input phải > 0", 400)
+        raise AppException(ErrorCode.INVALID_QUANTITY, "qty_input phải > 0", 400)
     cc.assert_max_decimals(qty_input, field="qty_input", places=4)
     input_unit = payload.get("input_unit")
     if not input_unit:
-        raise AppException("VALIDATION_ERROR", "Thiếu input_unit", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu input_unit", 400)
     qty_base = cc.convert_to_base(
         db, qty_input, input_unit, chem.base_unit, chem.measurement_group
     )
@@ -180,20 +181,20 @@ def _do_in(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
 def _do_out(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
     qty_input = cc.parse_decimal(payload.get("qty_input"), field="qty_input")
     if qty_input is None or qty_input <= 0:
-        raise AppException("INVALID_QUANTITY", "qty_input phải > 0", 400)
+        raise AppException(ErrorCode.INVALID_QUANTITY, "qty_input phải > 0", 400)
     cc.assert_max_decimals(qty_input, field="qty_input", places=4)
     input_unit = payload.get("input_unit")
     if not input_unit:
-        raise AppException("VALIDATION_ERROR", "Thiếu input_unit", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu input_unit", 400)
 
     ref_sample_id = payload.get("ref_sample_id")
     if ref_sample_id is None:
         raise AppException(
-            "SAMPLE_REQUIRED", "Giao dịch xuất bắt buộc gắn mẫu (ref_sample_id)", 422
+            ErrorCode.SAMPLE_REQUIRED, "Giao dịch xuất bắt buộc gắn mẫu (ref_sample_id)", 422
         )
     sample = db.get(Sample, ref_sample_id)
     if sample is None or sample.deleted_at is not None:
-        raise AppException("SAMPLE_NOT_FOUND", "Mẫu liên quan không tồn tại", 422)
+        raise AppException(ErrorCode.SAMPLE_NOT_FOUND, "Mẫu liên quan không tồn tại", 422)
 
     qty_base = cc.convert_to_base(
         db, qty_input, input_unit, chem.base_unit, chem.measurement_group
@@ -207,7 +208,7 @@ def _do_out(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
     if (expired or failed) and not confirm:
         reason = "RECHECK_FAILED" if failed else "LOT_EXPIRED"
         raise AppException(
-            "WARNING_NEEDS_CONFIRM",
+            ErrorCode.WARNING_NEEDS_CONFIRM,
             "Lô có kết quả kiểm tra lại 'không đạt' hoặc đã quá hạn. Xác nhận để tiếp tục xuất.",
             422,
             [
@@ -220,7 +221,7 @@ def _do_out(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
 
     if qty_base > lot.qty_base:
         raise AppException(
-            "INSUFFICIENT_STOCK",
+            ErrorCode.INSUFFICIENT_STOCK,
             f"Xuất {cc.s_base(qty_base)} {chem.base_unit} vượt tồn {cc.s_base(lot.qty_base)}",
             422,
         )
@@ -269,16 +270,16 @@ def _do_out(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
 def _do_adjust(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
     note = payload.get("note")
     if not note or not note.strip():
-        raise AppException("REASON_REQUIRED", "Điều chỉnh phải ghi lý do (note)", 400)
+        raise AppException(ErrorCode.REASON_REQUIRED, "Điều chỉnh phải ghi lý do (note)", 400)
     input_unit = payload.get("input_unit")
     if not input_unit:
-        raise AppException("VALIDATION_ERROR", "Thiếu input_unit", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu input_unit", 400)
 
     actual = payload.get("actual_qty_input")
     delta = payload.get("delta_input")
     if (actual is None) == (delta is None):
         raise AppException(
-            "VALIDATION_ERROR",
+            ErrorCode.VALIDATION_ERROR,
             "Gửi đúng MỘT trong actual_qty_input / delta_input",
             400,
         )
@@ -303,11 +304,11 @@ def _do_adjust(db, user, lot, chem, payload, at, correlation_id, ip) -> dict:
         qty_input_report = abs(delta_d)
 
     if delta_base == 0:
-        raise AppException("VALIDATION_ERROR", "Điều chỉnh không thay đổi tồn", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Điều chỉnh không thay đổi tồn", 400)
 
     balance_after = cc.q_base(lot.qty_base + delta_base)
     if balance_after < 0:
-        raise AppException("NEGATIVE_BALANCE", "Điều chỉnh khiến tồn < 0", 422)
+        raise AppException(ErrorCode.NEGATIVE_BALANCE, "Điều chỉnh khiến tồn < 0", 422)
 
     txn = ChemicalTransaction(
         lot_id=lot.id,
@@ -385,7 +386,7 @@ def list_transactions(
     can_cost: bool,
 ) -> tuple[list[dict], int]:
     if date_from and date_to and date_from > date_to:
-        raise AppException("VALIDATION_ERROR", "date_from phải <= date_to", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "date_from phải <= date_to", 400)
 
     conditions = []
     if lot_id:
@@ -485,10 +486,10 @@ def create_recheck(
     cc.assert_write_scope(user, chem.department_id)
 
     if checked_at > date.today():
-        raise AppException("VALIDATION_ERROR", "Ngày kiểm tra không được ở tương lai", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Ngày kiểm tra không được ở tương lai", 400)
     if next_recheck_date and lot.expiry_date and next_recheck_date > lot.expiry_date:
         raise AppException(
-            "INVALID_DATE_ORDER", "Ngày kiểm tra kế tiếp phải <= hạn dùng", 422
+            ErrorCode.INVALID_DATE_ORDER, "Ngày kiểm tra kế tiếp phải <= hạn dùng", 422
         )
 
     rec = ChemicalRecheckRecord(

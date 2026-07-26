@@ -20,6 +20,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -57,16 +58,16 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def equipment_not_found() -> AppException:
-    return AppException("EQUIPMENT_NOT_FOUND", "Không tìm thấy thiết bị", 404)
+    return AppException(ErrorCode.EQUIPMENT_NOT_FOUND, "Không tìm thấy thiết bị", 404)
 
 
 def calibration_not_found() -> AppException:
     return AppException(
-        "CALIBRATION_NOT_FOUND", "Không tìm thấy bản ghi hiệu chuẩn", 404
+        ErrorCode.CALIBRATION_NOT_FOUND, "Không tìm thấy bản ghi hiệu chuẩn", 404
     )
 
 
@@ -155,10 +156,10 @@ def validate_responsible(
         return
     u = db.get(User, responsible_user_id)
     if u is None:
-        raise AppException("USER_NOT_FOUND", "Người phụ trách không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người phụ trách không tồn tại", 404)
     if u.department_id != dept_id:
         raise AppException(
-            "RESPONSIBLE_NOT_IN_DEPARTMENT",
+            ErrorCode.RESPONSIBLE_NOT_IN_DEPARTMENT,
             "Người phụ trách phải thuộc cùng phòng với thiết bị",
             422,
             [{"field": "responsible_user_id", "message": "Khác phòng với thiết bị"}],
@@ -169,14 +170,14 @@ def validate_responsible(
 def validate_cycle_pair(value: Optional[int], unit: Optional[str]) -> None:
     if (value is None) != (unit is None):
         raise AppException(
-            "INVALID_CALIBRATION_CYCLE",
+            ErrorCode.INVALID_CALIBRATION_CYCLE,
             "Chu kỳ hiệu chuẩn cần đủ cả giá trị và đơn vị (hoặc bỏ trống cả hai)",
             422,
             [{"field": "calibration_cycle_value", "message": "value & unit phải đi cùng nhau"}],
         )
     if value is not None and value <= 0:
         raise AppException(
-            "INVALID_CALIBRATION_CYCLE",
+            ErrorCode.INVALID_CALIBRATION_CYCLE,
             "Giá trị chu kỳ phải > 0",
             422,
             [{"field": "calibration_cycle_value", "message": "phải > 0"}],

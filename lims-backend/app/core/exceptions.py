@@ -4,6 +4,7 @@ Mọi lỗi ra client theo dạng:
 { "success": false, "error": { code, message, details, correlationId } }
 KHÔNG bao giờ lộ stack trace ra client (chỉ log ở BE).
 """
+from app.core.error_codes import ErrorCode
 import logging
 from typing import Any, List, Optional
 
@@ -36,20 +37,20 @@ class AppException(Exception):
 
 
 def unauthorized(message: str = "Chưa xác thực hoặc token không hợp lệ") -> AppException:
-    return AppException("UNAUTHORIZED", message, status.HTTP_401_UNAUTHORIZED)
+    return AppException(ErrorCode.UNAUTHORIZED, message, status.HTTP_401_UNAUTHORIZED)
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, status.HTTP_403_FORBIDDEN)
+    return AppException(ErrorCode.FORBIDDEN, message, status.HTTP_403_FORBIDDEN)
 
 
 def not_found(message: str = "Không tìm thấy dữ liệu") -> AppException:
-    return AppException("NOT_FOUND", message, status.HTTP_404_NOT_FOUND)
+    return AppException(ErrorCode.NOT_FOUND, message, status.HTTP_404_NOT_FOUND)
 
 
 def validation_error(message: str, details: Optional[List[dict]] = None) -> AppException:
     return AppException(
-        "VALIDATION_ERROR", message, status.HTTP_400_BAD_REQUEST, details
+        ErrorCode.VALIDATION_ERROR, message, status.HTTP_400_BAD_REQUEST, details
     )
 
 

@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
@@ -109,7 +110,7 @@ def run_salary_raise_due(db: Session, *, actor: CurrentUser | None = None) -> di
     """CRON-3 — quét next_salary_raise_date tới mốc 15/7/3 ngày."""
     lock_key = "cron:lock:hr-salary-raise"
     if not _acquire_lock(lock_key):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-3 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-3 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = now.date()
@@ -164,7 +165,7 @@ def run_contract_expiry(db: Session, *, actor: CurrentUser | None = None) -> dic
     """CRON-4 — quét contract_end_date tới mốc 30/15/7 ngày (bỏ HĐ vô thời hạn)."""
     lock_key = "cron:lock:hr-contract-expiry"
     if not _acquire_lock(lock_key):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-4 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-4 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = now.date()

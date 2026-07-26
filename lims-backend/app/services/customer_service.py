@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import not_found
 from app.models.customer import Customer
 from app.services import audit_service
@@ -120,7 +121,7 @@ def update_customer(
     if not diff:
         from app.core.exceptions import AppException
 
-        raise AppException("VALIDATION_ERROR", "Không có thay đổi nào hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Không có thay đổi nào hợp lệ", 400)
 
     customer.updated_by = actor_id
     customer.updated_at = func.now()

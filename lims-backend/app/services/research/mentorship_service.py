@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -80,18 +81,18 @@ def create_mentorship(
 ) -> dict:
     mentor_id = payload.get("mentor_id")
     if not mentor_id:
-        raise AppException("VALIDATION_ERROR", "Thiếu mentor_id", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu mentor_id", 400)
     if user.role == "staff" and mentor_id != user.id:
         raise hc.forbidden("Bạn chỉ khai hướng dẫn của chính mình")
     hc.assert_user_exists(db, mentor_id)
     if not payload.get("student_name"):
-        raise AppException("VALIDATION_ERROR", "Thiếu student_name", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu student_name", 400)
     year = payload.get("year")
     if year is None or not (1900 <= int(year) <= date.today().year + 1):
-        raise AppException("VALIDATION_ERROR", "year ngoài khoảng hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "year ngoài khoảng hợp lệ", 400)
     mtype = payload.get("type")
     if not mtype or db.get(MentorshipType, mtype) is None:
-        raise AppException("INVALID_MENTORSHIP_TYPE", "Loại hướng dẫn ngoài danh mục", 400)
+        raise AppException(ErrorCode.INVALID_MENTORSHIP_TYPE, "Loại hướng dẫn ngoài danh mục", 400)
     m = StudentMentorship(
         mentor_id=mentor_id,
         student_name=str(payload["student_name"]).strip(),
@@ -122,7 +123,7 @@ def create_mentorship(
 def _get_mentorship_or_404(db: Session, mid: uuid.UUID) -> StudentMentorship:
     m = db.get(StudentMentorship, mid)
     if m is None:
-        raise AppException("MENTORSHIP_NOT_FOUND", "Bản ghi hướng dẫn không tồn tại", 404)
+        raise AppException(ErrorCode.MENTORSHIP_NOT_FOUND, "Bản ghi hướng dẫn không tồn tại", 404)
     return m
 
 
@@ -139,11 +140,11 @@ def update_mentorship(
     if not hc.is_research_all(user) and m.mentor_id != user.id:
         raise hc.forbidden("Bạn chỉ sửa hướng dẫn của chính mình")
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     if "type" in changes and changes["type"]:
         if db.get(MentorshipType, changes["type"]) is None:
             raise AppException(
-                "INVALID_MENTORSHIP_TYPE", "Loại hướng dẫn ngoài danh mục", 400
+                ErrorCode.INVALID_MENTORSHIP_TYPE, "Loại hướng dẫn ngoài danh mục", 400
             )
     for field in ("student_name", "topic", "year", "type"):
         if field in changes:

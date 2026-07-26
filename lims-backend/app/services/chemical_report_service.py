@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
@@ -87,7 +88,7 @@ def export_transactions_xlsx(
 ) -> bytes:
     with export_slot():
         if date_from > date_to:
-            raise AppException("INVALID_DATE_RANGE", "date_from phải <= date_to", 400)
+            raise AppException(ErrorCode.INVALID_DATE_RANGE, "date_from phải <= date_to", 400)
 
         dept = _scope_department(user, department_id)
         conditions = _txn_query(
@@ -105,7 +106,7 @@ def export_transactions_xlsx(
         ).scalar_one()
         if total > EXPORT_MAX_ROWS:
             raise AppException(
-                "EXPORT_TOO_LARGE",
+                ErrorCode.EXPORT_TOO_LARGE,
                 f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp khoảng/lọc.",
                 422,
             )
@@ -197,9 +198,9 @@ def consumption_report(
     """Báo cáo tiêu hao (tổng out) theo month/project/user. Quy đổi về base từng hóa chất;
     KHÔNG cộng gộp khác nhóm đo. consumption_cost chỉ vai trò tài chính."""
     if date_from > date_to:
-        raise AppException("INVALID_DATE_RANGE", "date_from phải <= date_to", 400)
+        raise AppException(ErrorCode.INVALID_DATE_RANGE, "date_from phải <= date_to", 400)
     if group_by not in ("month", "project", "user"):
-        raise AppException("VALIDATION_ERROR", "group_by không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "group_by không hợp lệ", 400)
 
     dept = _scope_department(user, department_id)
     conditions = _txn_query(

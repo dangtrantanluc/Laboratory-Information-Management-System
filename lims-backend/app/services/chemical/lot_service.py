@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.chemical import (
@@ -137,7 +138,7 @@ def create_lot(
 
     if recheck_date and expiry_date and recheck_date > expiry_date:
         raise AppException(
-            "INVALID_DATE_ORDER", "Ngày kiểm tra lại phải <= hạn dùng", 422
+            ErrorCode.INVALID_DATE_ORDER, "Ngày kiểm tra lại phải <= hạn dùng", 422
         )
 
     warnings: list[str] = []
@@ -157,7 +158,7 @@ def create_lot(
             initial_intake.get("qty_input"), field="qty_input"
         )
         if intake_qty_input is None or intake_qty_input <= 0:
-            raise AppException("VALIDATION_ERROR", "qty_input phải > 0", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "qty_input phải > 0", 400)
         cc.assert_max_decimals(intake_qty_input, field="qty_input", places=4)
         intake_unit = initial_intake.get("input_unit")
         intake_qty_base = cc.convert_to_base(
@@ -192,7 +193,7 @@ def create_lot(
         db.flush()
     except IntegrityError:
         db.rollback()
-        raise AppException("DUPLICATE_LOT", "Số lô đã tồn tại trong hóa chất", 409)
+        raise AppException(ErrorCode.DUPLICATE_LOT, "Số lô đã tồn tại trong hóa chất", 409)
 
     audit_service.log_action(
         db,

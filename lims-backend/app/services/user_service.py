@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core import security
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import (
     AppException,
     conflict,
@@ -51,7 +52,7 @@ def _validate_department(db: Session, department_id: uuid.UUID) -> Department:
     dept = db.get(Department, department_id)
     if dept is None:
         raise AppException(
-            "DEPARTMENT_NOT_FOUND", "Phòng ban không tồn tại", 404
+            ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng ban không tồn tại", 404
         )
     return dept
 
@@ -156,9 +157,9 @@ def create_user(
 ) -> dict:
     email_norm = email.strip().lower()
     if _email_exists(db, email_norm):
-        raise conflict("EMAIL_EXISTS", "Email đã tồn tại trong hệ thống")
+        raise conflict(ErrorCode.EMAIL_EXISTS, "Email đã tồn tại trong hệ thống")
     if role not in VALID_ROLES:
-        raise AppException("VALIDATION_ERROR", "Vai trò không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Vai trò không hợp lệ", 400)
 
     dept = None
     if department_id is not None:
@@ -220,7 +221,7 @@ def update_user(
         email_norm = changes["email"].strip().lower()
         if email_norm != str(user.email):
             if _email_exists(db, email_norm, exclude_id=user.id):
-                raise conflict("EMAIL_EXISTS", "Email đã tồn tại")
+                raise conflict(ErrorCode.EMAIL_EXISTS, "Email đã tồn tại")
             diff["email"] = {"from": str(user.email), "to": email_norm}
             user.email = email_norm
 
@@ -235,7 +236,7 @@ def update_user(
             if user.role == "admin" and new_role != "admin":
                 if _count_active_admins(db, exclude_id=user.id) == 0:
                     raise unprocessable(
-                        "LAST_ADMIN_PROTECTED",
+                        ErrorCode.LAST_ADMIN_PROTECTED,
                         "Không thể hạ vai trò admin cuối cùng của hệ thống",
                     )
             diff["role"] = {"from": user.role, "to": new_role}
@@ -253,7 +254,7 @@ def update_user(
             user.department_id = new_dept
 
     if not diff:
-        raise AppException("VALIDATION_ERROR", "Không có thay đổi nào hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Không có thay đổi nào hợp lệ", 400)
 
     user.updated_by = actor_id
     user.updated_at = func.now()
@@ -288,13 +289,13 @@ def set_status(
         # Chặn self-disable
         if user.id == actor_id:
             raise unprocessable(
-                "SELF_DISABLE_FORBIDDEN", "Không thể tự vô hiệu hóa chính mình"
+                ErrorCode.SELF_DISABLE_FORBIDDEN, "Không thể tự vô hiệu hóa chính mình"
             )
         # Chặn vô hiệu admin cuối cùng
         if user.role == "admin" and user.status == "active":
             if _count_active_admins(db, exclude_id=user.id) == 0:
                 raise unprocessable(
-                    "LAST_ADMIN_PROTECTED",
+                    ErrorCode.LAST_ADMIN_PROTECTED,
                     "Không thể vô hiệu hóa admin cuối cùng của hệ thống",
                 )
 
@@ -402,15 +403,15 @@ def approve_registration(
 
     if user.status != "pending":
         raise unprocessable(
-            "NOT_PENDING", "Tài khoản này không ở trạng thái chờ duyệt"
+            ErrorCode.NOT_PENDING, "Tài khoản này không ở trạng thái chờ duyệt"
         )
     if user.email_verified_at is None:
         raise unprocessable(
-            "EMAIL_NOT_VERIFIED",
+            ErrorCode.EMAIL_NOT_VERIFIED,
             "Người dùng chưa xác thực địa chỉ email. Chưa thể duyệt tài khoản.",
         )
     if role not in VALID_ROLES:
-        raise unprocessable("INVALID_ROLE", "Vai trò không hợp lệ")
+        raise unprocessable(ErrorCode.INVALID_ROLE, "Vai trò không hợp lệ")
 
     dept = _validate_department(db, department_id) if department_id else None
 
@@ -464,7 +465,7 @@ def reject_registration(
     user = _get_user_or_404(db, user_id)
     if user.status != "pending":
         raise unprocessable(
-            "NOT_PENDING", "Tài khoản này không ở trạng thái chờ duyệt"
+            ErrorCode.NOT_PENDING, "Tài khoản này không ở trạng thái chờ duyệt"
         )
 
     user.status = "disabled"

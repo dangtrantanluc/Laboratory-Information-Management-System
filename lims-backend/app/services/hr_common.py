@@ -19,6 +19,7 @@ from typing import Optional
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 
@@ -53,12 +54,12 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def salary_forbidden() -> AppException:
     return AppException(
-        "SALARY_FORBIDDEN",
+        ErrorCode.SALARY_FORBIDDEN,
         "Bạn không có quyền điều chỉnh lương/hợp đồng. Chỉ Văn phòng và Quản trị viên "
         "được thực hiện.",
         403,
@@ -264,7 +265,7 @@ def assert_research_access(user: CurrentUser) -> None:
     """Văn phòng KHÔNG truy cập nhóm NCKH (QUYẾT ĐỊNH #5) → 403 FORBIDDEN_OFFICE."""
     if user.role == "office":
         raise AppException(
-            "FORBIDDEN_OFFICE",
+            ErrorCode.FORBIDDEN_OFFICE,
             "Văn phòng không được truy cập thành tích NCKH",
             403,
         )

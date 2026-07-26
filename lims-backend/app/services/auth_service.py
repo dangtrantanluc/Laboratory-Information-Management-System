@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.core import rate_limit as rate_limit_mod
 from app.core import security
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException, validation_error
 from app.core.redis_client import (
     get_redis,
@@ -41,7 +42,7 @@ def _check_lockout(email: str, ip: Optional[str]) -> None:
     if ttl and ttl > 0:
         locked_until = datetime.now(timezone.utc).timestamp() + ttl
         raise AppException(
-            "ACCOUNT_LOCKED",
+            ErrorCode.ACCOUNT_LOCKED,
             "Tài khoản tạm khóa do nhập sai mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
             423,
             details=[
@@ -151,23 +152,23 @@ def login(
         )
         db.commit()
         raise AppException(
-            "INVALID_CREDENTIALS", "Email hoặc mật khẩu không đúng", 401
+            ErrorCode.INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng", 401
         )
 
     if user.status == "disabled":
-        raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
+        raise AppException(ErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa", 403)
 
     # m30 — tài khoản tự đăng ký. Chỉ báo trạng thái SAU KHI mật khẩu đã đúng, nên
     # thông điệp này không dùng để dò xem email nào đang chờ duyệt.
     if user.status == "pending":
         if user.email_verified_at is None:
             raise AppException(
-                "EMAIL_NOT_VERIFIED",
+                ErrorCode.EMAIL_NOT_VERIFIED,
                 "Bạn chưa xác thực địa chỉ email. Vui lòng mở liên kết trong thư đã gửi.",
                 403,
             )
         raise AppException(
-            "ACCOUNT_PENDING_APPROVAL",
+            ErrorCode.ACCOUNT_PENDING_APPROVAL,
             "Tài khoản đang chờ Quản trị viên duyệt. Bạn sẽ nhận được thư khi tài "
             "khoản được kích hoạt.",
             403,
@@ -244,7 +245,7 @@ def refresh(
     ).scalar_one_or_none()
 
     if rt is None:
-        raise AppException("TOKEN_INVALID", "Refresh token không hợp lệ", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Refresh token không hợp lệ", 401)
 
     now = datetime.now(timezone.utc)
 
@@ -273,19 +274,19 @@ def refresh(
             extra={"correlationId": correlation_id, "userId": str(rt.user_id)},
         )
         raise AppException(
-            "TOKEN_REUSED",
+            ErrorCode.TOKEN_REUSED,
             "Phát hiện sử dụng lại token — toàn bộ phiên đã bị thu hồi. Vui lòng đăng nhập lại.",
             401,
         )
 
     if rt.expires_at <= now:
-        raise AppException("TOKEN_EXPIRED", "Refresh token đã hết hạn", 401)
+        raise AppException(ErrorCode.TOKEN_EXPIRED, "Refresh token đã hết hạn", 401)
 
     user = db.get(User, rt.user_id)
     if user is None:
-        raise AppException("TOKEN_INVALID", "Người dùng không tồn tại", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Người dùng không tồn tại", 401)
     if user.status == "disabled":
-        raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
+        raise AppException(ErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa", 403)
 
     # Rotation: revoke token cũ + cấp token mới (rotated_from = id cũ) trong 1 transaction
     rt.revoked_at = func.now()
@@ -373,10 +374,10 @@ def change_own_password(
 ) -> datetime:
     user = db.get(User, user_id)
     if user is None:
-        raise AppException("UNAUTHORIZED", "Người dùng không tồn tại", 401)
+        raise AppException(ErrorCode.UNAUTHORIZED, "Người dùng không tồn tại", 401)
 
     if not security.verify_password(current_password, user.password_hash):
-        raise AppException("INVALID_CREDENTIALS", "Mật khẩu hiện tại không đúng", 401)
+        raise AppException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu hiện tại không đúng", 401)
 
     if new_password == current_password:
         raise validation_error(

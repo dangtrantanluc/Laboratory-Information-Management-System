@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import (
@@ -79,20 +80,20 @@ def create_registration(
 ) -> dict:
     mentor_id = payload.get("mentor_id")
     if not mentor_id:
-        raise AppException("VALIDATION_ERROR", "Thiếu mentor_id", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu mentor_id", 400)
     if user.role == "staff" and mentor_id != user.id:
         raise hc.forbidden("Bạn chỉ tạo đăng ký với mentor là chính mình")
     hc.assert_user_exists(db, mentor_id)
     if not payload.get("student_name"):
-        raise AppException("VALIDATION_ERROR", "Thiếu student_name", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu student_name", 400)
     if not payload.get("registered_from"):
-        raise AppException("VALIDATION_ERROR", "Thiếu registered_from", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu registered_from", 400)
     if not payload.get("purpose"):
-        raise AppException("VALIDATION_ERROR", "Thiếu purpose", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu purpose", 400)
     reg_from = payload.get("registered_from")
     reg_to = payload.get("registered_to")
     if reg_to and reg_from and reg_to < reg_from:
-        raise AppException("INVALID_DATE_ORDER", "registered_to < registered_from", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "registered_to < registered_from", 422)
     r = LabRegistration(
         student_name=str(payload["student_name"]).strip(),
         mentor_id=mentor_id,
@@ -151,12 +152,12 @@ def decide_registration(
         select(LabRegistration).where(LabRegistration.id == reg_id).with_for_update()
     ).scalar_one_or_none()
     if r is None:
-        raise AppException("REGISTRATION_NOT_FOUND", "Lượt đăng ký không tồn tại", 404)
+        raise AppException(ErrorCode.REGISTRATION_NOT_FOUND, "Lượt đăng ký không tồn tại", 404)
     if not _can_decide_registration(db, user, r):
         raise hc.forbidden("Bạn không có quyền duyệt lượt đăng ký này")
     if r.status != "pending":
         raise AppException(
-            "REGISTRATION_ALREADY_DECIDED",
+            ErrorCode.REGISTRATION_ALREADY_DECIDED,
             "Lượt đăng ký đã được duyệt/từ chối, không thể quyết lại",
             409,
         )

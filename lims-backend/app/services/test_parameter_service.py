@@ -12,6 +12,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.department import Department
@@ -23,7 +24,7 @@ MANAGE_ROLES = ("reception", "leader", "admin")
 
 
 def _forbidden(msg: str = "Bạn không có quyền quản lý danh mục chỉ tiêu thử nghiệm") -> AppException:
-    return AppException("FORBIDDEN", msg, 403)
+    return AppException(ErrorCode.FORBIDDEN, msg, 403)
 
 
 def can_manage(user: CurrentUser) -> bool:
@@ -41,9 +42,9 @@ def _to_decimal(v) -> Optional[Decimal]:
     try:
         d = Decimal(str(v))
     except (InvalidOperation, ValueError):
-        raise AppException("VALIDATION_ERROR", "Đơn giá không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Đơn giá không hợp lệ", 400)
     if d < 0:
-        raise AppException("VALIDATION_ERROR", "Đơn giá không được âm", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Đơn giá không được âm", 400)
     return d
 
 
@@ -126,7 +127,7 @@ def create_parameter(
     _assert_manage(user)
     name = (fields.get("name") or "").strip()
     if not name:
-        raise AppException("VALIDATION_ERROR", "Tên chỉ tiêu không được để trống", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Tên chỉ tiêu không được để trống", 400)
 
     p = TestParameter(name=name, created_by=user.id)
     for f in _EDITABLE:
@@ -141,7 +142,7 @@ def create_parameter(
     except IntegrityError:
         db.rollback()
         raise AppException(
-            "DUPLICATE_PARAMETER",
+            ErrorCode.DUPLICATE_PARAMETER,
             "Chỉ tiêu này đã tồn tại trong cùng nhóm nền mẫu (cùng tên + phương pháp)",
             409,
         )
@@ -170,7 +171,7 @@ def update_parameter(
             if f == "name":
                 val = (val or "").strip()
                 if not val:
-                    raise AppException("VALIDATION_ERROR", "Tên chỉ tiêu không được để trống", 400)
+                    raise AppException(ErrorCode.VALIDATION_ERROR, "Tên chỉ tiêu không được để trống", 400)
             setattr(p, f, val)
     if "unit_price" in changes:
         p.unit_price = _to_decimal(changes["unit_price"])
@@ -182,7 +183,7 @@ def update_parameter(
     except IntegrityError:
         db.rollback()
         raise AppException(
-            "DUPLICATE_PARAMETER",
+            ErrorCode.DUPLICATE_PARAMETER,
             "Chỉ tiêu này đã tồn tại trong cùng nhóm nền mẫu (cùng tên + phương pháp)",
             409,
         )

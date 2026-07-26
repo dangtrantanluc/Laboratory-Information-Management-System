@@ -15,6 +15,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, validation_error
 from app.models.attachment import Attachment
@@ -283,7 +284,7 @@ def create_equipment(
     ec.assert_write_scope(user, dept_id)
     dept = db.get(Department, dept_id)
     if dept is None:
-        raise AppException("DEPARTMENT_NOT_FOUND", "Phòng ban không tồn tại", 404)
+        raise AppException(ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng ban không tồn tại", 404)
 
     cycle_value = payload.get("calibration_cycle_value")
     cycle_unit = payload.get("calibration_cycle_unit")
@@ -324,7 +325,7 @@ def create_equipment(
     else:
         logger.warning("Cannot generate unique equipment_code after retries")
         raise AppException(
-            "DUPLICATE_EQUIPMENT_CODE", "Không thể sinh mã thiết bị duy nhất", 409
+            ErrorCode.DUPLICATE_EQUIPMENT_CODE, "Không thể sinh mã thiết bị duy nhất", 409
         )
 
     audit_service.log_action(
@@ -360,7 +361,7 @@ def update_equipment(
     # Chặn đổi code/department_id (bất biến / chỉ admin) — kiểm tra raw body
     if "code" in raw_body or "equipment_code" in raw_body:
         raise AppException(
-            "CODE_IMMUTABLE", "Không thể đổi mã thiết bị (bất biến §6.4)", 422
+            ErrorCode.CODE_IMMUTABLE, "Không thể đổi mã thiết bị (bất biến §6.4)", 422
         )
     if "department_id" in raw_body and not ec.is_privileged(user):
         raise ec.forbidden("Không được đổi phòng ban thiết bị")
@@ -386,7 +387,7 @@ def update_equipment(
         eq.purchase_date = pd
     if "status" in raw_body and raw_body["status"] is not None:
         if raw_body["status"] not in _VALID_STATUS:
-            raise AppException("INVALID_STATUS", "Tình trạng không hợp lệ", 422)
+            raise AppException(ErrorCode.INVALID_STATUS, "Tình trạng không hợp lệ", 422)
         before["status"], after["status"] = eq.status, raw_body["status"]
         eq.status = raw_body["status"]
     if "responsible_user_id" in raw_body:
@@ -451,7 +452,7 @@ def add_attachment(
 
     if mime is None or mime.lower() not in ec.ALLOWED_DOC_MIME:
         raise AppException(
-            "INVALID_FILE_TYPE",
+            ErrorCode.INVALID_FILE_TYPE,
             "Định dạng tệp không hợp lệ (chỉ PDF/DOCX/XLSX/PNG/JPG)",
             422,
         )
@@ -501,7 +502,7 @@ def download_attachment(
     ).scalar_one_or_none()
     if att is None:
         raise AppException(
-            "ATTACHMENT_NOT_FOUND", "Tài liệu không thuộc thiết bị này", 404
+            ErrorCode.ATTACHMENT_NOT_FOUND, "Tài liệu không thuộc thiết bị này", 404
         )
     return attachment_service.get_download(
         db,

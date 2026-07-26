@@ -16,6 +16,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -49,7 +50,7 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 # ===== RBAC =====
@@ -326,7 +327,7 @@ def get_chemical_or_404(db: Session, chemical_id: uuid.UUID, *, include_inactive
 
     c = db.get(Chemical, chemical_id)
     if c is None or (not include_inactive and c.status != "active"):
-        raise AppException("NOT_FOUND", "Không tìm thấy hóa chất", 404)
+        raise AppException(ErrorCode.NOT_FOUND, "Không tìm thấy hóa chất", 404)
     return c
 
 
@@ -338,5 +339,5 @@ def get_lot_or_404(db: Session, lot_id: uuid.UUID, *, lock: bool = False):
         stmt = stmt.with_for_update()
     lot = db.execute(stmt).scalar_one_or_none()
     if lot is None:
-        raise AppException("NOT_FOUND", "Không tìm thấy lô hóa chất", 404)
+        raise AppException(ErrorCode.NOT_FOUND, "Không tìm thấy lô hóa chất", 404)
     return lot

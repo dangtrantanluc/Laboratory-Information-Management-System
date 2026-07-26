@@ -11,6 +11,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.hr import (
@@ -52,7 +53,7 @@ def create_report(db: Session, *, user: CurrentUser, payload: dict, correlation_
     _assert_reporter(user)
     period = str(payload.get("period_label") or "").strip()
     if not period:
-        raise AppException("VALIDATION_ERROR", "Thiếu kỳ báo cáo (period_label)", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu kỳ báo cáo (period_label)", 400)
 
     dept_id = payload.get("department_id") or user.department_id
     academic_year = payload.get("academic_year")
@@ -68,7 +69,7 @@ def create_report(db: Session, *, user: CurrentUser, payload: dict, correlation_
         db.flush()
     except Exception:  # noqa: BLE001
         db.rollback()
-        raise AppException("DUPLICATE_REPORT", f"Bạn đã có báo cáo kỳ '{period}'", 409)
+        raise AppException(ErrorCode.DUPLICATE_REPORT, f"Bạn đã có báo cáo kỳ '{period}'", 409)
 
     # ---- Giảng dạy ----
     for t in payload.get("teaching") or []:
@@ -272,7 +273,7 @@ def delete_report(db: Session, *, user: CurrentUser, report_id: uuid.UUID, corre
         if r.reporter_user_id != user.id:
             raise hc.forbidden("Bạn chỉ xóa báo cáo của mình")
         if r.status == "reviewed":
-            raise AppException("REPORT_LOCKED", "Báo cáo đã duyệt — không thể xóa", 422)
+            raise AppException(ErrorCode.REPORT_LOCKED, "Báo cáo đã duyệt — không thể xóa", 422)
     # Xóa các dòng hoạt động thuộc báo cáo (gỡ khỏi module tương ứng).
     # project_members xóa theo CASCADE khi xóa research_projects.
     from sqlalchemy import delete as _del
