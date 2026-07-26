@@ -25,7 +25,7 @@ const ROOT = process.cwd();
  * Danh sách này CHỈ ĐƯỢC NGẮN ĐI và các trần CHỈ ĐƯỢC HẠ XUỐNG.
  */
 const GRANDFATHERED = new Map([
-  ['lims-backend/app/services/research_service.py', 1736], // T1.1 tách 9 domain
+  // research_service.py: 1.736 → 12 dòng (T1.1 xong, tách thành research/*)
   ['lims-backend/app/services/chemical_service.py', 850], // T1.2 tách
   ['lims-frontend/src/types/index.ts', 1964], // T4.3 thay bằng bản sinh từ OpenAPI
   ['lims-frontend/src/pages/SampleFlow.tsx', 1298], // T5.1 tách theo tab

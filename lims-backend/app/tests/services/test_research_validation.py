@@ -1,6 +1,11 @@
-"""Unit tests cho validation research_service (D2) — ma trận validate dày, dễ hồi quy:
+"""Unit tests cho validation bài báo/sáng chế (D2) — ma trận validate dày, dễ hồi quy:
 _validate_authors (XOR user_id/external_name, author_order), _validate_pub_fields
-(type/year/DOI/paper-patent required)."""
+(type/year/DOI/paper-patent required).
+
+Trỏ thẳng vào `research.publication_service` chứ không qua mặt tiền
+`research_service`: mặt tiền dùng `import *` nên không export tên bắt đầu bằng
+`_`, và test ở đây kiểm chính các helper private đó (M-03/T1.1).
+"""
 import uuid
 from datetime import date
 from unittest.mock import MagicMock, patch
@@ -8,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.core.exceptions import AppException
-from app.services import research_service as rs
+from app.services.research import publication_service as rs
 
 
 # ===================== _validate_authors =====================
