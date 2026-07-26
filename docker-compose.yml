@@ -23,6 +23,18 @@ services:
   redis:
     image: redis:7-alpine
     container_name: lims-redis
+    # R3.2 — giống production: jti denylist phải sống sót qua restart, nếu không
+    # token đã đăng xuất dùng lại được (ARCHITECTURE_AUDIT F-05).
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 384mb
+      - --maxmemory-policy
+      - noeviction
     ports:
       - "6460:6379"
     volumes:
@@ -84,6 +96,8 @@ services:
       DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
       DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-12}
       DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-5}
+      # ── R3.2 ──
+      ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-10}
       # Bỏ trống SMTP_HOST ⇒ chế độ dev: link xác thực ghi ra log container.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
