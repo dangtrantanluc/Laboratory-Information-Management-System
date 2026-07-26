@@ -12,6 +12,7 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { ROLE_OPTIONS } from '@/lib/rbac';
 import { ROLE_LABELS, type UserListItem } from '@/types';
@@ -20,6 +21,8 @@ import * as usersApi from '@/api/users';
 export function UsersPage() {
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [role, setRole] = useState('');
   const [editing, setEditing] = useState<UserListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -27,8 +30,8 @@ export function UsersPage() {
   const [resetUser, setResetUser] = useState<UserListItem | null>(null);
 
   const { data, loading, reload } = useAsync(
-    () => usersApi.listUsers({ q: q || undefined, role: role || undefined, limit: 100 }),
-    [q, role],
+    () => usersApi.listUsers({ q: dq || undefined, role: role || undefined, limit: 100 }),
+    [dq, role],
   );
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 

@@ -20,6 +20,7 @@ import {
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatMoney } from '@/lib/format';
 import { canManageResearch } from '@/lib/rbac';
@@ -43,6 +44,8 @@ export function ResearchProjects() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [level, setLevel] = useState('');
   const [editTarget, setEditTarget] = useState<ResearchProject | null>(null);
   const [viewTarget, setViewTarget] = useState<ResearchProject | null>(null);
@@ -51,8 +54,8 @@ export function ResearchProjects() {
   const [deleting, setDeleting] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => researchApi.listProjects({ q: q || undefined, level: level || undefined, limit: 100 }),
-    [q, level],
+    () => researchApi.listProjects({ q: dq || undefined, level: level || undefined, limit: 100 }),
+    [dq, level],
   );
   const { data: levels } = useAsync(() => researchApi.listProjectLevels(), []);
   const canManage = canManageResearch(user);

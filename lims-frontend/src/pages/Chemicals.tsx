@@ -14,6 +14,7 @@ import { ChemicalStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDecimal } from '@/lib/format';
 import { canManageChemical, canViewCost } from '@/lib/rbac';
@@ -26,6 +27,8 @@ export function Chemicals() {
   const navigate = useNavigate();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [group, setGroup] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -33,11 +36,11 @@ export function Chemicals() {
   const { data, loading, reload } = useAsync(
     () =>
       chemApi.listChemicals({
-        q: q || undefined,
+        q: dq || undefined,
         measurement_group: group || undefined,
         limit: 100,
       }),
-    [q, group],
+    [dq, group],
   );
 
   const columns: Column<Chemical>[] = [

@@ -21,6 +21,7 @@ import {
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
 import { formatDate } from '@/lib/format';
@@ -32,6 +33,8 @@ export function Publications() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [type, setType] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Publication | null>(null);
@@ -40,8 +43,8 @@ export function Publications() {
   const [deleting, setDeleting] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => researchApi.listPublications({ q: q || undefined, type: type || undefined, limit: 100 }),
-    [q, type],
+    () => researchApi.listPublications({ q: dq || undefined, type: type || undefined, limit: 100 }),
+    [dq, type],
   );
   const { data: indexes } = useAsync(() => researchApi.listPubIndexes(), []);
   const canManage = canManageResearch(user);

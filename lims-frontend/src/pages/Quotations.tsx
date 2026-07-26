@@ -12,6 +12,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatMoney } from '@/lib/format';
 import { canManageQuotations } from '@/lib/rbac';
@@ -45,6 +46,8 @@ export function Quotations() {
   const canManage = canManageQuotations(user);
 
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [statusFilter, setStatusFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Quotation | null>(null);
@@ -53,8 +56,8 @@ export function Quotations() {
   const [deleting, setDeleting] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => quoApi.listQuotations({ q: q || undefined, status: statusFilter || undefined, limit: 100 }),
-    [q, statusFilter],
+    () => quoApi.listQuotations({ q: dq || undefined, status: statusFilter || undefined, limit: 100 }),
+    [dq, statusFilter],
   );
 
   async function doDelete() {
@@ -496,10 +499,12 @@ function QuotationModal({
 function PickFromCatalog({ onPick }: { onPick: (it: QuotationItem) => void }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [matrix, setMatrix] = useState('');
   const { data, loading } = useAsync(
-    () => flowApi.listTestParameters({ q: q || undefined, matrix: matrix || undefined, is_active: true, limit: 30 }),
-    [q, matrix],
+    () => flowApi.listTestParameters({ q: dq || undefined, matrix: matrix || undefined, is_active: true, limit: 30 }),
+    [dq, matrix],
   );
 
   return (

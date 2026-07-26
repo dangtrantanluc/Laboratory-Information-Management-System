@@ -12,6 +12,7 @@ import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { EmptyState } from '@/components/ui/States';
@@ -123,6 +124,8 @@ export function SampleFlow() {
 // ===== Tab Phiếu nhận =====
 function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string | null }) {
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [statusFilter, setStatusFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
@@ -131,8 +134,8 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
   }, [openId]);
 
   const { data, loading, reload } = useAsync(
-    () => flowApi.listIntakes({ q: q || undefined, status: statusFilter || undefined, limit: 100 }),
-    [q, statusFilter],
+    () => flowApi.listIntakes({ q: dq || undefined, status: statusFilter || undefined, limit: 100 }),
+    [dq, statusFilter],
   );
 
   const columns: Column<SampleIntake>[] = [

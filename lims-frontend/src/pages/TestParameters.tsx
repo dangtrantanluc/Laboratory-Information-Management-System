@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlaskConical, Plus, Pencil, Trash2, BadgeCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatMoney } from '@/lib/format';
 import { canManageTestParameters } from '@/lib/rbac';
@@ -31,9 +32,15 @@ export function TestParameters() {
   const canManage = canManageTestParameters(user);
 
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [matrix, setMatrix] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<string>('true');
   const [unassigned, setUnassigned] = useState(false);
+  // R5.4 — phân trang SERVER. Trước đây nạp limit:200 rồi cắt ở client: bảng có 614
+  // dòng nên 414 dòng vô hình, người dùng tìm không ra và tạo trùng chỉ tiêu.
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TestParameter | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TestParameter | null>(null);
@@ -42,14 +49,19 @@ export function TestParameters() {
   const { data, loading, reload } = useAsync(
     () =>
       flowApi.listTestParameters({
-        q: q || undefined,
+        q: dq || undefined,
         matrix: matrix || undefined,
         is_active: activeFilter === '' ? undefined : activeFilter === 'true',
         unassigned: unassigned || undefined,
-        limit: 200,
+        page,
+        limit,
       }),
-    [q, matrix, activeFilter, unassigned],
+    [dq, matrix, activeFilter, unassigned, page, limit],
   );
+
+  // Đổi bộ lọc → quay về trang 1, nếu không người dùng đứng ở trang 6 của kết quả cũ
+  // và thấy bảng trống.
+  useEffect(() => setPage(1), [dq, matrix, activeFilter, unassigned]);
 
   async function doDelete() {
     if (!deleteTarget) return;
@@ -143,7 +155,20 @@ export function TestParameters() {
           </label>
           <span className="ml-auto text-sm text-subink">{data?.meta?.total ?? 0} chỉ tiêu</span>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(p) => p.id} loading={loading} pageSize={20} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(p) => p.id}
+          loading={loading}
+          pageSizeOptions={[20, 50, 100]}
+          server={{
+            page,
+            limit,
+            total: data?.meta?.total ?? 0,
+            onPageChange: setPage,
+            onLimitChange: setLimit,
+          }}
+        />
       </Card>
 
       {createOpen && (

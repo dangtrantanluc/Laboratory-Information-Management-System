@@ -15,6 +15,7 @@ import { RegistrationStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { cn } from '@/lib/cn';
 import { canManageForms, canSubmitForms } from '@/lib/rbac';
@@ -672,11 +673,13 @@ function SubmissionsTab() {
 function HistoryTab() {
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [scope, setScope] = useState('');
   const [action, setAction] = useState('');
   const { data, loading } = useAsync(
-    () => formsApi.listFormsHistory({ q: q || undefined, owner_type: scope || undefined, limit: 200 }),
-    [q, scope],
+    () => formsApi.listFormsHistory({ q: dq || undefined, owner_type: scope || undefined, limit: 200 }),
+    [dq, scope],
   );
   // Lọc theo loại thao tác ở client (nguồn đã gọn, tránh thêm tham số API)
   const rows = (data?.data ?? []).filter((r) => !action || r.action.endsWith(action));

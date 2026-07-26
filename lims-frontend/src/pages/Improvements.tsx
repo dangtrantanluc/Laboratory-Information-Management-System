@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateImprovement, canManageRisk } from '@/lib/rbac';
@@ -29,14 +30,16 @@ export function Improvements() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState<ImprovementStatus | ''>('');
   const [source, setSource] = useState<ImprovementSource | ''>('');
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<ImprovementItem | null>(null);
 
   const { data, loading, reload } = useAsync(
-    () => riskApi.listImprovements({ q: q || undefined, status: status || undefined, source: source || undefined, limit: 100 }),
-    [q, status, source],
+    () => riskApi.listImprovements({ q: dq || undefined, status: status || undefined, source: source || undefined, limit: 100 }),
+    [dq, status, source],
   );
 
   const columns: Column<ImprovementItem>[] = [

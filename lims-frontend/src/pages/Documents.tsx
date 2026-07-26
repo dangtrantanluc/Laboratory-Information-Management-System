@@ -14,6 +14,7 @@ import { DocVersionStatusBadge, SecurityLevelBadge } from '@/components/ui/Statu
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canApproveDocuments, canManageDocuments, canViewDocumentStats } from '@/lib/rbac';
@@ -29,6 +30,8 @@ export function Documents() {
   const toast = useToast();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [type, setType] = useState('');
   const [securityLevel, setSecurityLevel] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -37,13 +40,13 @@ export function Documents() {
   const { data, loading } = useAsync(
     () =>
       docsApi.listDocuments({
-        q: q || undefined,
+        q: dq || undefined,
         type: type || undefined,
         security_level: securityLevel || undefined,
         department_id: departmentId || undefined,
         limit: 100,
       }),
-    [q, type, securityLevel, departmentId],
+    [dq, type, securityLevel, departmentId],
   );
   const { data: types } = useAsync(() => docsApi.listDocumentTypes(), []);
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);

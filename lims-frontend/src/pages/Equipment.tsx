@@ -13,6 +13,7 @@ import { EquipmentStatusBadge, CalibrationStatusBadge } from '@/components/ui/St
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canWriteEquipment, canRunCalibrationCron } from '@/lib/rbac';
@@ -32,6 +33,8 @@ export function Equipment() {
   const toast = useToast();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState<EquipmentStatus | ''>('');
   const [calStatus, setCalStatus] = useState('');
   const [departmentId, setDepartmentId] = useState('');
@@ -48,13 +51,13 @@ export function Equipment() {
             limit: 100,
           })
         : equipApi.listEquipments({
-            q: q || undefined,
+            q: dq || undefined,
             status: status || undefined,
             calibration_status: (calStatus || undefined) as never,
             department_id: departmentId || undefined,
             limit: 100,
           }),
-    [q, status, calStatus, departmentId, onlyDue],
+    [dq, status, calStatus, departmentId, onlyDue],
   );
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 

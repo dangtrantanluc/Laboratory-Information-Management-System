@@ -12,6 +12,7 @@ import { RequestStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateSample } from '@/lib/rbac';
@@ -24,12 +25,14 @@ export function SampleRequests() {
   const navigate = useNavigate();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => samplesApi.listRequests({ q: q || undefined, status: status || undefined, limit: 100 }),
-    [q, status],
+    () => samplesApi.listRequests({ q: dq || undefined, status: status || undefined, limit: 100 }),
+    [dq, status],
   );
 
   const columns: Column<TestRequestListItem>[] = [

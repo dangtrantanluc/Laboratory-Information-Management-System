@@ -10,6 +10,7 @@ import { Field, Input, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canManageLabAccessCards } from '@/lib/rbac';
@@ -20,6 +21,8 @@ export function LabAccessCards() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [supervisorName, setSupervisorName] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<LabAccessCard | null>(null);
@@ -29,11 +32,11 @@ export function LabAccessCards() {
   const { data, loading, reload } = useAsync(
     () =>
       labAccessApi.listLabAccessCards({
-        q: q || undefined,
+        q: dq || undefined,
         supervisor_name: supervisorName || undefined,
         limit: 100,
       }),
-    [q, supervisorName],
+    [dq, supervisorName],
   );
   const canManage = canManageLabAccessCards(user);
 

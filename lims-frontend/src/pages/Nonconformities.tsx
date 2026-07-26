@@ -12,6 +12,7 @@ import { NcSeverityBadge, NcStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDateTime } from '@/lib/format';
 import { canCreateNC, canRunCapaCron } from '@/lib/rbac';
@@ -31,6 +32,8 @@ export function Nonconformities() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState<NcStatus | ''>('');
   const [severity, setSeverity] = useState<NcSeverity | ''>('');
   const [sourceType, setSourceType] = useState<NcSource | ''>('');
@@ -40,13 +43,13 @@ export function Nonconformities() {
   const { data, loading, reload } = useAsync(
     () =>
       ncApi.listNonconformities({
-        q: q || undefined,
+        q: dq || undefined,
         status: status || undefined,
         severity: severity || undefined,
         source_type: sourceType || undefined,
         limit: 100,
       }),
-    [q, status, severity, sourceType],
+    [dq, status, severity, sourceType],
   );
   const { data: stats } = useAsync(() => ncApi.getNcStats(), []);
 

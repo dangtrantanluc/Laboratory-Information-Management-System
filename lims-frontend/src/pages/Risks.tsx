@@ -13,6 +13,7 @@ import { RiskKindBadge, RiskStatusBadge, RiskBandBadge } from '@/components/ui/S
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateRisk, canRunRiskCron } from '@/lib/rbac';
@@ -32,6 +33,8 @@ export function Risks() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [kind, setKind] = useState<RiskKind | ''>('');
   const [status, setStatus] = useState<RiskStatus | ''>('');
   const [band, setBand] = useState<RiskBand | ''>('');
@@ -39,8 +42,8 @@ export function Risks() {
   const [cronOpen, setCronOpen] = useState(false);
 
   const { data, loading } = useAsync(
-    () => riskApi.listRisks({ q: q || undefined, kind: kind || undefined, status: status || undefined, band: band || undefined, limit: 100 }),
-    [q, kind, status, band],
+    () => riskApi.listRisks({ q: dq || undefined, kind: kind || undefined, status: status || undefined, band: band || undefined, limit: 100 }),
+    [dq, kind, status, band],
   );
   const { data: stats, reload: reloadStats } = useAsync(() => riskApi.getRiskStats(), []);
 

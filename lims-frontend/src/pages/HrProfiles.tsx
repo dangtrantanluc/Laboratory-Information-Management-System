@@ -12,6 +12,7 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatMoney, daysUntil } from '@/lib/format';
 import { canManageHr } from '@/lib/rbac';
@@ -38,17 +39,19 @@ export function HrProfiles() {
   const navigate = useNavigate();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [departmentId, setDepartmentId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, loading, reload } = useAsync(
     () =>
       hrApi.listProfiles({
-        q: q || undefined,
+        q: dq || undefined,
         department_id: departmentId || undefined,
         limit: 100,
       }),
-    [q, departmentId],
+    [dq, departmentId],
   );
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 
