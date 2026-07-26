@@ -19,6 +19,21 @@ from app.core.redis_client import get_redis
 logger = logging.getLogger("lims.rate_limit")
 
 
+def client_ip(request: Request) -> str:
+    """IP thật của người dùng cuối.
+
+    Tin X-Real-IP vì nginx GHI ĐÈ header này bằng giá trị nó tự xác định (không
+    cộng dồn như $proxy_add_x_forwarded_for), và lims-api không publish cổng ra
+    host nên không ai gọi thẳng để giả mạo được.
+
+    Không có header (gọi nội bộ, test) thì rơi về request.client.host.
+    """
+    return (
+        request.headers.get("x-real-ip")
+        or (request.client.host if request.client else "unknown")
+    )
+
+
 def rate_limit(key_prefix: str, *, limit: int, window_seconds: int):
     """Trả về FastAPI dependency: tối đa `limit` request / `window_seconds` giây / IP.
 
@@ -26,7 +41,7 @@ def rate_limit(key_prefix: str, *, limit: int, window_seconds: int):
     """
 
     def _dep(request: Request) -> None:
-        ip = request.client.host if request.client else "unknown"
+        ip = client_ip(request)
         key = f"ratelimit:{key_prefix}:{ip}"
         try:
             r = get_redis()
