@@ -89,13 +89,19 @@ def list_users(
         .limit(limit)
     ).scalars().all()
 
-    # nạp tên phòng + cờ lead
-    result = [_serialize_user_list(db, u) for u in rows]
+    # Nạp phòng ban MỘT LƯỢT thay vì N lượt: bản cũ gọi db.get(Department) cho
+    # từng dòng nên GET /users?limit=100 phát sinh 1 + 100 truy vấn (F-12).
+    dept_ids = {u.department_id for u in rows if u.department_id}
+    depts = (
+        {d.id: d for d in db.scalars(select(Department).where(Department.id.in_(dept_ids)))}
+        if dept_ids
+        else {}
+    )
+    result = [_serialize_user_list(u, depts.get(u.department_id)) for u in rows]
     return result, total
 
 
-def _serialize_user_list(db: Session, user: User) -> dict:
-    dept = db.get(Department, user.department_id) if user.department_id else None
+def _serialize_user_list(user: User, dept: Optional[Department]) -> dict:
     return {
         "id": user.id,
         "email": str(user.email),
