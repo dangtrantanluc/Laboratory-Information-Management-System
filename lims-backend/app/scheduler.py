@@ -139,6 +139,8 @@ _JOBS = [
     ("equipment-calibration-due", "CRON-5 calibration-due", {"hour": 7, "minute": 45}, "equipment_cron_service", "run_calibration_due"),
     ("capa-due", "CRON-7 capa-due", {"hour": 8, "minute": 0}, "nc_cron_service", "run_capa_due"),
     ("risk-review-due", "CRON-8 risk-review-due", {"hour": 8, "minute": 15}, "risk_cron_service", "run_risk_review_due"),
+    # R9.6 — 3h sáng, ngoài giờ làm việc: xoá theo lô vẫn tạo tải I/O trên Postgres.
+    ("data-cleanup", "CRON-9 data-cleanup", {"hour": 3, "minute": 0}, "cleanup_cron_service", "run_cleanup"),
 ]
 
 
