@@ -1,0 +1,40 @@
+name: Architecture Guardrails
+
+# Các luật cắt ngang cả backend lẫn frontend, nên KHÔNG dùng bộ lọc `paths`:
+# backend-ci và frontend-ci đều chỉ chạy khi cây tương ứng thay đổi, còn trần
+# kích thước file thì phải kiểm mọi commit.
+#
+# Bối cảnh: MAINTAINABILITY_PLAN.md §T0.2 · Luật: CONTRIBUTING.md
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  file-size:
+    name: Trần kích thước file
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/check-file-size.mjs
+
+  contracts:
+    name: Hợp đồng API + mã lỗi
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lims-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: lims-backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      # Test kiến trúc không cần DB — chạy nhanh và fail sớm.
+      - run: python -m pytest app/tests/architecture -v
