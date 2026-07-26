@@ -20,6 +20,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, require_permission
 from app.core.rate_limit import rate_limit
 from app.core.responses import ok, paginated, normalize_pagination
@@ -109,14 +110,15 @@ def upload_template_file(
     db: Session = Depends(get_db),
 ):
     """Tải lên / thay tệp biểu mẫu. Bản cũ chuyển thành lịch sử, không mất."""
-    content = file.file.read()
-    data = form_file_service.replace_file(
-        db, user=user, owner_type=form_file_service.OWNER_TEMPLATE, owner_id=template_id,
-        file_name=file.filename or "file", content=content, mime=file.content_type,
-        reason=reason, expected_attachment_id=expected_attachment_id,
-        correlation_id=_cid(request), ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = form_file_service.replace_file(
+            db, user=user, owner_type=form_file_service.OWNER_TEMPLATE, owner_id=template_id,
+            file_name=file.filename or "file", content=content, mime=file.content_type,
+            reason=reason, expected_attachment_id=expected_attachment_id,
+            correlation_id=_cid(request), ip=_ip(request),
+        )
+        return ok(data)
 
 
 @router.delete("/templates/{template_id}/file")
@@ -285,15 +287,16 @@ def upload_submission_file(
     db: Session = Depends(get_db),
 ):
     """Tải lên / thay tệp minh chứng. Đã duyệt thì khóa; bị từ chối thì quay lại chờ duyệt."""
-    content = file.file.read()
-    data = form_file_service.replace_file(
-        db, user=user, owner_type=form_file_service.OWNER_SUBMISSION,
-        owner_id=submission_id, file_name=file.filename or "file", content=content,
-        mime=file.content_type, reason=reason,
-        expected_attachment_id=expected_attachment_id,
-        correlation_id=_cid(request), ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = form_file_service.replace_file(
+            db, user=user, owner_type=form_file_service.OWNER_SUBMISSION,
+            owner_id=submission_id, file_name=file.filename or "file", content=content,
+            mime=file.content_type, reason=reason,
+            expected_attachment_id=expected_attachment_id,
+            correlation_id=_cid(request), ip=_ip(request),
+        )
+        return ok(data)
 
 
 @router.get("/submissions/{submission_id}/files")

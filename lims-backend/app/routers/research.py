@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.exceptions import AppException
 from app.core.responses import normalize_pagination, ok, paginated
@@ -314,26 +315,27 @@ def upload_publication_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
-    # scope check qua get_publication (raises FORBIDDEN/404 nếu ngoài scope)
-    research_service.get_publication(db, user=user, pub_id=pub_id)
-    if file.content_type not in _PUB_MIME_WHITELIST:
-        raise AppException(
-            "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+    with upload_slot():
+        _guard(user)
+        # scope check qua get_publication (raises FORBIDDEN/404 nếu ngoài scope)
+        research_service.get_publication(db, user=user, pub_id=pub_id)
+        if file.content_type not in _PUB_MIME_WHITELIST:
+            raise AppException(
+                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+            )
+        content = file.file.read()
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type="publication",
+            owner_id=pub_id,
+            file_name=file.filename or "publication",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
         )
-    content = file.file.read()
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type="publication",
-        owner_id=pub_id,
-        file_name=file.filename or "publication",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+        return ok(data)
 
 
 # ===================== HƯỚNG DẪN SV =====================

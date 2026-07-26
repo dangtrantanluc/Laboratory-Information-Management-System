@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.attachment import Attachment
@@ -347,138 +348,139 @@ def export_submissions_xlsx(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> bytes:
-    try:
-        conds = _submission_conditions(
-            user=user, template_id=template_id, department_id=department_id, year=year
-        )
-    except _NoAccess:
-        conds = None
-
-    total = 0
-    rows: list[FormSubmission] = []
-    if conds is not None:
-        total = db.execute(
-            select(func.count()).select_from(FormSubmission).where(*conds)
-        ).scalar_one()
-        if total > EXPORT_MAX_ROWS:
-            raise AppException(
-                "EXPORT_TOO_LARGE",
-                f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp bộ lọc.",
-                422,
+    with export_slot():
+        try:
+            conds = _submission_conditions(
+                user=user, template_id=template_id, department_id=department_id, year=year
             )
-        rows = db.execute(
-            select(FormSubmission).where(*conds).order_by(FormSubmission.submitted_at.desc())
-        ).scalars().all()
+        except _NoAccess:
+            conds = None
 
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from openpyxl.utils import get_column_letter
+        total = 0
+        rows: list[FormSubmission] = []
+        if conds is not None:
+            total = db.execute(
+                select(func.count()).select_from(FormSubmission).where(*conds)
+            ).scalar_one()
+            if total > EXPORT_MAX_ROWS:
+                raise AppException(
+                    "EXPORT_TOO_LARGE",
+                    f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp bộ lọc.",
+                    422,
+                )
+            rows = db.execute(
+                select(FormSubmission).where(*conds).order_by(FormSubmission.submitted_at.desc())
+            ).scalars().all()
 
-    COLUMNS = [
-        ("STT", 6),
-        ("Mã BM", 16),
-        ("Tên biểu mẫu", 46),
-        ("Phòng", 24),
-        ("Năm", 8),
-        ("Người nộp", 22),
-        ("Thời gian nộp", 18),
-        ("Tệp đính kèm", 40),
-    ]
-    NAVY = "1F3864"
-    BAND = "F2F5FA"
-    thin = Side(style="thin", color="BFBFBF")
-    cell_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from openpyxl.utils import get_column_letter
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Minh chứng VILAS"
-
-    # ── Tiêu đề + tóm tắt bộ lọc ──
-    n_cols = len(COLUMNS)
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n_cols)
-    title_cell = ws.cell(row=1, column=1, value="TỔNG HỢP MINH CHỨNG BIỂU MẪU VILAS")
-    title_cell.font = Font(name="Calibri", size=14, bold=True, color=NAVY)
-    title_cell.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 24
-
-    filter_bits = [f"Tổng {total} minh chứng"]
-    if year:
-        filter_bits.append(f"Năm {year}")
-    if department_id:
-        dept = db.get(Department, department_id)
-        if dept:
-            filter_bits.append(f"Phòng {dept.name}")
-    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=n_cols)
-    meta_cell = ws.cell(row=2, column=1, value=" · ".join(filter_bits))
-    meta_cell.font = Font(name="Calibri", size=10, italic=True, color="595959")
-    meta_cell.alignment = Alignment(horizontal="center")
-
-    # ── Header ──
-    header_row = 4
-    for col_idx, (label, width) in enumerate(COLUMNS, start=1):
-        cell = ws.cell(row=header_row, column=col_idx, value=label)
-        cell.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor=NAVY)
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        cell.border = cell_border
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
-    ws.row_dimensions[header_row].height = 20
-
-    # ── Dữ liệu ──
-    center_cols = {1, 5, 7}  # STT, Năm, Thời gian nộp
-    tpls_by_id, depts_by_id, users_by_id, files_by_owner = _batch_submission_refs(db, rows)
-    for i, s in enumerate(rows, start=1):
-        data = _serialize_submission(
-            db,
-            s,
-            tpls_by_id=tpls_by_id,
-            depts_by_id=depts_by_id,
-            users_by_id=users_by_id,
-            files_by_owner=files_by_owner,
-        )
-        r = header_row + i
-        values = [
-            i,
-            data["template_code"] or "",
-            data["template_title"] or "",
-            data["department_name"] or "",
-            data["year"] or "",
-            data["submitted_by_name"] or "",
-            data["submitted_at"].strftime("%Y-%m-%d %H:%M") if data["submitted_at"] else "",
-            "; ".join(f["file_name"] for f in data["files"]) or "—",
+        COLUMNS = [
+            ("STT", 6),
+            ("Mã BM", 16),
+            ("Tên biểu mẫu", 46),
+            ("Phòng", 24),
+            ("Năm", 8),
+            ("Người nộp", 22),
+            ("Thời gian nộp", 18),
+            ("Tệp đính kèm", 40),
         ]
-        for col_idx, value in enumerate(values, start=1):
-            cell = ws.cell(row=r, column=col_idx, value=value)
+        NAVY = "1F3864"
+        BAND = "F2F5FA"
+        thin = Side(style="thin", color="BFBFBF")
+        cell_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Minh chứng VILAS"
+
+        # ── Tiêu đề + tóm tắt bộ lọc ──
+        n_cols = len(COLUMNS)
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n_cols)
+        title_cell = ws.cell(row=1, column=1, value="TỔNG HỢP MINH CHỨNG BIỂU MẪU VILAS")
+        title_cell.font = Font(name="Calibri", size=14, bold=True, color=NAVY)
+        title_cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 24
+
+        filter_bits = [f"Tổng {total} minh chứng"]
+        if year:
+            filter_bits.append(f"Năm {year}")
+        if department_id:
+            dept = db.get(Department, department_id)
+            if dept:
+                filter_bits.append(f"Phòng {dept.name}")
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=n_cols)
+        meta_cell = ws.cell(row=2, column=1, value=" · ".join(filter_bits))
+        meta_cell.font = Font(name="Calibri", size=10, italic=True, color="595959")
+        meta_cell.alignment = Alignment(horizontal="center")
+
+        # ── Header ──
+        header_row = 4
+        for col_idx, (label, width) in enumerate(COLUMNS, start=1):
+            cell = ws.cell(row=header_row, column=col_idx, value=label)
+            cell.font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=NAVY)
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = cell_border
-            cell.alignment = Alignment(
-                horizontal="center" if col_idx in center_cols else "left",
-                vertical="center",
-                wrap_text=col_idx in (3, 8),
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+        ws.row_dimensions[header_row].height = 20
+
+        # ── Dữ liệu ──
+        center_cols = {1, 5, 7}  # STT, Năm, Thời gian nộp
+        tpls_by_id, depts_by_id, users_by_id, files_by_owner = _batch_submission_refs(db, rows)
+        for i, s in enumerate(rows, start=1):
+            data = _serialize_submission(
+                db,
+                s,
+                tpls_by_id=tpls_by_id,
+                depts_by_id=depts_by_id,
+                users_by_id=users_by_id,
+                files_by_owner=files_by_owner,
             )
-            if i % 2 == 0:
-                cell.fill = PatternFill("solid", fgColor=BAND)
+            r = header_row + i
+            values = [
+                i,
+                data["template_code"] or "",
+                data["template_title"] or "",
+                data["department_name"] or "",
+                data["year"] or "",
+                data["submitted_by_name"] or "",
+                data["submitted_at"].strftime("%Y-%m-%d %H:%M") if data["submitted_at"] else "",
+                "; ".join(f["file_name"] for f in data["files"]) or "—",
+            ]
+            for col_idx, value in enumerate(values, start=1):
+                cell = ws.cell(row=r, column=col_idx, value=value)
+                cell.border = cell_border
+                cell.alignment = Alignment(
+                    horizontal="center" if col_idx in center_cols else "left",
+                    vertical="center",
+                    wrap_text=col_idx in (3, 8),
+                )
+                if i % 2 == 0:
+                    cell.fill = PatternFill("solid", fgColor=BAND)
 
-    if rows:
-        last_row = header_row + len(rows)
-        ws.auto_filter.ref = f"A{header_row}:{get_column_letter(n_cols)}{last_row}"
+        if rows:
+            last_row = header_row + len(rows)
+            ws.auto_filter.ref = f"A{header_row}:{get_column_letter(n_cols)}{last_row}"
 
-    ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
-    ws.sheet_view.showGridLines = False
+        ws.freeze_panes = ws.cell(row=header_row + 1, column=1)
+        ws.sheet_view.showGridLines = False
 
-    audit_service.log_action(
-        db,
-        action="FORM_SUBMISSION_EXPORT_EXCEL",
-        resource="form_submission",
-        user_id=user.id,
-        correlation_id=correlation_id,
-        ip=ip,
-        detail={"rows": total, "year": year, "department_id": str(department_id) if department_id else None},
-    )
-    db.commit()
+        audit_service.log_action(
+            db,
+            action="FORM_SUBMISSION_EXPORT_EXCEL",
+            resource="form_submission",
+            user_id=user.id,
+            correlation_id=correlation_id,
+            ip=ip,
+            detail={"rows": total, "year": year, "department_id": str(department_id) if department_id else None},
+        )
+        db.commit()
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
 
 
 def create_submission(

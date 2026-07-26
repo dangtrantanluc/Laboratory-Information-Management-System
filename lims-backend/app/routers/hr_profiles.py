@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
 from app.core.responses import normalize_pagination, ok, paginated
@@ -303,25 +304,26 @@ def upload_competence_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services import hr_common as hc
+    with upload_slot():
+        from app.services import hr_common as hc
 
-    hc.assert_can_manage_competence(user)
-    comp = hr_service.get_competence_or_404(db, competence_id)
-    if file.content_type not in _COMPETENCE_MIME_WHITELIST:
-        raise AppException(
-            "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+        hc.assert_can_manage_competence(user)
+        comp = hr_service.get_competence_or_404(db, competence_id)
+        if file.content_type not in _COMPETENCE_MIME_WHITELIST:
+            raise AppException(
+                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+            )
+        content = file.file.read()
+        # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type="hr_profile",
+            owner_id=comp.user_id,
+            file_name=file.filename or "competence",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
         )
-    content = file.file.read()
-    # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type="hr_profile",
-        owner_id=comp.user_id,
-        file_name=file.filename or "competence",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+        return ok(data)

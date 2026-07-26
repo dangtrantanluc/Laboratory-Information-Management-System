@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import ok
 from app.db.database import get_db
@@ -31,19 +32,20 @@ def upload_attachment(
     db: Session = Depends(get_db),
 ):
     """Upload generic — M1/M2 dùng để gắn file. owner tồn tại enforce ở module owner."""
-    content = file.file.read()
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type=owner_type,
-        owner_id=owner_id,
-        file_name=file.filename or "file",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type=owner_type,
+            owner_id=owner_id,
+            file_name=file.filename or "file",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 @router.get("/{attachment_id}")

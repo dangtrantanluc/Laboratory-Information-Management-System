@@ -12,6 +12,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, validation_error
 from app.models.audit_log import AuditLog
@@ -710,61 +711,62 @@ def export_access_stats_xlsx(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> bytes:
-    if not dc.is_privileged(user):
-        raise dc.forbidden("Chỉ admin / lãnh đạo được xuất báo cáo")
-    stats = aggregate_access_stats(
-        db,
-        user=user,
-        from_=from_,
-        to_=to_,
-        department_id=department_id,
-        action=action,
-        top=100,
-        sort_by="total",
-    )
-
-    import io
-
-    from openpyxl import Workbook
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Thống kê truy cập tài liệu"
-    rng = stats["range"]
-    summ = stats["summary"]
-    ws.append(["BÁO CÁO THỐNG KÊ TRUY CẬP TÀI LIỆU (R15)"])
-    ws.append(["Khoảng thời gian", f"{rng['from']} → {rng['to']}"])
-    ws.append(["Tổng lượt xem", summ["total_view"]])
-    ws.append(["Tổng lượt tải", summ["total_download"]])
-    ws.append(["Tổng lượt sửa", summ["total_edit"]])
-    ws.append(["Số tài liệu", summ["document_count"]])
-    ws.append([])
-    ws.append(["Mã tài liệu", "Tiêu đề", "Phòng", "Xem", "Tải", "Sửa", "Tổng"])
-    for d in stats["top_documents"]:
-        ws.append(
-            [
-                d["document_code"],
-                d["title"],
-                d["department_name"],
-                d["view"],
-                d["download"],
-                d["edit"],
-                d["total"],
-            ]
+    with export_slot():
+        if not dc.is_privileged(user):
+            raise dc.forbidden("Chỉ admin / lãnh đạo được xuất báo cáo")
+        stats = aggregate_access_stats(
+            db,
+            user=user,
+            from_=from_,
+            to_=to_,
+            department_id=department_id,
+            action=action,
+            top=100,
+            sort_by="total",
         )
 
-    audit_service.log_action(
-        db,
-        action="DOCUMENT_STATS_EXPORT",
-        resource="document",
-        user_id=user.id,
-        resource_id=None,
-        correlation_id=correlation_id,
-        ip=ip,
-        detail={"range": rng},
-    )
-    db.commit()
+        import io
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Thống kê truy cập tài liệu"
+        rng = stats["range"]
+        summ = stats["summary"]
+        ws.append(["BÁO CÁO THỐNG KÊ TRUY CẬP TÀI LIỆU (R15)"])
+        ws.append(["Khoảng thời gian", f"{rng['from']} → {rng['to']}"])
+        ws.append(["Tổng lượt xem", summ["total_view"]])
+        ws.append(["Tổng lượt tải", summ["total_download"]])
+        ws.append(["Tổng lượt sửa", summ["total_edit"]])
+        ws.append(["Số tài liệu", summ["document_count"]])
+        ws.append([])
+        ws.append(["Mã tài liệu", "Tiêu đề", "Phòng", "Xem", "Tải", "Sửa", "Tổng"])
+        for d in stats["top_documents"]:
+            ws.append(
+                [
+                    d["document_code"],
+                    d["title"],
+                    d["department_name"],
+                    d["view"],
+                    d["download"],
+                    d["edit"],
+                    d["total"],
+                ]
+            )
+
+        audit_service.log_action(
+            db,
+            action="DOCUMENT_STATS_EXPORT",
+            resource="document",
+            user_id=user.id,
+            resource_id=None,
+            correlation_id=correlation_id,
+            ip=ip,
+            detail={"range": rng},
+        )
+        db.commit()
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()

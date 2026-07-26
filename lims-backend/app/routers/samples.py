@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -206,19 +207,20 @@ def upload_sample_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_office(user)
-    content = file.file.read()
-    data = sample_attachment_service.upload_sample_attachment(
-        db,
-        user=user,
-        sample_id=sample_id,
-        file_name=file.filename or "file",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        sample_common.deny_office(user)
+        content = file.file.read()
+        data = sample_attachment_service.upload_sample_attachment(
+            db,
+            user=user,
+            sample_id=sample_id,
+            file_name=file.filename or "file",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== Assignments =====

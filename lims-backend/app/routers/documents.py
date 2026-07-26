@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -166,22 +167,23 @@ def create_document(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = file.file.read()
-    data = document_service.create_document(
-        db,
-        user=user,
-        title=title,
-        type_code=type,
-        department_id=department_id,
-        security_level=security_level,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = document_service.create_document(
+            db,
+            user=user,
+            title=title,
+            type_code=type,
+            department_id=department_id,
+            security_level=security_level,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 5. Document detail =====
@@ -304,19 +306,20 @@ def create_version(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = file.file.read()
-    data = dvs.create_version(
-        db,
-        user=user,
-        document_id=document_id,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = dvs.create_version(
+            db,
+            user=user,
+            document_id=document_id,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 10. Get single version =====
@@ -368,20 +371,21 @@ def replace_version_file(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = file.file.read()
-    data = dvs.update_version(
-        db,
-        user=user,
-        document_id=document_id,
-        version_id=version_id,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = dvs.update_version(
+            db,
+            user=user,
+            document_id=document_id,
+            version_id=version_id,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 12. Submit review =====

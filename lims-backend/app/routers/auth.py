@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core import security
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.exceptions import AppException
 from app.core.rate_limit import rate_limit
@@ -345,17 +346,18 @@ def upload_my_avatar(
     db: Session = Depends(get_db),
 ):
     """Tải ảnh đại diện lên MinIO. DB chỉ lưu object key; trả về presigned URL."""
-    content = file.file.read()
-    data = avatar_service.upload_avatar(
-        db,
-        user_id=user.id,
-        content=content,
-        file_name=file.filename or "avatar",
-        declared_mime=file.content_type,
-        correlation_id=getattr(request.state, "correlation_id", None),
-        ip=_client_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = avatar_service.upload_avatar(
+            db,
+            user_id=user.id,
+            content=content,
+            file_name=file.filename or "avatar",
+            declared_mime=file.content_type,
+            correlation_id=getattr(request.state, "correlation_id", None),
+            ip=_client_ip(request),
+        )
+        return ok(data)
 
 
 @router.delete("/me/avatar")

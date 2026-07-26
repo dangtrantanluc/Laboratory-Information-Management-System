@@ -11,6 +11,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.services import (
     audit_service,
@@ -138,23 +139,24 @@ def export_xlsx(
     db: Session, *, user: CurrentUser, report_type: str, params: dict,
     correlation_id: Optional[str], ip: Optional[str],
 ) -> tuple[bytes, str]:
-    _check_report_type(report_type)
-    _enforce_export_rbac(db, user, report_type)
-    data = _gather(db, user, report_type, params)
+    with export_slot():
+        _check_report_type(report_type)
+        _enforce_export_rbac(db, user, report_type)
+        data = _gather(db, user, report_type, params)
 
-    from openpyxl import Workbook
+        from openpyxl import Workbook
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = report_type[:31]
-    _append_row(ws, [f"Báo cáo: {report_type}", f"Người xuất: {user.full_name}", f"Vai trò: {user.role}"])
-    _write_sheet(ws, report_type, data)
+        wb = Workbook()
+        ws = wb.active
+        ws.title = report_type[:31]
+        _append_row(ws, [f"Báo cáo: {report_type}", f"Người xuất: {user.full_name}", f"Vai trò: {user.role}"])
+        _write_sheet(ws, report_type, data)
 
-    _audit_export(db, user, report_type, "xlsx", params, correlation_id, ip)
-    buf = io.BytesIO()
-    wb.save(buf)
-    filename = f"bao-cao-{report_type}.xlsx"
-    return buf.getvalue(), filename
+        _audit_export(db, user, report_type, "xlsx", params, correlation_id, ip)
+        buf = io.BytesIO()
+        wb.save(buf)
+        filename = f"bao-cao-{report_type}.xlsx"
+        return buf.getvalue(), filename
 
 
 def _write_sheet(ws, report_type: str, data: dict) -> None:
@@ -376,142 +378,143 @@ def _register_fonts():
 
 
 def _render_dashboard_pdf(data: dict, user: CurrentUser) -> bytes:
-    from datetime import datetime, timezone, timedelta
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib import colors
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether,
-    )
+    with export_slot():
+        from datetime import datetime, timezone, timedelta
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether,
+        )
 
-    F, FB = _register_fonts()
-    INK = colors.HexColor("#1f2937")
-    MUT = colors.HexColor("#6b7280")
-    LINE = colors.HexColor("#d1d5db")
-    HEAD_BG = colors.HexColor("#f3f4f6")
-    ACCENT = colors.HexColor("#2f3a56")
+        F, FB = _register_fonts()
+        INK = colors.HexColor("#1f2937")
+        MUT = colors.HexColor("#6b7280")
+        LINE = colors.HexColor("#d1d5db")
+        HEAD_BG = colors.HexColor("#f3f4f6")
+        ACCENT = colors.HexColor("#2f3a56")
 
-    org = ParagraphStyle("org", fontName=FB, fontSize=11, textColor=ACCENT, alignment=1, leading=14)
-    sub = ParagraphStyle("sub", fontName=F, fontSize=8.5, textColor=MUT, alignment=1, leading=11)
-    title = ParagraphStyle("title", fontName=FB, fontSize=15, textColor=INK, alignment=1, spaceBefore=8, spaceAfter=2, leading=18)
-    meta = ParagraphStyle("meta", fontName=F, fontSize=9, textColor=MUT, alignment=1, leading=12)
-    h2 = ParagraphStyle("h2", fontName=FB, fontSize=11, textColor=ACCENT, spaceBefore=10, spaceAfter=4)
+        org = ParagraphStyle("org", fontName=FB, fontSize=11, textColor=ACCENT, alignment=1, leading=14)
+        sub = ParagraphStyle("sub", fontName=F, fontSize=8.5, textColor=MUT, alignment=1, leading=11)
+        title = ParagraphStyle("title", fontName=FB, fontSize=15, textColor=INK, alignment=1, spaceBefore=8, spaceAfter=2, leading=18)
+        meta = ParagraphStyle("meta", fontName=F, fontSize=9, textColor=MUT, alignment=1, leading=12)
+        h2 = ParagraphStyle("h2", fontName=FB, fontSize=11, textColor=ACCENT, spaceBefore=10, spaceAfter=4)
 
-    scope = data.get("scope") or {}
-    S = data.get("samples") or {}
-    C = data.get("chemicals") or {}
-    E = data.get("equipments") or {}
-    H = data.get("hr") or {}
-    D = data.get("documents") or {}
-    N = data.get("notifications") or {}
-    bs = S.get("by_status") or {}
+        scope = data.get("scope") or {}
+        S = data.get("samples") or {}
+        C = data.get("chemicals") or {}
+        E = data.get("equipments") or {}
+        H = data.get("hr") or {}
+        D = data.get("documents") or {}
+        N = data.get("notifications") or {}
+        bs = S.get("by_status") or {}
 
-    now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=7)))
-    story: list = []
-    story.append(Paragraph("VIỆN NGHIÊN CỨU CÔNG NGHỆ SINH HỌC VÀ MÔI TRƯỜNG", org))
-    story.append(Paragraph("Research Institute for Biotechnology and Environment (RIBE)", sub))
-    story.append(Paragraph("BÁO CÁO TỔNG QUAN HOẠT ĐỘNG PHÒNG THÍ NGHIỆM", title))
-    meta_txt = f"Người xuất: {user.full_name} — {_ROLE_LABELS.get(user.role, user.role)}"
-    if scope.get("department_name"):
-        meta_txt += f" · Phòng: {scope['department_name']}"
-    meta_txt += f" · Xuất lúc {now.strftime('%H:%M %d/%m/%Y')}"
-    story.append(Paragraph(meta_txt, meta))
-    story.append(Spacer(1, 5 * mm))
+        now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=7)))
+        story: list = []
+        story.append(Paragraph("VIỆN NGHIÊN CỨU CÔNG NGHỆ SINH HỌC VÀ MÔI TRƯỜNG", org))
+        story.append(Paragraph("Research Institute for Biotechnology and Environment (RIBE)", sub))
+        story.append(Paragraph("BÁO CÁO TỔNG QUAN HOẠT ĐỘNG PHÒNG THÍ NGHIỆM", title))
+        meta_txt = f"Người xuất: {user.full_name} — {_ROLE_LABELS.get(user.role, user.role)}"
+        if scope.get("department_name"):
+            meta_txt += f" · Phòng: {scope['department_name']}"
+        meta_txt += f" · Xuất lúc {now.strftime('%H:%M %d/%m/%Y')}"
+        story.append(Paragraph(meta_txt, meta))
+        story.append(Spacer(1, 5 * mm))
 
-    # ── Chỉ số chính ──
-    kpis: list = []
-    if S.get("available"):
-        kpis += [("Tổng mẫu", S.get("total", 0)), ("Đang thực nghiệm", bs.get("testing", 0)),
-                 ("Mẫu quá hạn", S.get("overdue", 0)), ("Đã chốt", bs.get("done", 0))]
-    if C.get("available"):
-        kpis += [("Hóa chất sắp hết hạn", C.get("expiring_soon", 0)),
-                 ("Hóa chất tồn thấp", C.get("low_stock", 0))]
-    if E.get("available"):
-        kpis += [("Thiết bị quá hạn hiệu chuẩn", E.get("calibration_overdue", 0)),
-                 ("Thiết bị sắp hiệu chuẩn", E.get("calibration_due_soon", 0))]
-    if H.get("available"):
-        kpis += [("Nâng lương / HĐ sắp tới hạn",
-                  int(H.get("contract_ending", 0)) + int(H.get("salary_raise_due", 0)))]
-    if D.get("available"):
-        kpis += [("Tài liệu chờ duyệt", D.get("pending_review", 0))]
-    if N.get("available"):
-        kpis += [("Thông báo chưa đọc", N.get("unread", 0))]
+        # ── Chỉ số chính ──
+        kpis: list = []
+        if S.get("available"):
+            kpis += [("Tổng mẫu", S.get("total", 0)), ("Đang thực nghiệm", bs.get("testing", 0)),
+                     ("Mẫu quá hạn", S.get("overdue", 0)), ("Đã chốt", bs.get("done", 0))]
+        if C.get("available"):
+            kpis += [("Hóa chất sắp hết hạn", C.get("expiring_soon", 0)),
+                     ("Hóa chất tồn thấp", C.get("low_stock", 0))]
+        if E.get("available"):
+            kpis += [("Thiết bị quá hạn hiệu chuẩn", E.get("calibration_overdue", 0)),
+                     ("Thiết bị sắp hiệu chuẩn", E.get("calibration_due_soon", 0))]
+        if H.get("available"):
+            kpis += [("Nâng lương / HĐ sắp tới hạn",
+                      int(H.get("contract_ending", 0)) + int(H.get("salary_raise_due", 0)))]
+        if D.get("available"):
+            kpis += [("Tài liệu chờ duyệt", D.get("pending_review", 0))]
+        if N.get("available"):
+            kpis += [("Thông báo chưa đọc", N.get("unread", 0))]
 
-    if kpis:
-        story.append(Paragraph("Chỉ số chính", h2))
-        # 2 cặp (nhãn | giá trị) mỗi hàng
-        rows = []
-        for i in range(0, len(kpis), 2):
-            left = kpis[i]
-            right = kpis[i + 1] if i + 1 < len(kpis) else ("", "")
-            rows.append([left[0], str(left[1]), right[0], str(right[1])])
-        t = Table(rows, colWidths=[52 * mm, 20 * mm, 52 * mm, 20 * mm])
-        t.setStyle(TableStyle([
-            ("FONT", (0, 0), (-1, -1), F, 9.5),
-            ("FONT", (1, 0), (1, -1), FB, 12), ("FONT", (3, 0), (3, -1), FB, 12),
-            ("TEXTCOLOR", (0, 0), (0, -1), INK), ("TEXTCOLOR", (2, 0), (2, -1), INK),
-            ("TEXTCOLOR", (1, 0), (1, -1), ACCENT), ("TEXTCOLOR", (3, 0), (3, -1), ACCENT),
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("ALIGN", (3, 0), (3, -1), "RIGHT"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE),
-            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ]))
-        story.append(t)
+        if kpis:
+            story.append(Paragraph("Chỉ số chính", h2))
+            # 2 cặp (nhãn | giá trị) mỗi hàng
+            rows = []
+            for i in range(0, len(kpis), 2):
+                left = kpis[i]
+                right = kpis[i + 1] if i + 1 < len(kpis) else ("", "")
+                rows.append([left[0], str(left[1]), right[0], str(right[1])])
+            t = Table(rows, colWidths=[52 * mm, 20 * mm, 52 * mm, 20 * mm])
+            t.setStyle(TableStyle([
+                ("FONT", (0, 0), (-1, -1), F, 9.5),
+                ("FONT", (1, 0), (1, -1), FB, 12), ("FONT", (3, 0), (3, -1), FB, 12),
+                ("TEXTCOLOR", (0, 0), (0, -1), INK), ("TEXTCOLOR", (2, 0), (2, -1), INK),
+                ("TEXTCOLOR", (1, 0), (1, -1), ACCENT), ("TEXTCOLOR", (3, 0), (3, -1), ACCENT),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE),
+                ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.append(t)
 
-    # ── Phân bố trạng thái mẫu ──
-    if S.get("available") and bs:
-        srows = [["Trạng thái", "Số lượng"]]
-        for k, lbl in _STATUS_LABELS.items():
-            if k in bs:
-                srows.append([lbl, str(bs.get(k, 0))])
-        srows.append(["Tổng cộng", str(S.get("total", 0))])
-        st = Table(srows, colWidths=[70 * mm, 30 * mm])
-        st.setStyle(TableStyle([
-            ("FONT", (0, 0), (-1, -1), F, 10),
-            ("FONT", (0, 0), (-1, 0), FB, 10), ("FONT", (0, -1), (-1, -1), FB, 10),
-            ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
-            ("BACKGROUND", (0, -1), (-1, -1), HEAD_BG),
-            ("TEXTCOLOR", (0, 0), (-1, -1), INK),
-            ("ALIGN", (1, 0), (1, -1), "CENTER"),
-            ("GRID", (0, 0), (-1, -1), 0.4, LINE),
-            ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ]))
+        # ── Phân bố trạng thái mẫu ──
+        if S.get("available") and bs:
+            srows = [["Trạng thái", "Số lượng"]]
+            for k, lbl in _STATUS_LABELS.items():
+                if k in bs:
+                    srows.append([lbl, str(bs.get(k, 0))])
+            srows.append(["Tổng cộng", str(S.get("total", 0))])
+            st = Table(srows, colWidths=[70 * mm, 30 * mm])
+            st.setStyle(TableStyle([
+                ("FONT", (0, 0), (-1, -1), F, 10),
+                ("FONT", (0, 0), (-1, 0), FB, 10), ("FONT", (0, -1), (-1, -1), FB, 10),
+                ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+                ("BACKGROUND", (0, -1), (-1, -1), HEAD_BG),
+                ("TEXTCOLOR", (0, 0), (-1, -1), INK),
+                ("ALIGN", (1, 0), (1, -1), "CENTER"),
+                ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+                ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
 
-        block: list = [Paragraph("Phân bố trạng thái mẫu", h2), st]
-        pie = _drawing_pie_samples_by_status(bs, F)
-        if pie is not None:
-            block += [Spacer(1, 3 * mm), pie]
-        story.append(KeepTogether(block))
+            block: list = [Paragraph("Phân bố trạng thái mẫu", h2), st]
+            pie = _drawing_pie_samples_by_status(bs, F)
+            if pie is not None:
+                block += [Spacer(1, 3 * mm), pie]
+            story.append(KeepTogether(block))
 
-    # ── Biểu đồ: mẫu theo thời gian / tiêu hao hóa chất ──
-    charts = data.get("charts") or {}
-    sot = charts.get("samples_over_time") or {}
-    if sot.get("available") and sot.get("data"):
-        bar1 = _drawing_bar_samples_over_time(sot["data"], F)
-        if bar1 is not None:
-            story.append(KeepTogether([Paragraph("Mẫu theo thời gian", h2), bar1]))
+        # ── Biểu đồ: mẫu theo thời gian / tiêu hao hóa chất ──
+        charts = data.get("charts") or {}
+        sot = charts.get("samples_over_time") or {}
+        if sot.get("available") and sot.get("data"):
+            bar1 = _drawing_bar_samples_over_time(sot["data"], F)
+            if bar1 is not None:
+                story.append(KeepTogether([Paragraph("Mẫu theo thời gian", h2), bar1]))
 
-    cc = charts.get("chemical_consumption") or {}
-    by_group = cc.get("by_measurement_group") or []
-    if cc.get("available") and by_group:
-        bar2 = _drawing_bar_chemical_consumption(by_group, F)
-        if bar2 is not None:
-            story.append(KeepTogether([Paragraph("Tiêu hao hóa chất theo tháng", h2), bar2]))
+        cc = charts.get("chemical_consumption") or {}
+        by_group = cc.get("by_measurement_group") or []
+        if cc.get("available") and by_group:
+            bar2 = _drawing_bar_chemical_consumption(by_group, F)
+            if bar2 is not None:
+                story.append(KeepTogether([Paragraph("Tiêu hao hóa chất theo tháng", h2), bar2]))
 
-    def _footer(canvas, doc):
-        canvas.saveState()
-        canvas.setFont(F, 8)
-        canvas.setFillColor(MUT)
-        canvas.drawString(16 * mm, 10 * mm,
-                          "Hệ thống Quản lý Phòng Thí nghiệm (LIMS) — RIBE")
-        canvas.drawRightString(A4[0] - 16 * mm, 10 * mm, f"Trang {doc.page}")
-        canvas.restoreState()
+        def _footer(canvas, doc):
+            canvas.saveState()
+            canvas.setFont(F, 8)
+            canvas.setFillColor(MUT)
+            canvas.drawString(16 * mm, 10 * mm,
+                              "Hệ thống Quản lý Phòng Thí nghiệm (LIMS) — RIBE")
+            canvas.drawRightString(A4[0] - 16 * mm, 10 * mm, f"Trang {doc.page}")
+            canvas.restoreState()
 
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4, topMargin=16 * mm, bottomMargin=16 * mm,
-        leftMargin=16 * mm, rightMargin=16 * mm, title="Báo cáo tổng quan",
-    )
-    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
-    return buf.getvalue()
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf, pagesize=A4, topMargin=16 * mm, bottomMargin=16 * mm,
+            leftMargin=16 * mm, rightMargin=16 * mm, title="Báo cáo tổng quan",
+        )
+        doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+        return buf.getvalue()

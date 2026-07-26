@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.chemical import Chemical, ChemicalLot, ChemicalTransaction
@@ -84,101 +85,102 @@ def export_transactions_xlsx(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> bytes:
-    if date_from > date_to:
-        raise AppException("INVALID_DATE_RANGE", "date_from phải <= date_to", 400)
+    with export_slot():
+        if date_from > date_to:
+            raise AppException("INVALID_DATE_RANGE", "date_from phải <= date_to", 400)
 
-    dept = _scope_department(user, department_id)
-    conditions = _txn_query(
-        date_from=date_from,
-        date_to=date_to,
-        chemical_id=chemical_id,
-        ref_sample_id=ref_sample_id,
-        by_user=by_user,
-        txn_type=txn_type,
-        department_id=dept,
-    )
-
-    total = db.execute(
-        select(func.count()).select_from(ChemicalTransaction).where(*conditions)
-    ).scalar_one()
-    if total > EXPORT_MAX_ROWS:
-        raise AppException(
-            "EXPORT_TOO_LARGE",
-            f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp khoảng/lọc.",
-            422,
+        dept = _scope_department(user, department_id)
+        conditions = _txn_query(
+            date_from=date_from,
+            date_to=date_to,
+            chemical_id=chemical_id,
+            ref_sample_id=ref_sample_id,
+            by_user=by_user,
+            txn_type=txn_type,
+            department_id=dept,
         )
 
-    rows = db.execute(
-        select(ChemicalTransaction)
-        .where(*conditions)
-        .order_by(ChemicalTransaction.at.asc())
-    ).scalars().all()
+        total = db.execute(
+            select(func.count()).select_from(ChemicalTransaction).where(*conditions)
+        ).scalar_one()
+        if total > EXPORT_MAX_ROWS:
+            raise AppException(
+                "EXPORT_TOO_LARGE",
+                f"Kết quả {total} dòng vượt ngưỡng {EXPORT_MAX_ROWS}. Thu hẹp khoảng/lọc.",
+                422,
+            )
 
-    from openpyxl import Workbook
+        rows = db.execute(
+            select(ChemicalTransaction)
+            .where(*conditions)
+            .order_by(ChemicalTransaction.at.asc())
+        ).scalars().all()
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Nhat ky hoa chat"
-    columns = _BASE_COLUMNS + (_COST_COLUMNS if can_cost else [])
-    ws.append(columns)
+        from openpyxl import Workbook
 
-    # Batch-load lot/chemical/sample/user thay vì db.get() từng dòng — export tới
-    # EXPORT_MAX_ROWS dòng, mỗi dòng trước đây tốn 3-5 round trip (PRODUCTION_READINESS_REVIEW
-    # §Performance: "Severe N+1 pattern in bulk XLSX exports").
-    lots_by_id, chems_by_id, samples_by_id = cc.batch_txn_refs(db, rows)
-    user_names_by_id = cc.batch_user_names(db, (txn.by_user for txn in rows))
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Nhat ky hoa chat"
+        columns = _BASE_COLUMNS + (_COST_COLUMNS if can_cost else [])
+        ws.append(columns)
 
-    for txn in rows:
-        lot = lots_by_id.get(txn.lot_id)
-        chem = chems_by_id.get(lot.chemical_id) if lot else None
-        ref_code = None
-        if txn.ref_sample_id:
-            s = samples_by_id.get(txn.ref_sample_id)
-            ref_code = s.sample_code if s else None
-        row = [
-            txn.at.strftime("%Y-%m-%d %H:%M"),
-            chem.name if chem else "",
-            chem.cas_no if chem else "",
-            lot.lot_no if lot else "",
-            txn.type,
-            cc.s_input(txn.qty_input),
-            txn.input_unit,
-            cc.s_base(txn.qty_base),
-            txn.base_unit,
-            cc.s_base(txn.balance_after),
-            ref_code or "",
-            user_names_by_id.get(txn.by_user) or "",
-            txn.note or "",
-        ]
-        if can_cost:
-            line_value = None
-            if txn.unit_price is not None and chem:
-                qty_pu = cc.convert_from_base(
-                    db, txn.qty_base, chem.base_unit, txn.input_unit, chem.measurement_group
-                )
-                line_value = cc.s_money(qty_pu * txn.unit_price)
-            row += [cc.s_money(txn.unit_price) or "", txn.currency or "", line_value or ""]
-        ws.append(row)
+        # Batch-load lot/chemical/sample/user thay vì db.get() từng dòng — export tới
+        # EXPORT_MAX_ROWS dòng, mỗi dòng trước đây tốn 3-5 round trip (PRODUCTION_READINESS_REVIEW
+        # §Performance: "Severe N+1 pattern in bulk XLSX exports").
+        lots_by_id, chems_by_id, samples_by_id = cc.batch_txn_refs(db, rows)
+        user_names_by_id = cc.batch_user_names(db, (txn.by_user for txn in rows))
 
-    audit_service.log_action(
-        db,
-        action="CHEMICAL_EXPORT_EXCEL",
-        resource="chemical",
-        user_id=user.id,
-        correlation_id=correlation_id,
-        ip=ip,
-        detail={
-            "date_from": date_from.isoformat(),
-            "date_to": date_to.isoformat(),
-            "rows": total,
-            "with_cost": can_cost,
-        },
-    )
-    db.commit()
+        for txn in rows:
+            lot = lots_by_id.get(txn.lot_id)
+            chem = chems_by_id.get(lot.chemical_id) if lot else None
+            ref_code = None
+            if txn.ref_sample_id:
+                s = samples_by_id.get(txn.ref_sample_id)
+                ref_code = s.sample_code if s else None
+            row = [
+                txn.at.strftime("%Y-%m-%d %H:%M"),
+                chem.name if chem else "",
+                chem.cas_no if chem else "",
+                lot.lot_no if lot else "",
+                txn.type,
+                cc.s_input(txn.qty_input),
+                txn.input_unit,
+                cc.s_base(txn.qty_base),
+                txn.base_unit,
+                cc.s_base(txn.balance_after),
+                ref_code or "",
+                user_names_by_id.get(txn.by_user) or "",
+                txn.note or "",
+            ]
+            if can_cost:
+                line_value = None
+                if txn.unit_price is not None and chem:
+                    qty_pu = cc.convert_from_base(
+                        db, txn.qty_base, chem.base_unit, txn.input_unit, chem.measurement_group
+                    )
+                    line_value = cc.s_money(qty_pu * txn.unit_price)
+                row += [cc.s_money(txn.unit_price) or "", txn.currency or "", line_value or ""]
+            ws.append(row)
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+        audit_service.log_action(
+            db,
+            action="CHEMICAL_EXPORT_EXCEL",
+            resource="chemical",
+            user_id=user.id,
+            correlation_id=correlation_id,
+            ip=ip,
+            detail={
+                "date_from": date_from.isoformat(),
+                "date_to": date_to.isoformat(),
+                "rows": total,
+                "with_cost": can_cost,
+            },
+        )
+        db.commit()
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
 
 
 def consumption_report(

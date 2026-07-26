@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
 from app.core.rate_limit import rate_limit
@@ -302,26 +303,27 @@ def upload_msds(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    chem = cc.get_chemical_or_404(db, chemical_id)
-    cc.assert_can_create(db, user)
-    cc.assert_write_scope(user, chem.department_id)
-    if file.content_type not in _MSDS_MIME_WHITELIST:
-        raise AppException(
-            "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG/XLSX)", 422
+    with upload_slot():
+        chem = cc.get_chemical_or_404(db, chemical_id)
+        cc.assert_can_create(db, user)
+        cc.assert_write_scope(user, chem.department_id)
+        if file.content_type not in _MSDS_MIME_WHITELIST:
+            raise AppException(
+                "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG/XLSX)", 422
+            )
+        content = file.file.read()
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type="chemical",
+            owner_id=chemical_id,
+            file_name=file.filename or "msds",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
         )
-    content = file.file.read()
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type="chemical",
-        owner_id=chemical_id,
-        file_name=file.filename or "msds",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+        return ok(data)
 
 
 # ===== lots under chemical =====

@@ -22,6 +22,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -149,19 +150,20 @@ def add_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = file.file.read()
-    data = equipment_service.add_attachment(
-        db,
-        user=user,
-        equipment_id=equipment_id,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        doc_type=doc_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = equipment_service.add_attachment(
+            db,
+            user=user,
+            equipment_id=equipment_id,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            doc_type=doc_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== #7 GET /equipments/:id/attachments/:attId/download =====
@@ -218,22 +220,23 @@ def create_calibration(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    cert_content = cert.file.read() if cert is not None else None
-    data = calibration_service.create_calibration(
-        db,
-        user=user,
-        equipment_id=equipment_id,
-        calibrated_at=calibrated_at,
-        result=result,
-        provider=provider,
-        next_due_date_override=next_due_date_override,
-        override_reason=override_reason,
-        note=note,
-        correction_of=correction_of,
-        cert_file_name=cert.filename if cert is not None else None,
-        cert_content=cert_content,
-        cert_mime=cert.content_type if cert is not None else None,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        cert_content = cert.file.read() if cert is not None else None
+        data = calibration_service.create_calibration(
+            db,
+            user=user,
+            equipment_id=equipment_id,
+            calibrated_at=calibrated_at,
+            result=result,
+            provider=provider,
+            next_due_date_override=next_due_date_override,
+            override_reason=override_reason,
+            note=note,
+            correction_of=correction_of,
+            cert_file_name=cert.filename if cert is not None else None,
+            cert_content=cert_content,
+            cert_mime=cert.content_type if cert is not None else None,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)

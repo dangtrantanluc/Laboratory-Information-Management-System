@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -94,18 +95,19 @@ def upload_coa(
     db: Session = Depends(get_db),
 ):
     """Upload/ghi đè chứng chỉ phân tích (CoA) cho lô hóa chất."""
-    content = file.file.read()
-    data = chemical_service.upload_coa(
-        db,
-        user=user,
-        lot_id=lot_id,
-        file_name=file.filename or "coa",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = chemical_service.upload_coa(
+            db,
+            user=user,
+            lot_id=lot_id,
+            file_name=file.filename or "coa",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=_ip(request),
+        )
+        return ok(data)
 
 
 # ===== transactions (in/out/adjust) =====
