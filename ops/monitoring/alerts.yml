@@ -1,0 +1,42 @@
+# Cảnh báo LIMS (R9.3). Bốn thứ có thể làm hỏng ngày làm việc mà không ai biết
+# nếu không có cảnh báo — đúng những kịch bản trong ARCHITECTURE_AUDIT.md §4.
+groups:
+  - name: lims
+    rules:
+      - alert: DiskAlmostFull
+        # Đĩa đầy = Postgres dừng ghi = mọi thao tác lỗi. Đã suýt xảy ra: máy dev
+        # chạm 97% trong lúc audit.
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) > 0.85
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Đĩa còn dưới 15% ({{ $value | humanizePercentage }} đã dùng)"
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.01
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Tỉ lệ lỗi 5xx vượt 1% trong 5 phút"
+
+      - alert: SlowResponses
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "p95 vượt 2 giây — mục tiêu SLA của hệ thống"
+
+      - alert: BackupMissing
+        # Không có backup mới trong 26 giờ nghĩa là cron 02:00 đã thất bại.
+        expr: time() - lims_backup_last_success_timestamp_seconds > 26 * 3600
+        for: 1h
+        labels: { severity: critical }
+        annotations:
+          summary: "Sao lưu chưa chạy thành công trong hơn 26 giờ"
+
+      - alert: ApiDown
+        expr: up{job="lims-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "lims-api không phản hồi scrape"
