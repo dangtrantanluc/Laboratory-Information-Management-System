@@ -1,106 +1,46 @@
 # Runbook: clone code sang máy khác và deploy
 
-Phần Cloudflare chi tiết: [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
+Kiểm tra lại ngày **26/07/2026**. Phần Cloudflare chi tiết: [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
 
 ---
 
-## 🔴 GIAI ĐOẠN 0 — Repo hiện KHÔNG clone-và-chạy được
+## GIAI ĐOẠN 0 — Kiểm tra trước khi rời máy dev
 
-Kiểm tra ngày 26/07/2026:
-
-```
-remote origin  = 99992c7   (github.com/dangtrantanluc/Laboratory-Information-Management-System)
-local  HEAD    = 99992c7   ← giống nhau, nghĩa là remote KHÔNG có gì mới
-chưa commit    : 148 file sửa (M) + 133 file chưa track (??) + 1 file xoá
-```
-
-**Nếu clone ngay bây giờ, máy mới sẽ nhận bản thiếu nghiêm trọng:**
-
-| Thứ bị thiếu | Số lượng | Hậu quả |
-|---|---:|---|
-| Migration Alembic `m11`→`m29` | **19/28 file** | Schema DB lùi lại nhiều tháng; `alembic upgrade head` dừng ở m10 |
-| Module backend đang được import | **6 file** | **App không khởi động được** — `ImportError` ngay lúc import |
-| `docker-compose.prod.yml` | 1 | Không có profile production |
-| `.gitignore` | 1 | Remote không có gitignore → dễ lỡ commit secret |
-| `.github/` (CI) | — | Mất pipeline |
-| `.env.prod.example` | 1 | Không biết cần env gì |
-| Toàn bộ công việc responsive | 62 file | — |
-
-Chi tiết 6 module backend chưa commit nhưng **đang được import**:
-
-| File | Số nơi import |
-|---|---:|
-| `app/core/context.py` | 10 |
-| `app/core/rate_limit.py` | 5 |
-| `app/middleware/idempotency.py` | 4 |
-| `app/core/metrics.py` | 3 |
-| `app/middleware/request_limits.py` | 2 |
-| `app/middleware/security_headers.py` | 1 |
-
-Cùng với 5 model/router mới (`sample_flow.py`, `quotation.py`, `form.py`, `lab_access.py`, `push_subscription.py`…) và các trang frontend mới (`Quotations.tsx`, `SampleFlow.tsx`, `MonthlyReport.tsx`, `Forms.tsx`, `components/sampleFlow/`…).
-
-### 0.1 ⚠ Đừng chạy `git add -A`
-
-5 file dump database ở thư mục gốc **chưa bị ignore** và sẽ bị commit:
+Khác với bản runbook trước, **`origin/main` giờ đã đủ để clone-và-chạy**:
 
 ```
-lims-pre-m25.dump  536 KB
-lims-pre-m26.dump  605 KB
-lims-pre-m27.dump  626 KB
-lims-pre-m28.dump  669 KB
-lims-pre-m29.dump  674 KB
+origin/main = 7e8ede4  (Merge PR #1: Giai đoạn 0-2 kế hoạch bảo trì + hạ tầng P3)
+migration   = 30/30 file đã có trên main
+6 module backend đang được import (context, rate_limit, metrics,
+  idempotency, request_limits, security_headers) = đã có trên main
+docker-compose.prod.yml / .cloudflare.yml / .env.prod.example / .gitignore = đã có
 ```
 
-Dump chứa dữ liệu thật (người dùng, hash mật khẩu). Repo này **public**.
+Bao gồm cả `scripts/gen-vapid-keys.sh` và bản sửa lệnh sinh khoá VAPID — clone `main` là đủ, không cần nhánh nào khác.
 
-### 0.2 Bổ sung `.gitignore` trước
+### 0.1 Tự kiểm tra `origin/main` trước khi rời máy dev
+
+Đừng tin bảng trên, chạy lại — repo thay đổi mỗi ngày:
 
 ```bash
-cd /home/bbsw/MTL_OCR/limb
-cat >> .gitignore <<'EOF'
-
-# Dump database — chứa dữ liệu thật, không bao giờ commit
-*.dump
-*.sql.gz
-
-# Node
-node_modules/
-dist/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-EOF
+git fetch origin
+# Phải ra 30
+git ls-tree -r --name-only origin/main -- lims-backend/alembic/versions/ | grep -c '\.py$'
+# Phải ra 6
+git ls-tree -r --name-only origin/main -- lims-backend/app | grep -cE \
+  'core/(context|rate_limit|metrics)\.py|middleware/(idempotency|request_limits|security_headers)\.py'
+# Phải liệt kê đủ 4 file
+git ls-tree -r --name-only origin/main | grep -E \
+  '^(docker-compose\.(prod|cloudflare)\.yml|\.env\.prod\.example|scripts/gen-vapid-keys\.sh)$'
+# Nhánh làm việc còn commit nào chưa lên main không (phải rỗng)
+git log --oneline origin/main..HEAD
 ```
 
-### 0.3 Commit theo nhóm (không gộp một cục)
+### 0.2 `acc.txt` vẫn đang public trên GitHub
 
-```bash
-# 1. Hạ tầng & cấu hình
-git add .gitignore .github/ docker-compose.prod.yml docker-compose.cloudflare.yml \
-        .env.prod.example DEPLOY.md DEPLOY_CLOUDFLARE.md
-git commit -m "chore: bổ sung profile production, CI và gitignore"
+Vẫn được git track. File chứa email + mật khẩu tài khoản test theo vai trò.
 
-# 2. Backend — migration + module (BẮT BUỘC, nếu thiếu app không chạy)
-git add lims-backend/
-git commit -m "feat(backend): migration m11-m29, rate limit, metrics, sample flow, quotation"
-
-# 3. Frontend
-git add lims-frontend/
-git commit -m "feat(frontend): sample flow, quotation, báo cáo tháng + refactor responsive"
-
-# 4. Kiểm tra KHÔNG có dump lọt vào trước khi push
-git log --stat -3 | grep -i "\.dump" && echo "⚠ CÓ DUMP — dừng lại!" || echo "✔ sạch"
-
-git push origin main
-```
-
-### 0.4 `acc.txt` đang public trên GitHub
-
-File `acc.txt` (đã được track, đang ở trên GitHub) chứa danh sách email tài khoản test theo từng vai trò kèm mật khẩu.
-
-Sản phẩm production **không dùng lại** mật khẩu này (`SEED_ADMIN_PASSWORD` đọc từ `.env.prod`), nên không phải sự cố rò rỉ production. Nhưng nên:
+Production **không** dùng lại mật khẩu này (`SEED_ADMIN_PASSWORD` đọc từ `.env.prod`), nên không phải sự cố rò rỉ production. Nhưng nên gỡ:
 
 ```bash
 git rm --cached acc.txt
@@ -108,13 +48,25 @@ echo "acc.txt" >> .gitignore
 git commit -m "chore: gỡ acc.txt khỏi git (tài khoản test)"
 ```
 
-> Lưu ý: lệnh trên chỉ gỡ khỏi các commit **tương lai**. File vẫn còn trong lịch sử git. Muốn xoá hẳn phải `git filter-repo` + force push — chỉ làm nếu mật khẩu trong đó trùng với hệ thống thật.
+> Chỉ gỡ khỏi commit **tương lai**. File vẫn nằm trong lịch sử git; muốn xoá hẳn phải `git filter-repo` + force push.
+
+### 0.3 Đừng chạy `git add -A`
+
+5 file dump ở thư mục gốc chứa dữ liệu thật (người dùng, hash mật khẩu):
+
+```
+lims-pre-m25.dump … lims-pre-m29.dump   (536–674 KB)
+```
+
+`.gitignore` hiện đã có `*.dump`, nhưng kiểm tra lại trước mỗi lần push:
+
+```bash
+git log --stat -3 | grep -i "\.dump" && echo "⚠ CÓ DUMP — dừng lại!" || echo "✔ sạch"
+```
 
 ---
 
 ## GIAI ĐOẠN 1 — Chuẩn bị máy đích
-
-### Yêu cầu
 
 | | Tối thiểu | Khuyến nghị |
 |---|---|---|
@@ -127,9 +79,9 @@ git commit -m "chore: gỡ acc.txt khỏi git (tài khoản test)"
 nproc && free -g && df -h /
 ```
 
-> Giới hạn RAM đã khai trong compose: postgres 2g + minio 1g + api 1g + redis 512m ≈ **4.5 GB**, chưa kể OS và lúc build.
-
-### Cài Docker
+> Giới hạn RAM khai trong compose: postgres 2g + minio 1g + api 1g + redis 512m ≈ **4.5 GB**, chưa kể OS và lúc build.
+>
+> **Máy 1 nhân**: `docker-compose.prod.yml` khai `cpus: 2.0` và Docker **từ chối khởi động** nếu host ít nhân hơn. Đặt `LIMS_API_CPUS=0.8` trong `.env.prod` (chỉ overlay cloudflare đọc biến này — xem §B1 của DEPLOY_CLOUDFLARE.md).
 
 ```bash
 curl -fsSL https://get.docker.com | sh
@@ -140,7 +92,7 @@ docker compose version     # cần >= 2.24
 
 ---
 
-## GIAI ĐOẠN 2 — Clone
+## GIAI ĐOẠN 2 — Clone và kiểm tra bản clone
 
 ```bash
 sudo mkdir -p /opt/lims && sudo chown $USER:$USER /opt/lims
@@ -148,66 +100,121 @@ git clone https://github.com/dangtrantanluc/Laboratory-Information-Management-Sy
 cd /opt/lims
 ```
 
-### Kiểm tra bản clone có đủ không — **làm ngay, đừng bỏ qua**
+**Kiểm tra ngay, đừng bỏ qua** — thiếu là app không khởi động được:
 
 ```bash
-# Phải ra 28 (không phải 9)
+# Phải ra 30
 ls lims-backend/alembic/versions/*.py | wc -l
 
-# Phải tồn tại — thiếu là app không khởi động
-ls lims-backend/app/core/rate_limit.py \
-   lims-backend/app/core/context.py \
-   lims-backend/app/core/metrics.py \
-   lims-backend/app/middleware/idempotency.py \
-   lims-backend/app/middleware/request_limits.py \
-   lims-backend/app/middleware/security_headers.py
+# Phải tồn tại đủ 6 file
+ls lims-backend/app/core/{context,rate_limit,metrics}.py \
+   lims-backend/app/middleware/{idempotency,request_limits,security_headers}.py
 
 # Phải tồn tại
 ls docker-compose.prod.yml docker-compose.cloudflare.yml .env.prod.example
 ```
 
-Thiếu bất kỳ thứ gì ⇒ quay lại **Giai đoạn 0**, commit và push cho đủ.
-
 ---
 
-## GIAI ĐOẠN 3 — Cấu hình
+## GIAI ĐOẠN 3 — Cấu hình `.env.prod`
 
 ```bash
 cp .env.prod.example .env.prod
 chmod 600 .env.prod
 ```
 
-Sinh secret:
+`.env.prod` **không bao giờ commit** (`.gitignore` dòng 2 đã chặn). Chỉ sửa `.env.prod`; `.env.prod.example` giữ nguyên `CHANGE_ME`.
+
+### 3.1 Secret sinh bằng máy
 
 ```bash
-echo "JWT_SECRET=$(python3 -c 'import secrets;print(secrets.token_urlsafe(48))')"
-echo "POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d /=+ | cut -c1-32)"
-echo "REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d /=+ | cut -c1-32)"
-echo "MINIO_ROOT_PASSWORD=$(openssl rand -base64 32 | tr -d /=+ | cut -c1-32)"
-echo "SEED_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -d /=+ | cut -c1-20)"
+gen() { python3 -c "import secrets;print(secrets.token_urlsafe($1))"; }
+sed -i \
+  -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(gen 32)|" \
+  -e "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=$(gen 32)|" \
+  -e "s|^MINIO_ROOT_USER=.*|MINIO_ROOT_USER=lims-$(openssl rand -hex 6)|" \
+  -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=$(gen 32)|" \
+  -e "s|^JWT_SECRET=.*|JWT_SECRET=$(gen 48)|" \
+  -e "s|^SEED_ADMIN_PASSWORD=.*|SEED_ADMIN_PASSWORD=$(gen 24)|" \
+  .env.prod
 ```
 
-VAPID (Web Push):
+> Dùng `token_urlsafe` (chỉ `A–Z a–z 0–9 _ -`) chứ **không** dùng `openssl rand -base64` thô: `POSTGRES_PASSWORD` và `REDIS_PASSWORD` được nhúng thẳng vào DSN (`postgresql+psycopg2://lims:PASS@postgres:5432/lims`, `redis://:PASS@redis:6379/0`) nên ký tự `/ + = @ :` sẽ phá URL.
 
-```bash
-./scripts/gen-vapid-keys.sh >> .env
-```
-
-> KHÔNG dùng `print(v.public_key)` của py_vapid: nó in ra ĐỐI TƯỢNG khoá
-> (`<cryptography...ECPublicKey object at 0x...>`), không phải chuỗi. Đặt giá trị
-> đó vào `.env` thì container VẪN khởi động — kiểm tra `${VAR:?}` chỉ xét biến có
-> rỗng hay không — rồi Web Push hỏng âm thầm.
-
-Giá trị phụ thuộc tên miền — **phải khớp chính xác**, không có `/` cuối:
+### 3.2 Giá trị phụ thuộc tên miền — phải khớp chính xác, **không có `/` cuối**
 
 ```bash
 MINIO_PUBLIC_ENDPOINT=https://lims.vien-sinh-hoc.edu.vn
 CORS_ORIGINS=https://lims.vien-sinh-hoc.edu.vn
-CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoi...        # lấy ở DEPLOY_CLOUDFLARE.md §5
-LIMS_API_CPUS=0.8                          # CHỈ khi host có 1 nhân
+APP_PUBLIC_URL=https://lims.vien-sinh-hoc.edu.vn
+VAPID_CLAIMS_EMAIL=admin@vien-sinh-hoc.edu.vn
 ```
 
-> `MINIO_PUBLIC_ENDPOINT` sai ⇒ tải file đính kèm trả `SignatureDoesNotMatch`. Backend ký presigned URL theo host này (`storage_service.py:90`), nginx chuyển tiếp Host nguyên vẹn xuống MinIO nên hai bên phải trùng.
+> `MINIO_PUBLIC_ENDPOINT` sai ⇒ tải đính kèm trả `SignatureDoesNotMatch`. Backend ký presigned URL theo host này (`storage_service.py:90`), nginx chuyển tiếp Host nguyên vẹn xuống MinIO nên hai bên phải trùng.
+>
+> `APP_PUBLIC_URL` sai ⇒ link trong mail xác thực / đặt lại mật khẩu trỏ sai chỗ.
+
+### 3.3 Khoá Web Push VAPID
+
+Cách 1 — script có sẵn trong repo. **Chỉ dùng được sau khi image đã build**: script gọi `docker compose run ... lims-api` qua `docker-compose.yml` (profile dev), nên trên máy vừa clone nó sẽ kích hoạt build. Chú ý ghi vào `.env.prod`, **không** phải `.env`:
+
+```bash
+./scripts/gen-vapid-keys.sh >> .env.prod
+```
+
+Cách 2 — máy mới chưa build, chỉ cần `openssl`, không cần Docker cũng không cần `py_vapid`:
+
+```bash
+K=$(mktemp) && openssl ecparam -genkey -name prime256v1 -noout -out "$K"
+PUB=$(openssl ec -in "$K" -pubout -outform DER 2>/dev/null | tail -c 65 | basenc --base64url | tr -d '=\n')
+PRIV=$(openssl ec -in "$K" -outform DER 2>/dev/null | tail -c +8 | head -c 32 | basenc --base64url | tr -d '=\n')
+shred -u "$K"
+[ ${#PUB} -eq 87 ] && [ ${#PRIV} -eq 43 ] || { echo "SAI ĐỘ DÀI — dừng"; }
+sed -i -e "s|^VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=$PUB|" \
+       -e "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=$PRIV|" .env.prod
+```
+
+Định dạng đúng: công khai = điểm EC không nén (X9.62) base64url bỏ `=` → **87 ký tự**; riêng = số private 32 byte base64url bỏ `=` → **43 ký tự**.
+
+> 🔴 KHÔNG dùng `print(v.public_key)` của py_vapid: nó in ra **đối tượng** khoá (`<cryptography...ECPublicKey object at 0x...>`). Đặt rác đó vào env thì container **vẫn khởi động** — kiểm tra `${VAR:?}` chỉ xét biến rỗng hay không — rồi Web Push hỏng âm thầm, không lỗi, không log.
+
+### 3.4 SMTP — bắt buộc ở production
+
+`SMTP_HOST` khai `${SMTP_HOST:?}` nên thiếu là compose chặn. `SMTP_USER`/`SMTP_PASSWORD` thì có mặc định rỗng: **để rỗng thì container vẫn chạy, nhưng mail xác thực và đặt lại mật khẩu không gửi được, chỉ ghi log ERROR.**
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=ten.ban@gmail.com
+SMTP_PASSWORD=abcdefghijklmnop     # app password 16 ký tự, VIẾT LIỀN
+```
+
+> Gmail hiển thị app password dạng `abcd efgh ijkl mnop`. **Bỏ hết dấu cách.** File env đọc nguyên văn nên dấu cách — kể cả một dấu cách lẻ ở cuối dòng — trở thành phần của mật khẩu và Gmail từ chối auth.
+
+### 3.5 Cloudflare Tunnel
+
+Tạo tunnel và lấy token theo §5 của DEPLOY_CLOUDFLARE.md, rồi:
+
+```bash
+sed -i "s|^CLOUDFLARE_TUNNEL_TOKEN=.*|CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoi...|" .env.prod
+```
+
+### 3.6 Số worker khớp CPU của **máy đích**
+
+```bash
+sed -i "s|^UVICORN_WORKERS=.*|UVICORN_WORKERS=$(nproc)|" .env.prod
+```
+
+> Tổng kết nối DB = `UVICORN_WORKERS × (DB_POOL_SIZE + DB_MAX_OVERFLOW)` + dự phòng, phải nhỏ hơn `max_connections=200` mà compose đặt cho Postgres. Mặc định `4 × (8+12) + 20 = 100`. Đặt `UVICORN_WORKERS` quá lớn (ví dụ 16 → `16 × 20 = 320`) sẽ làm cạn kết nối.
+
+### 3.7 Chốt: không còn `CHANGE_ME` nào
+
+```bash
+grep -n CHANGE_ME .env.prod && echo "⚠ CÒN THIẾU — đừng chạy" || echo "✔ đủ"
+grep -nE "your-domain|your\.email" .env.prod && echo "⚠ CÒN PLACEHOLDER tên miền"
+```
+
+Compose khai `${VAR:?}` cho 13 biến — thiếu bất kỳ biến nào thì `up` dừng ngay với thông báo tên biến, **nhưng giá trị sai/rác thì nó không phát hiện được**.
 
 ---
 
@@ -219,7 +226,7 @@ docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml \
                --env-file .env.prod up -d --build
 ```
 
-Lần đầu mất **10–25 phút** (build Vite + cài Python deps). Theo dõi:
+Lần đầu mất **10–25 phút** (build Vite + cài Python deps).
 
 ```bash
 # migrate phải kết thúc exit 0 TRƯỚC khi api khởi động
@@ -229,11 +236,15 @@ docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml logs 
 docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml logs -f cloudflared
 ```
 
-Xác nhận không lộ cổng nào ra host:
+Thứ tự khởi động do compose ép: postgres/redis/minio `healthy` → `migrate` chạy `alembic upgrade head` **một lần** dưới advisory lock (`lims-backend/entrypoint.sh`) → `lims-api` (`SKIP_MIGRATIONS=true`, nên không container nào migrate lần hai).
+
+Xác nhận không lộ cổng nào ra host — overlay cloudflare dùng `ports: !reset []` để gỡ `3060:80` mà `docker-compose.prod.yml` publish:
 
 ```bash
 ss -tlnp | grep -E '3060|8060|5432|6379|9000'   # phải KHÔNG ra gì
 ```
+
+> Chạy **thiếu** `-f docker-compose.cloudflare.yml` thì cổng 3060 mở ra host và `lims-api` đòi đúng 2 nhân CPU.
 
 ---
 
@@ -246,15 +257,17 @@ ss -tlnp | grep -E '3060|8060|5432|6379|9000'   # phải KHÔNG ra gì
 | 3 | **Đổi mật khẩu admin ngay** | — |
 | 4 | Tải lên + tải xuống 1 đính kèm | Không `SignatureDoesNotMatch` |
 | 5 | F5 tại route con (`/documents/abc`) | Không 404 |
-| 6 | Audit log sau khi đăng nhập | IP thật, **không** phải `172.x.x.x` (xem B2 ở DEPLOY_CLOUDFLARE.md) |
-| 7 | Mở bằng điện thoại | Giao diện responsive (`RESPONSIVE_TESTPLAN.md`) |
-| 8 | `docker compose ps` | Mọi service `Up`, cột PORTS trống |
+| 6 | Quên mật khẩu → nhận mail | Mail tới, link mở đúng domain |
+| 7 | Bật thông báo đẩy trên trình duyệt | Nhận được push (khoá VAPID đúng) |
+| 8 | Audit log sau khi đăng nhập | IP thật, **không** phải `172.x.x.x` (§B2 DEPLOY_CLOUDFLARE.md) |
+| 9 | Mở bằng điện thoại | Giao diện responsive |
+| 10 | `docker compose ps` | Mọi service `Up`, cột PORTS trống |
 
 ---
 
 ## GIAI ĐOẠN 6 — Ngày đầu vận hành
 
-### Sao lưu (thiết lập ngay)
+### Sao lưu — thiết lập ngay
 
 ```bash
 sudo tee /etc/cron.daily/lims-backup >/dev/null <<'EOF'
@@ -279,27 +292,37 @@ docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml \
                --env-file .env.prod up -d --build
 ```
 
-Service `migrate` chạy `alembic upgrade head` một lần, có advisory lock, trước khi API lên.
-
 ### Gỡ lỗi (không có cổng mở ra host)
 
 ```bash
 docker exec -it lims-postgres psql -U lims -d lims
-docker exec -it lims-redis redis-cli -a "$REDIS_PASSWORD"
+docker exec -it lims-redis redis-cli -a "$(grep ^REDIS_PASSWORD .env.prod | cut -d= -f2)"
 docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml logs -f lims-api
 ```
+
+### Xoay secret
+
+Mọi secret đọc từ env lúc khởi động, không nướng vào image — sửa `.env.prod` rồi `up -d` là đủ. Ngoại lệ:
+
+| Secret | Lưu ý khi xoay |
+|---|---|
+| `JWT_SECRET` | Mọi token đang hoạt động thành vô hiệu → toàn bộ người dùng bị đăng xuất |
+| `POSTGRES_PASSWORD` | Volume đã init: phải `ALTER USER lims PASSWORD` trong psql, đổi env một mình **không** đổi mật khẩu trong DB |
+| `MINIO_ROOT_*` | Đổi được tự do, MinIO đọc root creds mỗi lần khởi động |
+| `VAPID_*` | Mọi subscription push cũ chết, người dùng phải bật lại thông báo |
 
 ---
 
 ## Tóm tắt thứ tự
 
 ```
-0. Commit + push cho đủ  ← BẮT BUỘC, hiện repo thiếu 19 migration + 6 module
-1. Cài Docker trên máy đích
-2. git clone + KIỂM TRA bản clone đủ file
-3. .env.prod (secret + domain)
+0. Kiểm origin/main đủ file (§0.1) + gỡ acc.txt
+1. Cài Docker trên máy đích, kiểm nproc/RAM
+2. git clone + kiểm 30 migration & 6 module
+3. .env.prod: secret → domain → VAPID → SMTP → tunnel token → nproc
+   chốt bằng: grep CHANGE_ME .env.prod  (phải rỗng)
 4. Tạo Cloudflare Tunnel, lấy token
-5. docker compose up -d --build
-6. Nghiệm thu 8 mục + đổi mật khẩu admin
-7. Bật cron sao lưu
+5. docker compose -f prod -f cloudflare --env-file .env.prod up -d --build
+6. Nghiệm thu 10 mục + đổi mật khẩu admin
+7. Bật cron sao lưu, chép backup ra ngoài
 ```
