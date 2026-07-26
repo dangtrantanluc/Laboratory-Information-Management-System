@@ -117,8 +117,10 @@ services:
       SELF_REGISTRATION_ENABLED: ${SELF_REGISTRATION_ENABLED:-true}
       SELF_REGISTRATION_ALLOWED_DOMAINS: ${SELF_REGISTRATION_ALLOWED_DOMAINS:-}
       SKIP_MIGRATIONS: "true"
-    ports:
-      - "8060:8060"
+    # KHÔNG publish 8060 ra host: uvicorn chạy với --forwarded-allow-ips '*' nên tin
+    # header X-Real-IP/X-Forwarded-For. Chỉ an toàn khi duy nhất nginx (trong mạng
+    # compose) gọi tới được — mở cổng ra host là cho phép giả mạo IP để né rate limit.
+    # Gỡ lỗi bằng: docker compose exec lims-api ...
 
   lims-web:
     build:

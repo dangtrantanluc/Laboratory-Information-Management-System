@@ -26,5 +26,21 @@ USER lims
 
 EXPOSE 8060
 
+# Số worker uvicorn. Phải KHỚP số nhân của host: đặt cao hơn nproc thì các worker
+# tranh CPU và chậm hơn là nhanh hơn. Ghi đè bằng biến môi trường khi deploy.
+ENV UVICORN_WORKERS=4
+
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8060"]
+# Dùng sh -c để nội suy được ${UVICORN_WORKERS}.
+#
+# --proxy-headers + --forwarded-allow-ips: BẮT BUỘC để request.client.host trả IP
+#   thật của người dùng thay vì IP container nginx. Không có nó, rate limit và audit
+#   log đều dùng chung một "IP" cho toàn hệ thống (ARCHITECTURE_AUDIT.md F-04).
+#   '*' chỉ an toàn vì lims-api KHÔNG publish cổng ra host — chỉ nginx trong mạng
+#   compose gọi tới được, nên không ai giả mạo header được.
+# --timeout-graceful-shutdown 30: chờ request đang xử lý xong khi deploy, thay vì
+#   cắt ngang giữa chừng một upload/export.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8060 \
+     --workers ${UVICORN_WORKERS} \
+     --proxy-headers --forwarded-allow-ips '*' \
+     --timeout-graceful-shutdown 30"]
