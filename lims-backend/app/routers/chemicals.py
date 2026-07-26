@@ -27,7 +27,12 @@ from app.services import (
     attachment_service,
     chemical_common as cc,
     chemical_report_service,
-    chemical_service,
+)
+# Import thẳng module domain thay vì chemical_service gộp (M-03/T1.2).
+from app.services.chemical import (
+    catalog_service,
+    lot_service,
+    stock_service,
 )
 
 router = APIRouter(tags=["m2-chemicals"])
@@ -57,7 +62,7 @@ def list_units(
 ):
     if group and group not in ("mass", "volume", "count"):
         raise AppException("VALIDATION_ERROR", "group không hợp lệ", 400)
-    return ok(chemical_service.list_units(db, group=group))
+    return ok(catalog_service.list_units(db, group=group))
 
 
 # ===== inventory aggregates (đăng ký trước /chemicals/{id}) =====
@@ -70,7 +75,7 @@ def low_stock(
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
-    items, total = chemical_service.list_low_stock(
+    items, total = stock_service.list_low_stock(
         db, department_id=department_id, page=page, limit=limit
     )
     return paginated(items, page=page, limit=limit, total=total)
@@ -87,7 +92,7 @@ def reconcile(
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
-    items, total = chemical_service.reconcile(
+    items, total = stock_service.reconcile(
         db,
         chemical_id=chemical_id,
         department_id=department_id,
@@ -174,7 +179,7 @@ def list_chemicals(
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
-    items, total = chemical_service.list_chemicals(
+    items, total = catalog_service.list_chemicals(
         db,
         q=q,
         department_id=department_id,
@@ -194,7 +199,7 @@ def create_chemical(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data = chemical_service.create_chemical(
+    data = catalog_service.create_chemical(
         db,
         user=user,
         name=body.name,
@@ -216,7 +221,7 @@ def get_chemical(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(chemical_service.get_chemical_detail(db, chemical_id))
+    return ok(catalog_service.get_chemical_detail(db, chemical_id))
 
 
 @router.patch("/chemicals/{chemical_id}")
@@ -230,7 +235,7 @@ def update_chemical(
     changes = body.model_dump(exclude_unset=True)
     if not changes:
         raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
-    data = chemical_service.update_chemical(
+    data = catalog_service.update_chemical(
         db,
         user=user,
         chemical_id=chemical_id,
@@ -248,7 +253,7 @@ def deactivate_chemical(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data = chemical_service.deactivate_chemical(
+    data = catalog_service.deactivate_chemical(
         db,
         user=user,
         chemical_id=chemical_id,
@@ -338,7 +343,7 @@ def list_lots(
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
-    items, _meta, total = chemical_service.list_lots(
+    items, _meta, total = lot_service.list_lots(
         db,
         chemical_id=chemical_id,
         status_filter=status_filter,
@@ -359,7 +364,7 @@ def create_lot(
     db: Session = Depends(get_db),
 ):
     intake = body.initial_intake.model_dump() if body.initial_intake else None
-    data = chemical_service.create_lot(
+    data = lot_service.create_lot(
         db,
         user=user,
         chemical_id=chemical_id,
@@ -383,7 +388,7 @@ def fefo(
     db: Session = Depends(get_db),
 ):
     return ok(
-        chemical_service.fefo_suggestion(
+        stock_service.fefo_suggestion(
             db, chemical_id=chemical_id, display_unit=display_unit
         )
     )
@@ -397,7 +402,7 @@ def stock(
     db: Session = Depends(get_db),
 ):
     return ok(
-        chemical_service.get_stock(
+        stock_service.get_stock(
             db,
             chemical_id=chemical_id,
             display_unit=display_unit,

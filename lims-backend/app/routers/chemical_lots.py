@@ -15,7 +15,12 @@ from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
 from app.schemas.chemical import CreateRecheckRequest, CreateTransactionRequest
-from app.services import chemical_common as cc, chemical_service, chemical_txn_service
+from app.services import chemical_common as cc, chemical_txn_service
+# Import thẳng module domain thay vì chemical_service gộp (M-03/T1.2).
+from app.services.chemical import (
+    coa_service,
+    lot_service,
+)
 
 router = APIRouter(tags=["m2-lots"])
 
@@ -72,7 +77,7 @@ def get_lot(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data = chemical_service.get_lot_detail(db, lot_id=lot_id, display_unit=display_unit)
+    data = lot_service.get_lot_detail(db, lot_id=lot_id, display_unit=display_unit)
     data = cc.strip_price_fields(data, cc.can_see_cost(db, user))
     return ok(data)
 
@@ -83,7 +88,7 @@ def get_coa(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(chemical_service.get_coa(db, lot_id=lot_id))
+    return ok(coa_service.get_coa(db, lot_id=lot_id))
 
 
 @router.post("/lots/{lot_id}/coa", status_code=status.HTTP_201_CREATED)
@@ -97,7 +102,7 @@ def upload_coa(
     """Upload/ghi đè chứng chỉ phân tích (CoA) cho lô hóa chất."""
     with upload_slot():
         content = file.file.read()
-        data = chemical_service.upload_coa(
+        data = coa_service.upload_coa(
             db,
             user=user,
             lot_id=lot_id,
