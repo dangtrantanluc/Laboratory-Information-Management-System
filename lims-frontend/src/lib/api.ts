@@ -29,6 +29,13 @@ function uuid(): string {
   });
 }
 
+// Correlation-id của request gần nhất — ErrorBoundary hiển thị cho người dùng
+// đọc cho quản trị viên, để tra đúng dòng log tương ứng.
+let _lastCorrelationId: string | null = null;
+export function getLastCorrelationId(): string | null {
+  return _lastCorrelationId;
+}
+
 export class ApiError extends Error {
   code: string;
   status: number;
@@ -112,6 +119,7 @@ export function setOnSessionExpired(cb: (() => void) | null) {
 
 async function rawRequest(path: string, opts: RequestOptions, token: string | null): Promise<Response> {
   const correlationId = uuid();
+  _lastCorrelationId = correlationId;
   const headers: Record<string, string> = {
     'x-correlation-id': correlationId,
     Accept: opts.raw ? '*/*' : 'application/json',
@@ -224,6 +232,7 @@ export async function apiUpload<T>(path: string, file: File, fieldName = 'file')
   const form = new FormData();
   form.append(fieldName, file);
   const correlationId = uuid();
+  _lastCorrelationId = correlationId;
   const headers: Record<string, string> = { 'x-correlation-id': correlationId };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
