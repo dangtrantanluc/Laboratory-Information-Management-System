@@ -34,6 +34,14 @@ services:
       - work_mem=16MB
       - -c
       - log_min_duration_statement=500ms
+      # R6.3 — pg_stat_statements phải nạp lúc khởi động, không CREATE EXTENSION
+      # sau được. Cho phép truy vấn "20 câu tốn thời gian nhất" khi cần điều tra.
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.max=5000
+      - -c
+      - pg_stat_statements.track=top
     environment:
       POSTGRES_USER: lims
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.prod}
