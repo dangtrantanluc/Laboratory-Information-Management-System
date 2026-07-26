@@ -67,11 +67,30 @@ setv() {
 
 echo "═══ Điền $ENV_FILE cho $DOMAIN ═══"
 echo
+# URL là giá trị SUY RA từ tham số $DOMAIN bạn vừa đưa, không phải bí mật ngẫu
+# nhiên — nên LUÔN đặt lại theo tham số, khác với setv().
+#
+# Nếu không: chạy nhầm tên miền một lần rồi chạy lại với tên miền đúng sẽ bị
+# "giữ nguyên giá trị đã có", tức là âm thầm deploy bằng tên miền sai và lỗi CORS
+# chỉ lộ ra khi người dùng mở trình duyệt.
+setv_url() {
+    local key="$1" val="$2" cur
+    cur=$(_current "$key")
+    if [ "$cur" = "$val" ]; then
+        printf '  ✓  %-28s %s\n' "$key" "$val"
+    else
+        [ -n "$cur" ] && [[ "$cur" != *CHANGE_ME* ]] && [[ "$cur" != *your-domain.example* ]] \
+            && printf '  ↻  %-28s %s → %s\n' "$key" "$cur" "$val" \
+            || printf '  ✓  %-28s %s\n' "$key" "$val"
+        sed -i "s|^$key=.*|$key=$val|" "$ENV_FILE"
+    fi
+}
+
 echo "── URL (cả ba dùng CHUNG một origin: thiết kế một-tunnel) ──"
-setv APP_PUBLIC_URL        "https://$DOMAIN"
-setv CORS_ORIGINS          "https://$DOMAIN"
+setv_url APP_PUBLIC_URL        "https://$DOMAIN"
+setv_url CORS_ORIGINS          "https://$DOMAIN"
 # KHÔNG kèm tên bucket: boto3 path-style tự nối /lims-attachments/{key}.
-setv MINIO_PUBLIC_ENDPOINT "https://$DOMAIN"
+setv_url MINIO_PUBLIC_ENDPOINT "https://$DOMAIN"
 
 echo
 echo "── Bí mật ──"
