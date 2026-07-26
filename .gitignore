@@ -12,3 +12,6 @@ __pycache__/
 *.pyc
 .venv/
 tmp/
+
+# Tài khoản test dùng chung một mật khẩu — không commit
+acc.txt
