@@ -20,6 +20,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.core.request_meta import client_ip
 from app.db.database import SessionLocal
 from app.services import access_stat_service
 
@@ -49,7 +50,9 @@ class AccessStatMiddleware(BaseHTTPMiddleware):
                     full_path = path
                     if request.url.query:
                         full_path = f"{path}?{request.url.query}"
-                    ip = request.client.host if request.client else None
+                    # Qua client_ip() để lấy X-Real-IP: request.client.host là IP
+                    # của nginx, và access_stats.ip cũng là cột INET (M-09/T1.5).
+                    ip = client_ip(request)
                     task = asyncio.create_task(
                         self._record_page_view(
                             user_id, full_path, response.status_code, ip

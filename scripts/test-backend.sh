@@ -21,5 +21,12 @@ if ! "${COMPOSE[@]}" exec -T postgres psql -U lims -lqt | cut -d'|' -f1 | grep -
     "${COMPOSE[@]}" exec -T postgres createdb -U lims lims_test
 fi
 
-exec "${COMPOSE[@]}" run --rm --build lims-test \
+# Mã nguồn app/ được mount vào container nên KHÔNG cần rebuild mỗi lần chạy —
+# chỉ rebuild khi requirements đổi. REBUILD=1 để ép build lại.
+BUILD_ARGS=()
+if [ "${REBUILD:-0}" = "1" ] || ! docker image inspect limb-lims-test >/dev/null 2>&1; then
+    BUILD_ARGS=(--build)
+fi
+
+exec "${COMPOSE[@]}" run --rm "${BUILD_ARGS[@]}" lims-test \
     python -m pytest "${@:-app/tests}" -q

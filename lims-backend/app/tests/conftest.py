@@ -178,6 +178,22 @@ def seeded_user(db):
 
 
 @pytest.fixture
+def department(db):
+    """Phòng ban thật trong DB.
+
+    Nhiều endbpoint (risks, nonconformities...) bắt buộc `department_id` và trả
+    400 "Cần chỉ định department_id" nếu thiếu. Fixture này để test không phải
+    tự dựng lại mỗi lần.
+    """
+    from app.models.department import Department
+
+    d = Department(name=f"Phòng Thử Nghiệm {uuid.uuid4().hex[:6]}", code=uuid.uuid4().hex[:8])
+    db.add(d)
+    db.flush()
+    return d
+
+
+@pytest.fixture
 def audit_rows(db):
     """Đếm audit_logs — dùng để khẳng định thao tác có ghi vết.
 
