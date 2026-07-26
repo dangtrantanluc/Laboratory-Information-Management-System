@@ -41,6 +41,22 @@ interface DataTableProps<T> {
   stickyFirstCol?: boolean;
   /** Cho người dùng đổi số dòng/trang. */
   pageSizeOptions?: number[];
+
+  /**
+   * Bật phân trang SERVER: component cha tự nạp dữ liệu theo page/limit.
+   *
+   * Không có nó, mọi trang gọi API với `limit: 100` rồi cắt trang ở client — người
+   * dùng thấy "… / 100 bản ghi" và tin là có đúng 100, trong khi bảng thật có 614
+   * dòng. 514 dòng vô hình, không cảnh báo. Đó là sai lệch dữ liệu nghiệp vụ, không
+   * phải vấn đề hiệu năng (ARCHITECTURE_AUDIT F-11).
+   */
+  server?: {
+    page: number;
+    limit: number;
+    total: number;
+    onPageChange: (page: number) => void;
+    onLimitChange?: (limit: number) => void;
+  };
 }
 
 type SortState = { key: string; dir: 'asc' | 'desc' } | null;
@@ -66,6 +82,7 @@ export function DataTable<T>({
   mobileMode = 'card',
   stickyFirstCol = true,
   pageSizeOptions,
+  server,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(1);
@@ -87,10 +104,13 @@ export function DataTable<T>({
     });
   }, [rows, sort, columns]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const offset = (safePage - 1) * pageSize;
-  const pageRows = sorted.slice(offset, offset + pageSize);
+  // Chế độ server: cha đã cắt trang, `rows` CHÍNH LÀ trang hiện tại — không slice lại.
+  const effPageSize = server ? server.limit : pageSize;
+  const totalCount = server ? server.total : sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / effPageSize));
+  const safePage = server ? server.page : Math.min(page, totalPages);
+  const offset = (safePage - 1) * effPageSize;
+  const pageRows = server ? sorted : sorted.slice(offset, offset + pageSize);
 
   function toggleSort(key: string) {
     setSort((prev) => {
@@ -130,6 +150,7 @@ export function DataTable<T>({
       loading={loading}
       empty={empty}
       skeletonRows={pageSize}
+      serverMode={!!server}
     />
   );
 
@@ -137,22 +158,28 @@ export function DataTable<T>({
     <div className="flex flex-col">
       {body}
 
-      {!loading && sorted.length > 0 && (
+      {!loading && totalCount > 0 && (
         <div className="flex flex-col gap-2 border-t border-hairline px-4 py-3 text-xs text-subink sm:flex-row sm:items-center sm:justify-between">
           <span>
             Hiển thị{' '}
             <strong className="text-ink">
-              {offset + 1}–{Math.min(offset + pageSize, sorted.length)}
+              {offset + 1}–{Math.min(offset + effPageSize, totalCount)}
             </strong>{' '}
-            / {sorted.length} bản ghi
+            / {totalCount} bản ghi
           </span>
           <div className="flex items-center gap-2">
             {pageSizeOptions && pageSizeOptions.length > 0 && (
               <select
-                value={pageSize}
+                value={effPageSize}
                 onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
+                  const n = Number(e.target.value);
+                  if (server) {
+                    server.onLimitChange?.(n);
+                    server.onPageChange(1);
+                  } else {
+                    setPageSize(n);
+                    setPage(1);
+                  }
                 }}
                 aria-label="Số dòng mỗi trang"
                 className="h-8 rounded-md border border-hairline bg-surface px-2 text-xs text-ink"
@@ -166,7 +193,7 @@ export function DataTable<T>({
             )}
             <button
               disabled={safePage <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => (server ? server.onPageChange(safePage - 1) : setPage((p) => p - 1))}
               className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface text-stem hover:bg-plate disabled:opacity-40 sm:h-7 sm:w-7"
               aria-label="Trang trước"
             >
@@ -177,7 +204,7 @@ export function DataTable<T>({
             </span>
             <button
               disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => (server ? server.onPageChange(safePage + 1) : setPage((p) => p + 1))}
               className="flex h-9 w-9 items-center justify-center rounded-md border border-hairline bg-surface text-stem hover:bg-plate disabled:opacity-40 sm:h-7 sm:w-7"
               aria-label="Trang sau"
             >
@@ -204,6 +231,7 @@ function DesktopTable<T>({
   loading,
   empty,
   skeletonRows,
+  serverMode,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -216,6 +244,7 @@ function DesktopTable<T>({
   loading?: boolean;
   empty?: ReactNode;
   skeletonRows: number;
+  serverMode: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasMoreRight, setHasMoreRight] = useState(false);
@@ -254,7 +283,9 @@ function DesktopTable<T>({
             <tr className="border-b border-hairline bg-plate">
               {columns.map((col, idx) => {
                 const active = sort?.key === col.key;
-                const sortable = !!col.sortValue;
+                // Ở chế độ server, sort client chỉ sắp xếp TRANG HIỆN TẠI — người dùng
+                // tưởng đã sắp toàn bộ. Tắt cho tới khi có sort server (R7).
+                const sortable = !!col.sortValue && !serverMode;
                 return (
                   <th
                     key={col.key}
