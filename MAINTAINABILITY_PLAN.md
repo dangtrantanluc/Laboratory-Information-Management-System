@@ -564,7 +564,7 @@ class TestSampleIntakeFlow:
       - run: pip install pytest-cov
       - run: python -m pytest app/tests --cov=app --cov-report=term --cov-report=xml
       # Ngưỡng CHỈ tăng, không giảm — chống trôi ngược
-      - run: python -m pytest app/tests --cov=app --cov-fail-under=35
+      - run: python -m pytest app/tests --cov=app --cov-fail-under=45
 ```
 
 Bắt đầu ở mức đo được thực tế, nâng 5% mỗi quý.

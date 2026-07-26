@@ -139,7 +139,7 @@ làm mất mã riêng, tức là bước lùi. Helper vì vậy nhận tham số
 | **T2.1a** | Image test riêng | 475/21 skip → 493/6 skip — 15 test integration trước nay **không chạy dòng nào** |
 | **T2.1** | conftest gốc: `client`, `as_role`, `department`, `audit_rows` | 3 cạm bẫy đã gỡ, xem §6 |
 | **T2.2** | 40 test router / 22 kịch bản | Chạy 3 lần: 5.86s / 5.88s / 5.92s — **không giòn** |
-| **T2.3** | Cổng vùng phủ 48% trong CI | Kiểm 2 chiều: ngưỡng 90% → FAIL; ngưỡng 48% → đạt (đo được 50,5%) |
+| **T2.3** | Cổng vùng phủ 45% trong CI | Đo được **47,8%**. Xem §11 — con số 50,5% báo lần đầu là sai |
 
 ---
 
@@ -210,3 +210,30 @@ Hai việc độc lập nhau.
 |---|---|---|
 | Người thực hiện | 2026-07-26 | **ĐẠT** — 10/10 task, 6/6 cổng |
 | Người phê duyệt kỹ thuật | | |
+
+
+---
+
+## 11. Đính chính sau khi CI chạy thật
+
+CI bắt được một lỗi mà kiểm thử local của tôi bỏ sót.
+
+**Vùng phủ: báo 50,5%, thực tế 47,8%.**
+
+Image test không chứa `.coveragerc` (file được tạo sau lần rebuild cuối), nên
+`--cov-config=.coveragerc` trỏ vào một file không tồn tại. Coverage **không báo
+lỗi** — nó âm thầm dùng cấu hình mặc định, tức là đếm cả `app/tests/` vốn luôn
+~99% vì chúng tự chạy. Mẫu số phồng từ 13.648 lên 16.508 lệnh.
+
+Đúng loại lỗi mà chính `.coveragerc` sinh ra để ngăn, và nó qua mặt được vì
+**thiếu file cấu hình là im lặng, không phải lỗi**.
+
+| | Báo lần đầu | Thực tế |
+|---|---:|---:|
+| Lệnh được đếm | 16.508 | **13.648** |
+| Vùng phủ | 50,5% | **47,8%** |
+| Cổng CI | 48% | **45%** |
+
+Đã sửa: `docker-compose.test.yml` mount `.coveragerc` vào container, nên local
+và CI giờ cho cùng con số. Cổng hạ về 45% cho khớp mức thật — hạ vì phép đo
+gốc sai, không phải vì hạ chuẩn.

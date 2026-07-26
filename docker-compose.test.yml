@@ -35,3 +35,8 @@ services:
     volumes:
       # Mount mã nguồn để sửa test là chạy lại được ngay, không phải rebuild.
       - ./lims-backend/app:/app/app:ro
+      # .coveragerc PHẢI mount: nếu không, container dùng bản nướng trong image
+      # (hoặc không có), `--cov-config=.coveragerc` trỏ vào file không tồn tại và
+      # coverage ÂM THẦM dùng mặc định. Hậu quả thật: local đo 50,5% còn CI đo
+      # 47,77% cho cùng một bộ test, vì local đếm cả thư mục test.
+      - ./lims-backend/.coveragerc:/app/.coveragerc:ro
