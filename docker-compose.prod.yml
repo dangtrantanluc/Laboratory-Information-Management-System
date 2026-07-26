@@ -209,7 +209,12 @@ services:
     container_name: lims-web
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null || exit 1"]
+      # 127.0.0.1 chứ KHÔNG phải localhost: nginx.conf dùng `listen 80;` nên chỉ
+      # bind IPv4 (0.0.0.0:80), trong khi /etc/hosts của image nginx:alpine phân
+      # giải localhost thành ::1 — chỉ IPv6. Healthcheck gọi localhost sẽ luôn
+      # nhận Connection refused, container bị báo unhealthy trong khi nginx phục
+      # vụ hoàn toàn bình thường qua mạng docker.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

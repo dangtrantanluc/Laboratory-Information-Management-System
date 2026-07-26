@@ -3,7 +3,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { KeyRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
-import { Field, Input } from '@/components/ui/Field';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { Field } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { describeError } from '@/lib/errors';
 
@@ -61,24 +62,21 @@ export function ChangePassword() {
         <form onSubmit={onSubmit} className="rounded-xl border border-hairline bg-surface p-5 shadow-card sm:p-6">
           <div className="flex flex-col gap-4">
             <Field label="Mật khẩu hiện tại" required>
-              <Input
-                type="password"
+              <PasswordInput
                 value={current}
                 onChange={(e) => setCurrent(e.target.value)}
                 autoComplete="current-password"
               />
             </Field>
             <Field label="Mật khẩu mới" required hint="Tối thiểu 8 ký tự">
-              <Input
-                type="password"
+              <PasswordInput
                 value={next}
                 onChange={(e) => setNext(e.target.value)}
                 autoComplete="new-password"
               />
             </Field>
             <Field label="Xác nhận mật khẩu mới" required>
-              <Input
-                type="password"
+              <PasswordInput
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 autoComplete="new-password"

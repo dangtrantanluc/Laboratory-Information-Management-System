@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, KeyRound, ShieldCheck, BellRing } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Button } from '@/components/ui/Button';
-import { Field, Input } from '@/components/ui/Field';
+import { Field } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -102,13 +103,13 @@ export function Settings() {
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Mật khẩu hiện tại">
-                <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+                <PasswordInput value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
               </Field>
               <Field label="Mật khẩu mới">
-                <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
+                <PasswordInput value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
               </Field>
               <Field label="Xác nhận">
-                <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+                <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
               </Field>
             </div>
             <div className="mt-4">

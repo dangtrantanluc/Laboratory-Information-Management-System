@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Leaf, Sprout, UserPlus, MailCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Field, Input } from '@/components/ui/Field';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
@@ -166,8 +167,7 @@ export function Register() {
               </Field>
 
               <Field label="Mật khẩu" required hint="Tối thiểu 8 ký tự, gồm cả chữ và số">
-                <Input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -175,8 +175,7 @@ export function Register() {
               </Field>
 
               <Field label="Xác nhận mật khẩu" required>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   autoComplete="new-password"

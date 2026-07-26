@@ -3,6 +3,7 @@ import { Users as UsersIcon, Plus, KeyRound, Power } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingApprovals } from '@/components/users/PendingApprovals';
 import { Card } from '@/components/ui/Card';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
@@ -319,7 +320,7 @@ function ResetPasswordModal({
       }
     >
       <Field label="Mật khẩu mới (tùy chọn)" hint="Tối thiểu 8 ký tự nếu nhập">
-        <Input type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} />
+        <PasswordInput value={pwd} onChange={(e) => setPwd(e.target.value)} />
       </Field>
     </Modal>
   );
