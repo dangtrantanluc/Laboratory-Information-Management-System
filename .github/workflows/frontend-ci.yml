@@ -1,0 +1,37 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["lims-frontend/**", ".github/workflows/frontend-ci.yml"]
+  pull_request:
+    paths: ["lims-frontend/**", ".github/workflows/frontend-ci.yml"]
+
+defaults:
+  run:
+    working-directory: lims-frontend
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: lims-frontend/package-lock.json
+      - run: npm ci
+      # `npm run check` = tsc -b --force + scripts/check-responsive.mjs
+      # Lưu ý: `tsc --noEmit` trên tsconfig.json gốc KHÔNG kiểm tra gì (file rỗng
+      # + project references) — vì vậy script dùng `tsc -b --force`.
+      - run: npm run check
+      # VITE_API_BASE_URL bắt buộc: thiếu nó bundle nhúng URL tuyệt đối
+      # http://localhost:8060/api/v1 và trình duyệt chặn CORS ở production.
+      - run: VITE_API_BASE_URL=/api/v1 npm run build
+      - name: Kiểm kích thước chunk
+        run: |
+          BIGGEST=$(ls -S dist/assets/*.js | head -1)
+          SIZE=$(( $(stat -c%s "$BIGGEST") / 1024 ))
+          echo "chunk lớn nhất: $(basename "$BIGGEST") — ${SIZE} KB"
+          test "$SIZE" -lt 450 || { echo "::error::chunk vượt 450 KB"; exit 1; }

@@ -1,0 +1,52 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  secrets:
+    name: Quét secret trong lịch sử git
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # gitleaks cần toàn bộ lịch sử, không phải shallow clone
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  python-deps:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      # Không --strict: một CVE mới công bố không nên chặn merge ngay lập tức,
+      # nhưng phải hiện trong log để đội biết mà xử lý.
+      - run: pip-audit -r lims-backend/requirements.txt || true
+      - run: pip-audit -r lims-backend/requirements.txt --format=json > pip-audit.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit
+          path: pip-audit.json
+
+  node-deps:
+    name: npm audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lims-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: lims-frontend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high || true
