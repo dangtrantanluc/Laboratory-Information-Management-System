@@ -19,6 +19,14 @@ ok()   { printf '  ✓  %s\n' "$*"; }
 
 get() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- ; }
 
+# Biến còn nguyên giá trị mẫu thì mọi phép kiểm SAU đó đều vô nghĩa: đo độ dài
+# của chuỗi "CHANGE_ME_generate_with_secrets_token_urlsafe_48" rồi báo "✓ 48 ký
+# tự" ngay dưới dòng "✗ vẫn là giá trị mẫu" chỉ làm người đọc mất tin vào script.
+is_template() {
+    local v; v=$(get "$1")
+    [ -z "$v" ] || [[ "$v" == *CHANGE_ME* ]] || [[ "$v" == *your-domain.example* ]]
+}
+
 echo "═══ Kiểm tra trước deploy — $ENV_FILE ═══"
 echo
 
@@ -65,9 +73,13 @@ done
 echo
 echo "── Định dạng URL ──"
 app=$(get APP_PUBLIC_URL)
+url_checked=0
+url_err_before=$ERR
 for v in APP_PUBLIC_URL CORS_ORIGINS MINIO_PUBLIC_ENDPOINT; do
+    is_template "$v" && continue
     val=$(get "$v")
     [ -z "$val" ] && continue
+    url_checked=1
     [[ "$val" == https://* ]] || fail "$v phải bắt đầu bằng https:// (đang: $val)"
     [[ "$val" == */ ]] && fail "$v KHÔNG được có dấu / ở cuối (đang: $val)"
 done
@@ -75,6 +87,7 @@ done
 # nên tự nối thành {endpoint}/lims-attachments/{key}. Thêm "/lims-attachments"
 # vào đây sẽ sinh URL lặp hai lần và tải về 404.
 mp=$(get MINIO_PUBLIC_ENDPOINT)
+is_template MINIO_PUBLIC_ENDPOINT && mp=""
 if [ -n "$mp" ] && [[ "$mp" == */lims-attachments* ]]; then
     fail "MINIO_PUBLIC_ENDPOINT không được chứa tên bucket — chỉ là origin (đang: $mp)"
 fi
@@ -83,10 +96,18 @@ if [ -n "$mp" ] && [ -n "$app" ] && [ "$mp" != "$app" ]; then
     warn "  Thiết kế một-tunnel dùng CHUNG origin; khác nhau thì phải tự route riêng cho MinIO."
 fi
 cors=$(get CORS_ORIGINS)
+is_template CORS_ORIGINS && cors=""
+is_template APP_PUBLIC_URL && app=""
 if [ -n "$app" ] && [ -n "$cors" ] && [[ "$cors" != *"${app#https://}"* ]]; then
     warn "CORS_ORIGINS ($cors) không chứa tên miền của APP_PUBLIC_URL ($app)"
 fi
-[ "$ERR" = 0 ] && ok "URL đúng định dạng"
+if [ "$url_checked" = 0 ]; then
+    printf '  –  bỏ qua: các URL còn là giá trị mẫu\n'
+elif [ "$ERR" = "$url_err_before" ]; then
+    # So với mốc ĐẦU KHỐI chứ không phải ERR=0: lỗi ở mục khác không được làm
+    # mục này im lặng.
+    ok "URL đúng định dạng"
+fi
 
 # ── 4. Khoá VAPID — độ dài quyết định tính hợp lệ ────────────────────────────
 echo
@@ -103,12 +124,17 @@ fi
 # ── 5. Độ mạnh bí mật ────────────────────────────────────────────────────────
 echo
 echo "── Độ mạnh bí mật ──"
-jwt=$(get JWT_SECRET)
-[ "${#jwt}" -lt 32 ] && fail "JWT_SECRET chỉ ${#jwt} ký tự — cần ≥32" || ok "JWT_SECRET ${#jwt} ký tự"
-for v in POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD SEED_ADMIN_PASSWORD; do
-    val=$(get "$v")
-    [ "${#val}" -lt 12 ] && warn "$v chỉ ${#val} ký tự — nên ≥12"
-done
+if is_template JWT_SECRET; then
+    printf '  –  bỏ qua: bí mật còn là giá trị mẫu\n'
+else
+    jwt=$(get JWT_SECRET)
+    [ "${#jwt}" -lt 32 ] && fail "JWT_SECRET chỉ ${#jwt} ký tự — cần ≥32" || ok "JWT_SECRET ${#jwt} ký tự"
+    for v in POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD SEED_ADMIN_PASSWORD; do
+        is_template "$v" && continue
+        val=$(get "$v")
+        [ "${#val}" -lt 12 ] && warn "$v chỉ ${#val} ký tự — nên ≥12"
+    done
+fi
 sa=$(get SEED_ADMIN_PASSWORD)
 [[ "$sa" == "Lims@1234" || "$sa" == "ChangeMe@123" ]] && \
     fail "SEED_ADMIN_PASSWORD là mật khẩu mặc định đã công khai trong repo"
