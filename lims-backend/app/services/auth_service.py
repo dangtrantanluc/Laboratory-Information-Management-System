@@ -12,7 +12,9 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core import rate_limit as rate_limit_mod
 from app.core import security
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException, validation_error
 from app.core.redis_client import (
     get_redis,
@@ -27,14 +29,20 @@ from app.services import audit_service
 logger = logging.getLogger("lims.auth")
 
 
-# ---------- Lockout (Redis) ----------
-def _check_lockout(email: str) -> None:
+# Hash bcrypt "mồi" cố định — verify mật khẩu với hash này khi email KHÔNG tồn tại để
+# thời gian phản hồi bằng với trường hợp email tồn tại (chống user enumeration qua timing
+# — PRODUCTION_READINESS_REVIEW M12). Sinh 1 lần lúc import (bcrypt cost 12 như thật).
+_DUMMY_PASSWORD_HASH = security.hash_password("timing-equalizer-not-a-real-password")
+
+
+# ---------- Lockout (Redis, keyed theo email+ip — M11) ----------
+def _check_lockout(email: str, ip: Optional[str]) -> None:
     r = get_redis()
-    ttl = r.ttl(login_lock_key(email))
+    ttl = r.ttl(login_lock_key(email, ip))
     if ttl and ttl > 0:
         locked_until = datetime.now(timezone.utc).timestamp() + ttl
         raise AppException(
-            "ACCOUNT_LOCKED",
+            ErrorCode.ACCOUNT_LOCKED,
             "Tài khoản tạm khóa do nhập sai mật khẩu quá nhiều lần. Vui lòng thử lại sau.",
             423,
             details=[
@@ -49,22 +57,22 @@ def _check_lockout(email: str) -> None:
         )
 
 
-def _register_failed_login(email: str) -> None:
+def _register_failed_login(email: str, ip: Optional[str]) -> None:
     r = get_redis()
-    key = login_fail_key(email)
+    key = login_fail_key(email, ip)
     count = r.incr(key)
     if count == 1:
         # cửa sổ đếm = thời gian lockout (đếm sai liên tiếp)
         r.expire(key, settings.login_lockout_minutes * 60)
     if count >= settings.login_max_failed:
-        r.setex(login_lock_key(email), settings.login_lockout_minutes * 60, "1")
+        r.setex(login_lock_key(email, ip), settings.login_lockout_minutes * 60, "1")
         r.delete(key)
 
 
-def _reset_failed_login(email: str) -> None:
+def _reset_failed_login(email: str, ip: Optional[str]) -> None:
     r = get_redis()
-    r.delete(login_fail_key(email))
-    r.delete(login_lock_key(email))
+    r.delete(login_fail_key(email, ip))
+    r.delete(login_lock_key(email, ip))
 
 
 # ---------- Helpers ----------
@@ -116,15 +124,23 @@ def login(
     correlation_id: Optional[str],
 ) -> dict:
     email_norm = email.strip().lower()
-    _check_lockout(email_norm)
+    _check_lockout(email_norm, ip)
+    # Rate limit theo email+IP. Dependency ở tầng router chỉ chặn theo IP, mà cả
+    # viện đi chung một IP NAT nên rổ đó bị dùng chung — xem check_rate().
+    rate_limit_mod.check_rate(
+        "login_identity", f"{email_norm}|{ip or 'unknown'}", limit=10, window_seconds=300
+    )
 
     user = db.execute(
         select(User).where(User.email == email_norm)
     ).scalar_one_or_none()
 
-    # Chống user enumeration: cùng thông điệp cho sai email / sai password
+    # Chống user enumeration: cùng thông điệp + cùng thời gian (verify bcrypt kể cả khi
+    # email không tồn tại — dùng hash mồi) cho sai email / sai password (M12).
+    if user is None:
+        security.verify_password(password, _DUMMY_PASSWORD_HASH)  # equalize timing
     if user is None or not security.verify_password(password, user.password_hash):
-        _register_failed_login(email_norm)
+        _register_failed_login(email_norm, ip)
         audit_service.log_action(
             db,
             action="AUTH_LOGIN_FAIL",
@@ -136,13 +152,29 @@ def login(
         )
         db.commit()
         raise AppException(
-            "INVALID_CREDENTIALS", "Email hoặc mật khẩu không đúng", 401
+            ErrorCode.INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng", 401
         )
 
     if user.status == "disabled":
-        raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
+        raise AppException(ErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa", 403)
 
-    _reset_failed_login(email_norm)
+    # m30 — tài khoản tự đăng ký. Chỉ báo trạng thái SAU KHI mật khẩu đã đúng, nên
+    # thông điệp này không dùng để dò xem email nào đang chờ duyệt.
+    if user.status == "pending":
+        if user.email_verified_at is None:
+            raise AppException(
+                ErrorCode.EMAIL_NOT_VERIFIED,
+                "Bạn chưa xác thực địa chỉ email. Vui lòng mở liên kết trong thư đã gửi.",
+                403,
+            )
+        raise AppException(
+            ErrorCode.ACCOUNT_PENDING_APPROVAL,
+            "Tài khoản đang chờ Quản trị viên duyệt. Bạn sẽ nhận được thư khi tài "
+            "khoản được kích hoạt.",
+            403,
+        )
+
+    _reset_failed_login(email_norm, ip)
     user.last_login_at = func.now()
 
     access, refresh_raw, expires_in = _issue_tokens(
@@ -205,12 +237,15 @@ def refresh(
     correlation_id: Optional[str],
 ) -> dict:
     token_hash = security.hash_refresh_token(refresh_token_raw)
+    # Khoá hàng refresh-token để 2 request refresh SONG SONG cùng token tuần tự hoá:
+    # request đầu revoke + rotate; request sau chờ lock, đọc lại thấy revoked → reuse
+    # detection (single-use được đảm bảo — PRODUCTION_READINESS_REVIEW L2).
     rt = db.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash).with_for_update()
     ).scalar_one_or_none()
 
     if rt is None:
-        raise AppException("TOKEN_INVALID", "Refresh token không hợp lệ", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Refresh token không hợp lệ", 401)
 
     now = datetime.now(timezone.utc)
 
@@ -239,19 +274,19 @@ def refresh(
             extra={"correlationId": correlation_id, "userId": str(rt.user_id)},
         )
         raise AppException(
-            "TOKEN_REUSED",
+            ErrorCode.TOKEN_REUSED,
             "Phát hiện sử dụng lại token — toàn bộ phiên đã bị thu hồi. Vui lòng đăng nhập lại.",
             401,
         )
 
     if rt.expires_at <= now:
-        raise AppException("TOKEN_EXPIRED", "Refresh token đã hết hạn", 401)
+        raise AppException(ErrorCode.TOKEN_EXPIRED, "Refresh token đã hết hạn", 401)
 
     user = db.get(User, rt.user_id)
     if user is None:
-        raise AppException("TOKEN_INVALID", "Người dùng không tồn tại", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Người dùng không tồn tại", 401)
     if user.status == "disabled":
-        raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
+        raise AppException(ErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa", 403)
 
     # Rotation: revoke token cũ + cấp token mới (rotated_from = id cũ) trong 1 transaction
     rt.revoked_at = func.now()
@@ -339,10 +374,10 @@ def change_own_password(
 ) -> datetime:
     user = db.get(User, user_id)
     if user is None:
-        raise AppException("UNAUTHORIZED", "Người dùng không tồn tại", 401)
+        raise AppException(ErrorCode.UNAUTHORIZED, "Người dùng không tồn tại", 401)
 
     if not security.verify_password(current_password, user.password_hash):
-        raise AppException("INVALID_CREDENTIALS", "Mật khẩu hiện tại không đúng", 401)
+        raise AppException(ErrorCode.INVALID_CREDENTIALS, "Mật khẩu hiện tại không đúng", 401)
 
     if new_password == current_password:
         raise validation_error(

@@ -252,9 +252,9 @@ function CommunityModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {!editing && (
-          <Field label="Người thực hiện" required className="sm:col-span-2">
+          <Field label="Người thực hiện" required className="md:col-span-2">
             <Select value={performerId} onChange={(e) => setPerformerId(e.target.value)} disabled={isStaff}>
               <option value="">— Chọn —</option>
               {(users?.data ?? []).map((u) => (
@@ -265,7 +265,7 @@ function CommunityModal({
             </Select>
           </Field>
         )}
-        <Field label="Nội dung" required className="sm:col-span-2">
+        <Field label="Nội dung" required className="md:col-span-2">
           <Textarea value={content} onChange={(e) => setContent(e.target.value)} />
         </Field>
         <Field label="Thời gian" required>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Users as UsersIcon, Plus, KeyRound, Power } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { PendingApprovals } from '@/components/users/PendingApprovals';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
@@ -11,6 +12,7 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { ROLE_OPTIONS } from '@/lib/rbac';
 import { ROLE_LABELS, type UserListItem } from '@/types';
@@ -19,6 +21,8 @@ import * as usersApi from '@/api/users';
 export function UsersPage() {
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [role, setRole] = useState('');
   const [editing, setEditing] = useState<UserListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -26,8 +30,8 @@ export function UsersPage() {
   const [resetUser, setResetUser] = useState<UserListItem | null>(null);
 
   const { data, loading, reload } = useAsync(
-    () => usersApi.listUsers({ q: q || undefined, role: role || undefined, limit: 100 }),
-    [q, role],
+    () => usersApi.listUsers({ q: dq || undefined, role: role || undefined, limit: 100 }),
+    [dq, role],
   );
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 
@@ -46,10 +50,11 @@ export function UsersPage() {
         </div>
       ),
     },
-    { key: 'role', header: 'Vai trò', render: (u) => ROLE_LABELS[u.role] },
+    { key: 'role', priority: 1, header: 'Vai trò', render: (u) => ROLE_LABELS[u.role] },
     { key: 'department_name', header: 'Phòng', render: (u) => u.department_name ?? '—' },
     {
       key: 'status',
+      priority: 1,
       header: 'Trạng thái',
       render: (u) => (
         <Badge tone={u.status === 'active' ? 'success' : 'muted'}>
@@ -91,10 +96,14 @@ export function UsersPage() {
           </Button>
         }
       />
+
+      {/* m30 — hàng chờ duyệt tài khoản tự đăng ký. Tự ẩn khi không có ai chờ. */}
+      <PendingApprovals onChanged={reload} />
+
       <Card>
         <div className="flex flex-wrap gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Tên / email…" className="max-w-xs flex-1" />
-          <Select value={role} onChange={(e) => setRole(e.target.value)} className="max-w-[180px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Tên / email…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={role} onChange={(e) => setRole(e.target.value)} className="w-full sm:max-w-[180px]">
             <option value="">Mọi vai trò</option>
             {ROLE_OPTIONS.map((r) => (
               <option key={r.value} value={r.value}>
@@ -230,11 +239,11 @@ function UserModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Họ tên" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Họ tên" required className="md:col-span-2">
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </Field>
-        <Field label="Email" required className="sm:col-span-2">
+        <Field label="Email" required className="md:col-span-2">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Vai trò" required>
@@ -257,7 +266,7 @@ function UserModal({
           </Select>
         </Field>
         {!user && (
-          <label className="sm:col-span-2 flex items-center gap-2 text-sm text-ink">
+          <label className="md:col-span-2 flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={isLead} onChange={(e) => setIsLead(e.target.checked)} />
             Là trưởng nhóm phòng (được phân công / duyệt / chốt mẫu)
           </label>

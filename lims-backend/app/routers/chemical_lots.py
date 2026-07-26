@@ -10,21 +10,24 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
 from app.schemas.chemical import CreateRecheckRequest, CreateTransactionRequest
-from app.services import chemical_common as cc, chemical_service, chemical_txn_service
+from app.services import chemical_common as cc, chemical_txn_service
+# Import thẳng module domain thay vì chemical_service gộp (M-03/T1.2).
+from app.services.chemical import (
+    coa_service,
+    lot_service,
+)
 
 router = APIRouter(tags=["m2-lots"])
 
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== global transactions list (đăng ký trước /lots/{id} để tránh nuốt path) =====
@@ -40,7 +43,7 @@ def list_transactions(
     department_id: Optional[uuid.UUID] = Query(default=None),
     display_unit: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -71,7 +74,7 @@ def get_lot(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data = chemical_service.get_lot_detail(db, lot_id=lot_id, display_unit=display_unit)
+    data = lot_service.get_lot_detail(db, lot_id=lot_id, display_unit=display_unit)
     data = cc.strip_price_fields(data, cc.can_see_cost(db, user))
     return ok(data)
 
@@ -82,11 +85,11 @@ def get_coa(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(chemical_service.get_coa(db, lot_id=lot_id))
+    return ok(coa_service.get_coa(db, lot_id=lot_id))
 
 
 @router.post("/lots/{lot_id}/coa", status_code=status.HTTP_201_CREATED)
-async def upload_coa(
+def upload_coa(
     lot_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -94,18 +97,19 @@ async def upload_coa(
     db: Session = Depends(get_db),
 ):
     """Upload/ghi đè chứng chỉ phân tích (CoA) cho lô hóa chất."""
-    content = await file.read()
-    data = chemical_service.upload_coa(
-        db,
-        user=user,
-        lot_id=lot_id,
-        file_name=file.filename or "coa",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = coa_service.upload_coa(
+            db,
+            user=user,
+            lot_id=lot_id,
+            file_name=file.filename or "coa",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== transactions (in/out/adjust) =====
@@ -123,7 +127,7 @@ def create_transaction(
         lot_id=lot_id,
         payload=body.model_dump(),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
         can_cost=cc.can_see_cost(db, user),
     )
     return ok(data)
@@ -148,6 +152,6 @@ def create_recheck(
         note=body.note,
         attachment_file_key=body.attachment_file_key,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

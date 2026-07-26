@@ -457,7 +457,7 @@ function EditMetaModal({
           <select
             value={security}
             onChange={(e) => setSecurity(e.target.value as 'internal' | 'restricted')}
-            className="h-10 w-full rounded-lg border border-hairline bg-white px-3 text-sm text-ink"
+            className="h-10 w-full rounded-lg border border-hairline bg-surface px-3 text-sm text-ink"
           >
             <option value="internal">Nội bộ</option>
             <option value="restricted">Hạn chế</option>
@@ -588,14 +588,14 @@ function DocStatsModal({ documentId, onClose }: { documentId: string; onClose: (
           <p className="text-xs text-subink">
             Khoảng: {data.range.from} → {data.range.to}
           </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <StatBox label="Lượt xem" value={data.totals.view} tone="info" />
             <StatBox label="Lượt tải" value={data.totals.download} tone="success" />
             <StatBox label="Lượt sửa" value={data.totals.edit} tone="warning" />
           </div>
           {data.series && data.series.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[560px] text-sm table-sticky-1">
                 <thead>
                   <tr className="border-b border-hairline text-left text-xs uppercase text-stem">
                     <th className="py-2">Ngày</th>
@@ -635,7 +635,7 @@ function StatBox({
   const toneCls = {
     info: 'text-berry',
     success: 'text-success',
-    warning: 'text-[#b45309]',
+    warning: 'text-warning',
   }[tone];
   return (
     <div className="rounded-lg border border-hairline bg-plate/40 px-4 py-3 text-center">

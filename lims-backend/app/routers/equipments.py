@@ -1,7 +1,7 @@
 """Router M5 — Thiết bị & Hiệu chuẩn (CRUD thiết bị, cảnh báo, tài liệu, hiệu chuẩn).
 
 RBAC: đọc toàn lab (mọi vai trò 👁); ghi theo phòng (admin all; staff phòng mình;
-leader/accountant cấm — enforce service). Bản ghi hiệu chuẩn IMMUTABLE — chỉ POST tạo;
+leader/office cấm — enforce service). Bản ghi hiệu chuẩn IMMUTABLE — chỉ POST tạo;
 KHÔNG PATCH/DELETE (§8.4, BR-EQP-007). Upload CoC/tài liệu qua multipart.
 
 Thứ tự khai báo: route tĩnh (/calibration-due) TRƯỚC /{equipment_id} để tránh nuốt path.
@@ -22,6 +22,8 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -35,10 +37,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 # ===== #2 GET /equipments/calibration-due (khai trước /{id}) =====
 @router.get("/calibration-due")
 def calibration_due(
@@ -46,7 +44,7 @@ def calibration_due(
     department_id: Optional[uuid.UUID] = Query(default=None),
     bucket: str = Query(default="all"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -72,7 +70,7 @@ def list_equipments(
     calibration_status: Optional[str] = Query(default=None),
     overdue: Optional[bool] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -104,7 +102,7 @@ def create_equipment(
         user=user,
         payload=body.model_dump(),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -134,14 +132,14 @@ def update_equipment(
         equipment_id=equipment_id,
         raw_body=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
 
 # ===== #6 POST /equipments/:id/attachments (multipart) =====
 @router.post("/{equipment_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def add_attachment(
+def add_attachment(
     equipment_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -149,19 +147,20 @@ async def add_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
-    data = equipment_service.add_attachment(
-        db,
-        user=user,
-        equipment_id=equipment_id,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        doc_type=doc_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = equipment_service.add_attachment(
+            db,
+            user=user,
+            equipment_id=equipment_id,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            doc_type=doc_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== #7 GET /equipments/:id/attachments/:attId/download =====
@@ -180,7 +179,7 @@ def download_attachment(
             equipment_id=equipment_id,
             attachment_id=attachment_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -191,7 +190,7 @@ def list_calibrations(
     equipment_id: uuid.UUID,
     result: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -204,7 +203,7 @@ def list_calibrations(
 
 # ===== #9 POST /equipments/:id/calibrations (multipart, CỐT LÕI) =====
 @router.post("/{equipment_id}/calibrations", status_code=status.HTTP_201_CREATED)
-async def create_calibration(
+def create_calibration(
     equipment_id: uuid.UUID,
     request: Request,
     calibrated_at: date = Form(...),
@@ -218,22 +217,23 @@ async def create_calibration(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    cert_content = await cert.read() if cert is not None else None
-    data = calibration_service.create_calibration(
-        db,
-        user=user,
-        equipment_id=equipment_id,
-        calibrated_at=calibrated_at,
-        result=result,
-        provider=provider,
-        next_due_date_override=next_due_date_override,
-        override_reason=override_reason,
-        note=note,
-        correction_of=correction_of,
-        cert_file_name=cert.filename if cert is not None else None,
-        cert_content=cert_content,
-        cert_mime=cert.content_type if cert is not None else None,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        cert_content = cert.file.read() if cert is not None else None
+        data = calibration_service.create_calibration(
+            db,
+            user=user,
+            equipment_id=equipment_id,
+            calibrated_at=calibrated_at,
+            result=result,
+            provider=provider,
+            next_due_date_override=next_due_date_override,
+            override_reason=override_reason,
+            note=note,
+            correction_of=correction_of,
+            cert_file_name=cert.filename if cert is not None else None,
+            cert_content=cert_content,
+            cert_mime=cert.content_type if cert is not None else None,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)

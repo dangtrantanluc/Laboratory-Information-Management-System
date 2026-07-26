@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import ok
 from app.db.database import get_db
@@ -22,10 +24,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 @router.post("/{result_id}/approve")
 def approve_result(
     result_id: uuid.UUID,
@@ -34,14 +32,14 @@ def approve_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.approve_result(
         db,
         user=user,
         result_id=result_id,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -54,14 +52,14 @@ def return_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.return_result(
         db,
         user=user,
         result_id=result_id,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -74,7 +72,7 @@ def revise_result(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = result_service.revise_result(
         db,
         user=user,
@@ -82,7 +80,7 @@ def revise_result(
         result_data=body.result_data,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -93,7 +91,7 @@ def list_result_attachments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(
         sample_attachment_service.list_result_attachments(
             db, user=user, result_id=result_id
@@ -102,23 +100,24 @@ def list_result_attachments(
 
 
 @router.post("/{result_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_result_attachment(
+def upload_result_attachment(
     result_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
-    content = await file.read()
-    data = sample_attachment_service.upload_result_attachment(
-        db,
-        user=user,
-        result_id=result_id,
-        file_name=file.filename or "file",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        sample_common.deny_office(user)
+        content = file.file.read()
+        data = sample_attachment_service.upload_result_attachment(
+            db,
+            user=user,
+            result_id=result_id,
+            file_name=file.filename or "file",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)

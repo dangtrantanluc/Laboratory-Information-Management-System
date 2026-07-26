@@ -31,6 +31,17 @@ export function Notifications() {
     else reload();
   }
 
+  /** Toggle 2 chiều: đã đọc ↔ chưa đọc (dùng markRead / markUnread). */
+  async function toggleRead(n: Notification) {
+    try {
+      if (n.read_at) await notifApi.markUnread(n.id);
+      else await notifApi.markRead(n.id);
+      reload();
+    } catch (err) {
+      toast.error(describeError(err).title);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -74,19 +85,25 @@ export function Notifications() {
               {(data?.data ?? []).map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => onClick(n)}
-                  className="flex cursor-pointer items-start gap-3 px-5 py-4 hover:bg-plate/60"
+                  className="group flex items-start gap-3 px-5 py-4 hover:bg-plate/60"
                 >
-                  {!n.read_at ? (
-                    <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-blueberry" />
-                  ) : (
-                    <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-hairline" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-ink">{n.title}</p>
+                  <span
+                    className={
+                      'mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ' +
+                      (n.read_at ? 'bg-hairline' : 'bg-blueberry')
+                    }
+                  />
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onClick(n)}>
+                    <p className={n.read_at ? 'font-medium text-subink' : 'font-semibold text-ink'}>{n.title}</p>
                     <p className="text-sm text-subink">{n.body}</p>
                     <p className="mt-1 text-xs text-stem">{formatDateTime(n.created_at)}</p>
                   </div>
+                  <button
+                    onClick={() => toggleRead(n)}
+                    className="shrink-0 rounded-md px-2 py-1 text-xs text-stem opacity-0 transition hover:bg-plate hover:text-ink group-hover:opacity-100"
+                  >
+                    {n.read_at ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'}
+                  </button>
                 </li>
               ))}
             </ul>

@@ -98,7 +98,7 @@ export function ChemicalDetail() {
       />
 
       {/* Stock summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
           <CardBody className="pt-5">
             <p className="text-xs text-subink">Tổng tồn</p>
@@ -135,7 +135,7 @@ export function ChemicalDetail() {
             <EmptyState title="Chưa có lô" description="Thêm lô để bắt đầu nhập tồn." />
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[700px] text-sm">
+              <table className="w-full min-w-[700px] text-sm table-sticky-1">
                 <thead>
                   <tr className="border-b border-hairline bg-plate/80 text-left text-xs uppercase tracking-wide text-stem">
                     <th className="px-4 py-2.5">Số lô</th>
@@ -247,7 +247,7 @@ export function ChemicalDetail() {
             <EmptyState title="Chưa có giao dịch" />
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[760px] text-sm table-sticky-1">
                 <thead>
                   <tr className="border-b border-hairline bg-plate/80 text-left text-xs uppercase tracking-wide text-stem">
                     <th className="px-4 py-2.5">Thời gian</th>
@@ -397,8 +397,8 @@ function CreateLotModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Số lô" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Số lô" required className="md:col-span-2">
           <Input value={lotNo} onChange={(e) => setLotNo(e.target.value)} placeholder="L2026-001" />
         </Field>
         <Field label="Hạn sử dụng">
@@ -407,7 +407,7 @@ function CreateLotModal({
         <Field label="Ngày kiểm tra lại">
           <Input type="date" value={recheck} onChange={(e) => setRecheck(e.target.value)} />
         </Field>
-        <label className="sm:col-span-2 flex items-center gap-2 text-sm text-ink">
+        <label className="md:col-span-2 flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={withIntake} onChange={(e) => setWithIntake(e.target.checked)} />
           Nhập tồn ban đầu cho lô
         </label>
@@ -426,7 +426,7 @@ function CreateLotModal({
               </Select>
             </Field>
             {canCost && (
-              <Field label="Đơn giá (theo đơn vị nhập)" className="sm:col-span-2">
+              <Field label="Đơn giá (theo đơn vị nhập)" className="md:col-span-2">
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="vd: 1200" />
               </Field>
             )}
@@ -535,7 +535,7 @@ function TransactionModal({
               </Select>
             </Field>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field
               label={type === 'adjust' ? (adjustMode === 'actual' ? 'Tồn thực tế' : 'Chênh lệch (±)') : 'Số lượng'}
               required

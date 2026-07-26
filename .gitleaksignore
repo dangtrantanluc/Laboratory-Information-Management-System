@@ -1,0 +1,38 @@
+# Bỏ qua các phát hiện gitleaks ĐÃ ĐƯỢC XỬ LÝ.
+#
+# Chỉ thêm dòng vào đây khi secret đã được XOAY (rotate) và vô hiệu hoá. Bỏ qua
+# một secret còn hiệu lực là tự tay tắt chuông báo cháy.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 2026-07-26 · Khoá riêng Web Push VAPID
+#
+# Khoá bị commit vào lims-backend/.env.example và docker-compose.yml như "cặp
+# khoá mẫu cho dev", nhưng hệ thống đang chạy dùng ĐÚNG khoá đó. Repo công khai
+# nên phải coi khoá là đã lộ hoàn toàn.
+#
+# Đã xử lý:
+#   1. Sinh cặp khoá mới, đặt trong .env (đã gitignore) — không commit
+#   2. docker-compose.yml đổi sang ${VAPID_PRIVATE_KEY:?...} — không còn giá trị
+#      mặc định, thiếu biến là container từ chối khởi động thay vì chạy với khoá lộ
+#   3. .env.example chỉ còn placeholder
+#
+# VÌ SAO KHÔNG VIẾT LẠI LỊCH SỬ: repo đã public, các commit này đã được clone và
+# lập chỉ mục. `git filter-repo` chỉ làm lịch sử của ta sạch chứ không thu hồi
+# được thứ đã phát tán. Biện pháp đúng là xoay khoá — đã làm.
+#
+# Hệ quả đã biết: thuê bao Web Push cũ mất hiệu lực, người dùng phải đăng ký lại
+# thông báo. Không tránh được, vì khoá cũ dù sao cũng không dùng tiếp được.
+#
+52f116f1ec6d00d249d69d21573e9b99f2b01a45:lims-backend/.env.example:generic-api-key:53
+f803fa8064cbe1e1fb97fb67d977e4161ecdcee3:docker-compose.yml:generic-api-key:78
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2026-07-26 · Token mẫu trong tài liệu hợp đồng API
+#
+# `"access_token": "eyJ..."` trong ví dụ response của tài liệu M7. Là chuỗi minh
+# hoạ đã cắt ngắn, không phải token cấp được cho ai. Không nằm trong PR #1
+# (commit đã có sẵn trên main) nên CI của PR không báo — ghi ở đây để lần quét
+# TOÀN BỘ lịch sử sau này không bị nhiễu và người đọc không phải điều tra lại.
+#
+2cf852341ed3e96d7b28fede3be4a8d06fa118f5:lims/docs/09-contract-m7-api.md:generic-api-key:159
+2cf852341ed3e96d7b28fede3be4a8d06fa118f5:lims/docs/09-contract-m7-api.md:generic-api-key:216

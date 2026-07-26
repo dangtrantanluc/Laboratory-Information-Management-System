@@ -1,7 +1,7 @@
 """Router M4.3 — Thành tích NCKH: đề tài, bài báo/sáng chế, hướng dẫn SV, đăng ký lab
 (có duyệt), giảng dạy, cộng đồng, thống kê + Excel.
 
-Kế toán bị CẤM toàn bộ nhóm NCKH (hc.assert_research_access → 403). Scope staff own
+Văn phòng bị CẤM toàn bộ nhóm NCKH (hc.assert_research_access → 403). Scope staff own
 enforce ở service. Tác giả/thành viên ngoài hệ thống qua external_name (XOR).
 """
 import uuid
@@ -11,6 +11,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.error_codes import ErrorCode
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.exceptions import AppException
 from app.core.responses import normalize_pagination, ok, paginated
@@ -35,7 +38,17 @@ from app.services import (
     attachment_service,
     hr_common as hc,
     research_report_service,
-    research_service,
+)
+# Import thẳng từng module domain thay vì mặt tiền research_service: đọc lời gọi
+# là biết endpoint thuộc domain nào (M-03/T1.1).
+from app.services.research import (
+    community_service,
+    mentorship_service,
+    project_service,
+    publication_service,
+    registration_service,
+    stats_service,
+    teaching_service,
 )
 
 router = APIRouter(tags=["m4-research"])
@@ -47,13 +60,14 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 def _guard(user: CurrentUser) -> CurrentUser:
-    """Chặn accountant khỏi toàn bộ nhóm NCKH (BR-HR-023)."""
+    """GHI nhóm NCKH: chặn office (thành tích NCKH của người khác — office chỉ được XEM)."""
     hc.assert_research_access(user)
+    return user
+
+
+def _guard_read(user: CurrentUser) -> CurrentUser:
+    """ĐỌC nhóm NCKH: cho phép cả VĂN PHÒNG xem toàn bộ thông tin NCKH (read-only)."""
     return user
 
 
@@ -71,13 +85,13 @@ def list_projects(
     lead_user_id: Optional[uuid.UUID] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_projects(
+    items, total = project_service.list_projects(
         db,
         user=user,
         q=q,
@@ -103,8 +117,8 @@ def create_project(
     payload = body.model_dump()
     payload["members"] = _members_payload(body.members)
     return ok(
-        research_service.create_project(
-            db, user=user, payload=payload, correlation_id=_cid(request), ip=_ip(request)
+        project_service.create_project(
+            db, user=user, payload=payload, correlation_id=_cid(request), ip=client_ip(request)
         )
     )
 
@@ -115,8 +129,8 @@ def get_project(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
-    return ok(research_service.get_project(db, user=user, project_id=project_id))
+    _guard_read(user)
+    return ok(project_service.get_project(db, user=user, project_id=project_id))
 
 
 @router.patch("/research-projects/{project_id}")
@@ -129,13 +143,13 @@ def update_project(
 ):
     _guard(user)
     return ok(
-        research_service.update_project(
+        project_service.update_project(
             db,
             user=user,
             project_id=project_id,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -148,8 +162,8 @@ def delete_project(
     db: Session = Depends(get_db),
 ):
     _guard(user)
-    research_service.delete_project(
-        db, user=user, project_id=project_id, correlation_id=_cid(request), ip=_ip(request)
+    project_service.delete_project(
+        db, user=user, project_id=project_id, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -163,13 +177,13 @@ def replace_members(
 ):
     _guard(user)
     return ok(
-        research_service.replace_project_members(
+        project_service.replace_project_members(
             db,
             user=user,
             project_id=project_id,
             members=_members_payload(body.members),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -194,13 +208,13 @@ def list_publications(
     department_id: Optional[uuid.UUID] = Query(default=None),
     author_user_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_publications(
+    items, total = publication_service.list_publications(
         db,
         user=user,
         q=q,
@@ -226,8 +240,8 @@ def create_publication(
     payload = _pub_payload(body)
     payload["authors"] = [a.model_dump() for a in body.authors]
     return ok(
-        research_service.create_publication(
-            db, user=user, payload=payload, correlation_id=_cid(request), ip=_ip(request)
+        publication_service.create_publication(
+            db, user=user, payload=payload, correlation_id=_cid(request), ip=client_ip(request)
         )
     )
 
@@ -238,8 +252,8 @@ def get_publication(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
-    return ok(research_service.get_publication(db, user=user, pub_id=pub_id))
+    _guard_read(user)
+    return ok(publication_service.get_publication(db, user=user, pub_id=pub_id))
 
 
 @router.patch("/publications/{pub_id}")
@@ -256,13 +270,13 @@ def update_publication(
         changes["category"] = changes["index_code"]
     changes.pop("index_code", None)
     return ok(
-        research_service.update_publication(
+        publication_service.update_publication(
             db,
             user=user,
             pub_id=pub_id,
             changes=changes,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -275,8 +289,8 @@ def delete_publication(
     db: Session = Depends(get_db),
 ):
     _guard(user)
-    research_service.delete_publication(
-        db, user=user, pub_id=pub_id, correlation_id=_cid(request), ip=_ip(request)
+    publication_service.delete_publication(
+        db, user=user, pub_id=pub_id, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -290,45 +304,46 @@ def replace_authors(
 ):
     _guard(user)
     return ok(
-        research_service.replace_authors(
+        publication_service.replace_authors(
             db,
             user=user,
             pub_id=pub_id,
             authors=[a.model_dump() for a in body.authors],
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
 
 @router.post("/publications/{pub_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_publication_attachment(
+def upload_publication_attachment(
     pub_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
-    # scope check qua get_publication (raises FORBIDDEN/404 nếu ngoài scope)
-    research_service.get_publication(db, user=user, pub_id=pub_id)
-    if file.content_type not in _PUB_MIME_WHITELIST:
-        raise AppException(
-            "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+    with upload_slot():
+        _guard(user)
+        # scope check qua get_publication (raises FORBIDDEN/404 nếu ngoài scope)
+        publication_service.get_publication(db, user=user, pub_id=pub_id)
+        if file.content_type not in _PUB_MIME_WHITELIST:
+            raise AppException(
+                ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+            )
+        content = file.file.read()
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type="publication",
+            owner_id=pub_id,
+            file_name=file.filename or "publication",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
         )
-    content = await file.read()
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type="publication",
-        owner_id=pub_id,
-        file_name=file.filename or "publication",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+        return ok(data)
 
 
 # ===================== HƯỚNG DẪN SV =====================
@@ -339,13 +354,13 @@ def list_mentorships(
     type_filter: Optional[str] = Query(default=None, alias="type"),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_mentorships(
+    items, total = mentorship_service.list_mentorships(
         db,
         user=user,
         mentor_id=mentor_id,
@@ -367,12 +382,12 @@ def create_mentorship(
 ):
     _guard(user)
     return ok(
-        research_service.create_mentorship(
+        mentorship_service.create_mentorship(
             db,
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -387,13 +402,13 @@ def update_mentorship(
 ):
     _guard(user)
     return ok(
-        research_service.update_mentorship(
+        mentorship_service.update_mentorship(
             db,
             user=user,
             mid=mid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -406,8 +421,8 @@ def delete_mentorship(
     db: Session = Depends(get_db),
 ):
     _guard(user)
-    research_service.delete_mentorship(
-        db, user=user, mid=mid, correlation_id=_cid(request), ip=_ip(request)
+    mentorship_service.delete_mentorship(
+        db, user=user, mid=mid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -418,13 +433,13 @@ def list_registrations(
     mentor_id: Optional[uuid.UUID] = Query(default=None),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_registrations(
+    items, total = registration_service.list_registrations(
         db,
         user=user,
         status_filter=status_filter,
@@ -445,12 +460,12 @@ def create_registration(
 ):
     _guard(user)
     return ok(
-        research_service.create_registration(
+        registration_service.create_registration(
             db,
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -466,14 +481,14 @@ def approve_registration(
     _guard(user)
     reason = body.reason if body else None
     return ok(
-        research_service.decide_registration(
+        registration_service.decide_registration(
             db,
             user=user,
             reg_id=reg_id,
             decision="approved",
             reason=reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -489,14 +504,14 @@ def reject_registration(
     _guard(user)
     reason = body.reason if body else None
     return ok(
-        research_service.decide_registration(
+        registration_service.decide_registration(
             db,
             user=user,
             reg_id=reg_id,
             decision="rejected",
             reason=reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -509,13 +524,13 @@ def list_teaching(
     semester: Optional[str] = Query(default=None),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_teaching(
+    items, total = teaching_service.list_teaching(
         db,
         user=user,
         user_id=user_id,
@@ -537,12 +552,12 @@ def create_teaching(
 ):
     _guard(user)
     return ok(
-        research_service.create_teaching(
+        teaching_service.create_teaching(
             db,
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -557,13 +572,13 @@ def update_teaching(
 ):
     _guard(user)
     return ok(
-        research_service.update_teaching(
+        teaching_service.update_teaching(
             db,
             user=user,
             tid=tid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -576,8 +591,8 @@ def delete_teaching(
     db: Session = Depends(get_db),
 ):
     _guard(user)
-    research_service.delete_teaching(
-        db, user=user, tid=tid, correlation_id=_cid(request), ip=_ip(request)
+    teaching_service.delete_teaching(
+        db, user=user, tid=tid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -590,13 +605,13 @@ def list_community(
     date_to: Optional[date] = Query(default=None, alias="to"),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     page, limit = normalize_pagination(page, limit)
-    items, total = research_service.list_community(
+    items, total = community_service.list_community(
         db,
         user=user,
         performer_user_id=performer_user_id,
@@ -619,12 +634,12 @@ def create_community(
 ):
     _guard(user)
     return ok(
-        research_service.create_community(
+        community_service.create_community(
             db,
             user=user,
             payload=body.model_dump(),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -639,13 +654,13 @@ def update_community(
 ):
     _guard(user)
     return ok(
-        research_service.update_community(
+        community_service.update_community(
             db,
             user=user,
             cid=cid,
             changes=body.model_dump(exclude_unset=True),
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -658,8 +673,8 @@ def delete_community(
     db: Session = Depends(get_db),
 ):
     _guard(user)
-    research_service.delete_community(
-        db, user=user, cid=cid, correlation_id=_cid(request), ip=_ip(request)
+    community_service.delete_community(
+        db, user=user, cid=cid, correlation_id=_cid(request), ip=client_ip(request)
     )
 
 
@@ -676,9 +691,9 @@ def achievement_stats(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     return ok(
-        research_service.achievement_stats(
+        stats_service.achievement_stats(
             db,
             user=user,
             group_by=group_by,
@@ -705,7 +720,7 @@ def achievement_stats_xlsx(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _guard(user)
+    _guard_read(user)
     content = research_report_service.export_stats_xlsx(
         db,
         user=user,
@@ -717,7 +732,7 @@ def achievement_stats_xlsx(
         level=level,
         category=index_code,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=content,

@@ -3,7 +3,7 @@
 Đọc TRỰC TIẾP bảng module nguồn (ASSUMPTION-1) để gom KPI 1 round-trip; KHÔNG gọi lại
 logic on-time/tiêu hao của module gốc (CONSTRAINT-1). Áp scope theo vai trò (BR-RPT-001):
 - admin/leader: toàn hệ thống, mọi khối KPI.
-- accountant: CHỈ tài chính (chemicals có tiền + hr); KHÔNG khối samples/equipments/documents (B03).
+- office: CHỈ tài chính (chemicals có tiền + hr); KHÔNG khối samples/equipments/documents (B03).
 - staff: phòng mình; KHÔNG field tiền; KHÔNG khối hr.
 
 Degrade mềm (BR-RPT-013): 1 khối lỗi → {available:false}, HTTP vẫn 200, khối khác đúng.
@@ -22,8 +22,11 @@ from app.core.deps import CurrentUser
 from app.models.chemical import Chemical, ChemicalLot, ChemicalTransaction
 from app.models.document import DocumentVersion
 from app.models.equipment import Equipment
+from app.models.form import FormSubmission
 from app.models.hr import HrProfile
+from app.models.nonconformity import Nonconformity
 from app.models.notification import Notification
+from app.models.risk import Improvement, Risk
 from app.models.sample import Sample, VALID_SAMPLE_STATUS
 from app.services import report_common as rc
 
@@ -222,6 +225,42 @@ def _kpi_documents(db: Session) -> dict:
     }
 
 
+# ---------------- KPI khối: chất lượng (M8-M10, vai trò qms) ----------------
+def _kpi_qms(db: Session) -> dict:
+    nc_rows = dict(
+        db.execute(select(Nonconformity.status, func.count()).group_by(Nonconformity.status)).all()
+    )
+    nc_open = nc_rows.get("open", 0) + nc_rows.get("in_capa", 0)
+    nc_open_capa = nc_rows.get("in_capa", 0)
+
+    risk_open_high = db.execute(
+        select(func.count()).select_from(Risk).where(Risk.status != "closed", Risk.level > 12)
+    ).scalar_one()
+
+    evidence_pending = db.execute(
+        select(func.count()).select_from(FormSubmission).where(FormSubmission.status == "pending")
+    ).scalar_one()
+
+    improvements_open = db.execute(
+        select(func.count()).select_from(Improvement).where(
+            Improvement.status.in_(("open", "in_progress"))
+        )
+    ).scalar_one()
+
+    return {
+        "available": True,
+        "nc_open": nc_open,
+        "nc_open_capa": nc_open_capa,
+        "risk_open_high": risk_open_high,
+        "evidence_pending": evidence_pending,
+        "improvements_open": improvements_open,
+        "deep_link_nc": "/nonconformities?status=open",
+        "deep_link_risk": "/risks?band=high",
+        "deep_link_evidence": "/documents/pending",
+        "deep_link_improvements": "/improvements?status=open",
+    }
+
+
 # ---------------- KPI khối: thông báo (M7, user hiện tại) ----------------
 def _kpi_notifications(db: Session, user_id: uuid.UUID) -> dict:
     unread = db.execute(
@@ -272,8 +311,15 @@ def get_dashboard(
     }
     data: dict = {"scope": scope}
 
-    if rc.is_accountant(user):
-        # B03: accountant CHỈ tài chính — KHÔNG khối samples/equipments/documents.
+    if user.role == "qms":
+        # Dashboard riêng cho QLCL: chỉ khối liên quan chất lượng, bỏ mẫu/hoá chất/thiết bị/nhân sự.
+        data["documents"] = _safe(lambda: _kpi_documents(db), "documents")
+        data["notifications"] = _safe(
+            lambda: _kpi_notifications(db, user.id), "notifications"
+        )
+        data["qms"] = _safe(lambda: _kpi_qms(db), "qms")
+    elif rc.is_office(user):
+        # B03: office CHỈ tài chính — KHÔNG khối samples/equipments/documents.
         data["chemicals"] = _safe(
             lambda: _kpi_chemicals(db, dept, due_within_days, can_cost), "chemicals"
         )
@@ -303,6 +349,102 @@ def get_dashboard(
     return data, rc.aggregate_meta(cached=False)
 
 
+# ======================= Workload theo KTV (M1) =======================
+def get_lab_workload(
+    db: Session,
+    *,
+    user: CurrentUser,
+    department_id: Optional[uuid.UUID],
+) -> tuple[dict, dict]:
+    """Số việc đang xử lý (assignment active) theo từng KTV, trong phạm vi phòng.
+
+    Đếm sample_assignments status ∈ (assigned, in_progress) join sample để áp scope phòng,
+    group theo người được giao. Trả (data, meta) — caller bọc ok().
+    """
+    from app.models.sample_assignment import SampleAssignment
+    from app.models.user import User
+
+    dept = rc.resolve_scope_department(db, user, department_id)
+    ckey = rc.cache_key("lab_workload", user, dept, {})
+    cached = rc.cache_get(ckey)
+    if cached is not None:
+        return cached, rc.aggregate_meta(cached=True)
+
+    q = (
+        select(User.id, User.full_name, func.count(SampleAssignment.id))
+        .join(SampleAssignment, SampleAssignment.assigned_to == User.id)
+        .join(Sample, Sample.id == SampleAssignment.sample_id)
+        .where(SampleAssignment.status.in_(("assigned", "in_progress")))
+        .group_by(User.id, User.full_name)
+        .order_by(func.count(SampleAssignment.id).desc())
+    )
+    if dept is not None:
+        q = q.where(Sample.department_id == dept)
+
+    rows = db.execute(q).all()
+    data = {
+        "available": True,
+        "items": [
+            {"user_id": str(uid), "user_name": name, "count": int(cnt)}
+            for uid, name, cnt in rows
+        ],
+    }
+    rc.cache_set(ckey, data)
+    return data, rc.aggregate_meta(cached=False)
+
+
+# ======================= Bộ đếm lượt truy cập (R15 — hiển thị ở chân trang) =======================
+def get_access_counters(db: Session) -> tuple[dict, dict]:
+    """Thống kê LƯỢT TRUY CẬP trong ngày / tuần / tháng / tổng (giờ Việt Nam).
+
+    1 "lượt truy cập" = 1 khách (user đã đăng nhập, hoặc IP nếu chưa) trong 1 NGÀY
+    (visitor-day) — giống bộ đếm website, tránh phồng số do mỗi request đều ghi log.
+    Kèm page_views = tổng số lượt xem trang thô (để tham chiếu).
+    Số liệu tổng hợp, không chứa thông tin cá nhân → mọi user đã đăng nhập xem được.
+    """
+    from sqlalchemy import text as sa_text
+
+    ckey = "access_counters_v2"
+    cached = rc.cache_get(ckey)
+    if cached is not None:
+        return cached, rc.aggregate_meta(cached=True)
+
+    TZ = "Asia/Ho_Chi_Minh"
+    row = db.execute(
+        sa_text(
+            """
+            WITH v AS (
+                SELECT DISTINCT
+                    coalesce(user_id::text, host(ip), 'anon') AS visitor,
+                    (at AT TIME ZONE :tz)::date               AS d
+                FROM access_stats
+            )
+            SELECT
+              count(*) FILTER (WHERE d = (now() AT TIME ZONE :tz)::date)                      AS today,
+              count(*) FILTER (WHERE d >= date_trunc('week',  (now() AT TIME ZONE :tz))::date) AS week,
+              count(*) FILTER (WHERE d >= date_trunc('month', (now() AT TIME ZONE :tz))::date) AS month,
+              count(*)                                                                        AS total
+            FROM v
+            """
+        ),
+        {"tz": TZ},
+    ).one()
+    page_views = db.execute(
+        sa_text("SELECT count(*) FROM access_stats WHERE event_type = 'page_view'")
+    ).scalar_one()
+
+    data = {
+        "available": True,
+        "today": int(row.today or 0),
+        "week": int(row.week or 0),
+        "month": int(row.month or 0),
+        "total": int(row.total or 0),
+        "page_views": int(page_views or 0),
+    }
+    rc.cache_set(ckey, data)
+    return data, rc.aggregate_meta(cached=False)
+
+
 # ======================= ENTRYPOINT: charts =======================
 def get_charts(
     db: Session,
@@ -320,13 +462,13 @@ def get_charts(
     can_cost = rc.can_see_cost(db, user)
 
     requested = set(charts) if charts else None
-    accountant = rc.is_accountant(user)
+    office = rc.is_office(user)
 
-    # accountant xin chart mẫu → 403 (B03, AC3 FR-RPT-002)
-    if accountant and requested and (
+    # office xin chart mẫu → 403 (B03, AC3 FR-RPT-002)
+    if office and requested and (
         "samples_by_status" in requested or "samples_over_time" in requested
     ):
-        raise rc.forbidden("Kế toán không được xem biểu đồ mẫu (B03)")
+        raise rc.forbidden("Văn phòng không được xem biểu đồ mẫu (B03)")
 
     ckey = rc.cache_key(
         "charts", user, dept,
@@ -344,15 +486,17 @@ def get_charts(
     data: dict = {}
     want = lambda name: (requested is None or name in requested)
 
-    if not accountant and want("samples_by_status"):
+    if not office and want("samples_by_status"):
         data["samples_by_status"] = _safe(
             lambda: _chart_samples_by_status(db, dept), "samples_by_status"
         )
-    if not accountant and want("samples_over_time"):
+    if not office and want("samples_over_time"):
         data["samples_over_time"] = _safe(
             lambda: _chart_samples_over_time(db, dept, d_from, d_to, group_by),
             "samples_over_time",
         )
+    if want("nc_by_status"):
+        data["nc_by_status"] = _safe(lambda: _chart_nc_by_status(db), "nc_by_status")
     if want("chemical_consumption"):
         data["chemical_consumption"] = _safe(
             lambda: _chart_chemical_consumption(
@@ -374,6 +518,16 @@ def _chart_samples_by_status(db: Session, dept: Optional[uuid.UUID]) -> dict:
         conditions.append(Sample.department_id == dept)
     rows = db.execute(
         select(Sample.status, func.count()).where(*conditions).group_by(Sample.status)
+    ).all()
+    return {
+        "available": True,
+        "data": [{"status": s, "count": c} for s, c in rows],
+    }
+
+
+def _chart_nc_by_status(db: Session) -> dict:
+    rows = db.execute(
+        select(Nonconformity.status, func.count()).group_by(Nonconformity.status)
     ).all()
     return {
         "available": True,

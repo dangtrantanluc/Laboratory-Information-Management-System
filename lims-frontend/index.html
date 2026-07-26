@@ -2,15 +2,21 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Favicon: logo Trường ĐH Nông Lâm TP.HCM (nlu.png) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- viewport-fit=cover: cho phép dùng env(safe-area-inset-*) trên iPhone có notch.
+         Không đặt maximum-scale/user-scalable=no — vi phạm WCAG 1.4.4 (zoom được). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>LIMS — Quản lý Phòng Thí Nghiệm</title>
+    <title>Viện Sinh học — Quản lý Phòng Thí Nghiệm</title>
   </head>
   <body>
     <div id="root"></div>

@@ -3,16 +3,24 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Bảng màu "Botanical / Living Science": xanh lá thực vật + neutral ẤM (giấy, rêu, cát) ── */
   :root {
-    --blueberry-skin: #2f3a55;
-    --berry-bloom: #5c6b8a;
-    --stem-grey: #6e6f73;
-    --yogurt-tint: #a29f76;
-    --plate-white: #f5f6f3;
-    --text-main: #1a1a1a;
-    --text-sub: #6e6f73;
-    --border: #dcdcdc;
+    --c-blueberry: 26 110 74; /* primary — forest green (sự sống, sinh trưởng), chữ trắng ~5.2:1 */
+    --c-berry: 90 138 108; /* accent — sage/rêu (thay teal lạnh) */
+    --c-stem: 82 86 76; /* text/icon phụ — xám ngả ấm */
+    --c-yogurt: 186 160 112; /* điểm nhấn cát/hổ phách (herbarium) */
+    --c-plate: 246 247 241; /* nền app — giấy ấm (bớt mint) */
+    --c-surface: 255 255 255; /* thẻ/card/sidebar */
+    --c-surface2: 249 250 244; /* mặt nâng nhẹ — giấy nhạt */
+    --c-ink: 26 31 27; /* chữ chính — hơi ngả xanh, mềm hơn đen thuần */
+    --c-subink: 82 86 76;
+    --c-hairline: 226 228 216; /* viền tông rêu/giấy, dịu mắt */
+    --c-success: 21 128 61;
+    --c-pending: 37 99 235;
+    --c-warning: 172 96 20; /* hổ phách đậm — hoà palette hữu cơ */
+    --c-overdue: 187 51 44; /* đỏ đất thay đỏ neon */
   }
+
 
   html,
   body,
@@ -28,6 +36,28 @@
   * {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Tôn trọng thiết lập "giảm chuyển động" của hệ điều hành */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Thiết bị cảm ứng không có hover → các nút chỉ hiện khi hover (nút ghim ★,
+     nút đánh dấu đã đọc…) sẽ không bao giờ hiện. Class này ép chúng hiện.
+     Cố ý KHÔNG đặt min-height toàn cục cho button: sẽ phá vỡ các nút inline nhỏ.
+     Vùng chạm được xử lý ở component Button (size sm/md/icon). */
+  @media (hover: none) {
+    .touch-visible {
+      opacity: 1 !important;
+    }
+  }
 }
 
 @layer utilities {
@@ -41,5 +71,73 @@
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  /* ── Chiều cao viewport ──
+     100vh sai trên iOS Safari (thanh URL co giãn làm layout nhảy).
+     100dvh = dynamic viewport height. Khai báo 2 lần để trình duyệt cũ dùng fallback. */
+  .h-screen-dvh {
+    height: 100vh;
+    height: 100dvh;
+  }
+  .min-h-screen-dvh {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  /* Trần chiều cao cho bottom-sheet — luôn chừa chỗ thấy nền phía sau */
+  .max-h-sheet {
+    max-height: 92vh;
+    max-height: 92dvh;
+  }
+
+  /* ── Safe area (notch / home indicator iPhone) ──
+     Chỉ có tác dụng khi index.html đặt viewport-fit=cover. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Ghim cột đầu của bảng thô khi cuộn ngang — đặt class này lên <table>.
+     Không phải sửa từng <th>/<td>. Nền phải đục để nội dung cuộn qua không lộ. */
+  .table-sticky-1 thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: rgb(var(--c-plate));
+  }
+  .table-sticky-1 tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: rgb(var(--c-surface));
+  }
+  /* Đường phân cách để mắt nhận ra ranh giới cột dính */
+  .table-sticky-1 thead th:first-child::after,
+  .table-sticky-1 tbody td:first-child::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -1px;
+    width: 1px;
+    background-color: rgb(var(--c-hairline));
+  }
+
+  /* Cuộn ngang không hiện thanh cuộn — dùng cho tab bar, hàng nút hành động nhanh */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

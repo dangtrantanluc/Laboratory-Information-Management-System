@@ -3,7 +3,7 @@
 9 endpoint client: dashboard + charts + reports/samples + reports/chemicals +
 system-access (#10/#11) + export xlsx/pdf (#12/#13) + analytics/page-view (#14).
 
-RBAC enforce TẦNG API: accountant không thấy mẫu (B03); staff ép phòng + strip tiền;
+RBAC enforce TẦNG API: office không thấy mẫu (B03); staff ép phòng + strip tiền;
 R15 chỉ admin/leader (audit:read). Cache dashboard 60s. Bộ lọc thời gian [from,to).
 
 LƯU Ý thứ tự đăng ký: path tĩnh (/reports/samples, /reports/chemicals,
@@ -16,15 +16,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
-from app.core.responses import ok
+from app.core.rate_limit import rate_limit
 from app.db.database import get_db
 from app.schemas.reporting import PageViewRequest
 from app.services import (
     access_stat_service,
     dashboard_service,
-    m6_export_service,
-    m6_report_service,
+    report_export_service,
+    unified_report_service,
     report_common as rc,
     system_access_service,
 )
@@ -36,10 +37,6 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 def _csv(value: Optional[str]) -> Optional[list[str]]:
@@ -74,7 +71,9 @@ def get_charts(
 ):
     chart_list = _csv(charts)
     if chart_list:
-        valid = {"samples_by_status", "samples_over_time", "chemical_consumption"}
+        valid = {
+            "samples_by_status", "samples_over_time", "chemical_consumption", "nc_by_status",
+        }
         bad = [c for c in chart_list if c not in valid]
         if bad:
             raise rc.err("VALIDATION_ERROR", f"charts không hợp lệ: {bad}")
@@ -82,6 +81,27 @@ def get_charts(
         db, user=user, date_from=date_from, date_to=date_to,
         department_id=department_id, group_by=group_by, charts=chart_list,
     )
+    return {"success": True, "data": data, "meta": meta}
+
+
+@router.get("/access-counters")
+def get_access_counters(
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lượt truy cập trong ngày/tuần/tháng/tổng — hiển thị ở chân trang."""
+    data, meta = dashboard_service.get_access_counters(db)
+    return {"success": True, "data": data, "meta": meta}
+
+
+@router.get("/dashboard/lab-workload")
+def get_lab_workload(
+    department_id: Optional[uuid.UUID] = Query(default=None),
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Tải công việc theo KTV (assignment đang xử lý) — phục vụ dashboard Trưởng phòng lab."""
+    data, meta = dashboard_service.get_lab_workload(db, user=user, department_id=department_id)
     return {"success": True, "data": data, "meta": meta}
 
 
@@ -98,7 +118,7 @@ def report_samples(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data, meta = m6_report_service.report_samples(
+    data, meta = unified_report_service.report_samples(
         db, user=user, date_from=date_from, date_to=date_to,
         department_id=department_id, group_by=group_by,
         status_filter=status_filter, time_field=time_field, breakdown=breakdown,
@@ -118,7 +138,7 @@ def report_chemicals(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    data, meta = m6_report_service.report_chemicals(
+    data, meta = unified_report_service.report_chemicals(
         db, user=user, date_from=date_from, date_to=date_to,
         department_id=department_id, group_by=group_by,
         measurement_group=measurement_group, chemical_id=chemical_id, metric=metric,
@@ -166,7 +186,10 @@ def system_access_user(
 
 
 # ===================== M6.4 Export (động — đăng ký SAU path tĩnh) =====================
-@router.get("/reports/{report_type}/export.xlsx")
+@router.get(
+    "/reports/{report_type}/export.xlsx",
+    dependencies=[Depends(rate_limit("report-export", limit=10, window_seconds=60))],
+)
 def export_xlsx(
     report_type: str,
     request: Request,
@@ -194,9 +217,9 @@ def export_xlsx(
         "metric": metric, "user_id": filter_user_id, "action_type": action_type,
         "top_n": top_n, "due_within_days": due_within_days,
     }
-    content, filename = m6_export_service.export_xlsx(
+    content, filename = report_export_service.export_xlsx(
         db, user=user, report_type=report_type, params=params,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return Response(
         content=content,
@@ -208,7 +231,10 @@ def export_xlsx(
     )
 
 
-@router.get("/reports/{report_type}/export.pdf")
+@router.get(
+    "/reports/{report_type}/export.pdf",
+    dependencies=[Depends(rate_limit("report-export", limit=10, window_seconds=60))],
+)
 def export_pdf(
     report_type: str,
     request: Request,
@@ -216,16 +242,18 @@ def export_pdf(
     date_to: Optional[date] = Query(default=None, alias="to"),
     department_id: Optional[uuid.UUID] = Query(default=None),
     due_within_days: int = Query(default=30, ge=1, le=90),
+    group_by: str = Query(default="month"),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     params = {
         "date_from": date_from, "date_to": date_to,
         "department_id": department_id, "due_within_days": due_within_days,
+        "group_by": group_by,
     }
-    content, filename = m6_export_service.export_pdf(
+    content, filename = report_export_service.export_pdf(
         db, user=user, report_type=report_type, params=params,
-        correlation_id=_cid(request), ip=_ip(request),
+        correlation_id=_cid(request), ip=client_ip(request),
     )
     return Response(
         content=content,
@@ -251,6 +279,6 @@ def page_view(
     if access_stat_service.is_whitelisted(path):
         access_stat_service.record(
             db, user_id=user.id, path=path, method="PAGE_VIEW",
-            status_code=200, ip=_ip(request), event_type="page_view",
+            status_code=200, ip=client_ip(request), event_type="page_view",
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

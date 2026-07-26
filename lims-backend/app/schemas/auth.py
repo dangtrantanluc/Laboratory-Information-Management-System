@@ -32,6 +32,58 @@ class ChangePasswordRequest(BaseModel):
         return v
 
 
+class RegisterRequest(BaseModel):
+    """Tự đăng ký (m30). KHÔNG nhận role/department_id — tài khoản luôn vào trạng thái
+    'pending' và Quản trị viên là người gán vai trò lúc duyệt (chặn tự cấp quyền)."""
+
+    email: Email
+    full_name: str = Field(min_length=2, max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("password")
+    @classmethod
+    def _strength(cls, v: str) -> str:
+        if not _PWD_STRENGTH.match(v):
+            raise ValueError("Mật khẩu phải có cả chữ và số, tối thiểu 8 ký tự")
+        return v
+
+    @field_validator("full_name")
+    @classmethod
+    def _trim_name(cls, v: str) -> str:
+        cleaned = " ".join(v.split())
+        if len(cleaned) < 2:
+            raise ValueError("Họ tên quá ngắn")
+        return cleaned
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: Email
+
+    model_config = {"extra": "forbid"}
+
+
+class ResetPasswordWithTokenRequest(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+    new_password: str = Field(min_length=8, max_length=128)
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("new_password")
+    @classmethod
+    def _strength(cls, v: str) -> str:
+        if not _PWD_STRENGTH.match(v):
+            raise ValueError("Mật khẩu phải có cả chữ và số, tối thiểu 8 ký tự")
+        return v
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=16, max_length=512)
+
+    model_config = {"extra": "forbid"}
+
+
 class UpdateMeRequest(BaseModel):
     """Tự cập nhật hồ sơ cá nhân. CHỈ họ tên + email — vai trò/phòng ban do admin
     quản lý (chặn leo thang đặc quyền), KHÔNG nhận ở đây."""

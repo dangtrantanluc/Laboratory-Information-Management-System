@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
@@ -49,7 +50,7 @@ def run_capa_due(
 ) -> dict:
     """CRON-7 — quét CAPA đang mở tới/quá hạn, nhắc in-app owner idempotent."""
     if not _acquire_lock(_LOCK_KEY):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-7 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-7 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = as_of_date or now.date()
@@ -103,11 +104,8 @@ def run_capa_due(
             by_milestone[ms] += 1
             db.flush()
 
-        db.commit()
-    finally:
-        _release_lock(_LOCK_KEY)
-
-    try:
+        # Ghi audit CRON trong CÙNG transaction với notifications → 1 commit duy nhất
+        # (PRODUCTION_READINESS_REVIEW L3: tránh notifications commit mà audit bị mất).
         audit_service.log_action(
             db,
             action="CRON_CAPA_REMINDER",
@@ -117,8 +115,8 @@ def run_capa_due(
             detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
         )
         db.commit()
-    except Exception:  # noqa: BLE001
-        db.rollback()
+    finally:
+        _release_lock(_LOCK_KEY)
 
     logger.info(
         "CRON-7 capa-due done",

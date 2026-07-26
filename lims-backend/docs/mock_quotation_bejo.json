@@ -1,0 +1,99 @@
+{
+ "customer": {
+  "name": "CÔNG TY TNHH BEJO VIỆT NAM",
+  "address": "Tầng 7, Tòa nhà Millennium, Số 4 Quang Trung, Phường Hà Đông, TP Hà Nội, Việt \nNam",
+  "email": null,
+  "phone": null
+ },
+ "items": [
+  {
+   "sample_name": "Hạt ớt",
+   "parameter_name": "Xanthomonas euvesicatoria pv. euvesicatoria",
+   "quantity": 12,
+   "unit_price": "2200000",
+   "amount_file": 26400000.0
+  },
+  {
+   "sample_name": "Hạt ớt",
+   "parameter_name": "Xanthomonas hortorum pv. gardneri",
+   "quantity": 12,
+   "unit_price": "2200000",
+   "amount_file": 26400000.0
+  },
+  {
+   "sample_name": "Hạt ớt",
+   "parameter_name": "Xanthomonas euvesicatoria pv. perforans",
+   "quantity": 12,
+   "unit_price": "2200000",
+   "amount_file": 26400000.0
+  },
+  {
+   "sample_name": "Hạt ớt",
+   "parameter_name": "Xanthomonas vesicatoria",
+   "quantity": 12,
+   "unit_price": "2200000",
+   "amount_file": 26400000.0
+  },
+  {
+   "sample_name": "Hạt ớt",
+   "parameter_name": "Potato spindle tuber viroid (PSTVd)",
+   "quantity": 12,
+   "unit_price": "1500000",
+   "amount_file": 18000000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Clavibacter michiganensis",
+   "quantity": 6,
+   "unit_price": "2200000",
+   "amount_file": 13200000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Xanthomonas euvesicatoria pv. euvesicatoria",
+   "quantity": 6,
+   "unit_price": "2200000",
+   "amount_file": 13200000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Xanthomonas hortorum pv. gardneri",
+   "quantity": 6,
+   "unit_price": "2200000",
+   "amount_file": 13200000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Xanthomonas euvesicatoria pv. perforans",
+   "quantity": 6,
+   "unit_price": "2200000",
+   "amount_file": 13200000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Xanthomonas vesicatoria",
+   "quantity": 6,
+   "unit_price": "2200000",
+   "amount_file": 13200000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Potato spindle tuber viroid (PSTVd)",
+   "quantity": 6,
+   "unit_price": "1500000",
+   "amount_file": 9000000.0
+  },
+  {
+   "sample_name": "Hạt cà chua",
+   "parameter_name": "Pepino mosaic virus (PepMV)",
+   "quantity": 6,
+   "unit_price": "1500000",
+   "amount_file": 9000000.0
+  }
+ ],
+ "file_totals": {
+  "subtotal": 207600000.0,
+  "vat": 16608000.0,
+  "total": 224208000.0
+ }
+}

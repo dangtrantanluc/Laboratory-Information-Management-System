@@ -24,7 +24,7 @@ def sample_on_time(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     if date_from > date_to:
         raise validation_error("date_from phải <= date_to")
     if group_by not in ("department", "user"):

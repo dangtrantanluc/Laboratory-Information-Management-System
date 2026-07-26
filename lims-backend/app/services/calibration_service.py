@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.attachment import Attachment
@@ -73,7 +74,7 @@ def list_calibrations(
 ) -> tuple[list[dict], int]:
     ec.get_equipment_or_404(db, equipment_id)
     if result and result not in ("pass", "fail"):
-        raise AppException("VALIDATION_ERROR", "result không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "result không hợp lệ", 400)
 
     conditions = [CalibrationRecord.equipment_id == equipment_id]
     if result:
@@ -136,7 +137,7 @@ def download_cert(
     cert = _cert_attachment(db, rec.id)
     if cert is None:
         raise AppException(
-            "CERT_NOT_FOUND", "Bản ghi hiệu chuẩn không có giấy chứng nhận", 404
+            ErrorCode.CERT_NOT_FOUND, "Bản ghi hiệu chuẩn không có giấy chứng nhận", 404
         )
 
     from datetime import datetime, timedelta, timezone
@@ -192,12 +193,12 @@ def create_calibration(
     # Validate result
     if result not in ("pass", "fail"):
         raise AppException(
-            "INVALID_CALIBRATION_RESULT", "Kết quả phải là pass hoặc fail", 422
+            ErrorCode.INVALID_CALIBRATION_RESULT, "Kết quả phải là pass hoặc fail", 422
         )
     # Validate calibrated_at ≤ today (BR-EQP-005)
     if calibrated_at > date.today():
         raise AppException(
-            "INVALID_CALIBRATION_DATE",
+            ErrorCode.INVALID_CALIBRATION_DATE,
             "Ngày hiệu chuẩn không được ở tương lai. Hiệu chuẩn là sự kiện đã xảy ra.",
             422,
             [{"field": "calibrated_at", "value": calibrated_at.isoformat()}],
@@ -205,7 +206,7 @@ def create_calibration(
     # CoC bắt buộc khi result=pass (OQ#4 default)
     if result == "pass" and not cert_content:
         raise AppException(
-            "CALIBRATION_CERT_REQUIRED",
+            ErrorCode.CALIBRATION_CERT_REQUIRED,
             "Cần đính kèm giấy chứng nhận (CoC) khi kết quả là 'đạt'",
             400,
         )
@@ -213,11 +214,11 @@ def create_calibration(
     if cert_content:
         if cert_mime is None or cert_mime.lower() not in ec.ALLOWED_CERT_MIME:
             raise AppException(
-                "INVALID_FILE_TYPE", "CoC chỉ chấp nhận PDF/PNG/JPG", 422
+                ErrorCode.INVALID_FILE_TYPE, "CoC chỉ chấp nhận PDF/PNG/JPG", 422
             )
         if len(cert_content) > settings.max_upload_size_bytes:
             raise AppException(
-                "FILE_TOO_LARGE",
+                ErrorCode.FILE_TOO_LARGE,
                 f"CoC vượt quá {settings.max_upload_size_bytes // (1024 * 1024)}MB",
                 422,
             )
@@ -225,13 +226,13 @@ def create_calibration(
     if next_due_date_override is not None:
         if not override_reason or not override_reason.strip():
             raise AppException(
-                "OVERRIDE_REASON_REQUIRED",
+                ErrorCode.OVERRIDE_REASON_REQUIRED,
                 "Cần lý do khi override ngày hiệu chuẩn kế tiếp",
                 400,
             )
         if next_due_date_override <= calibrated_at:
             raise AppException(
-                "INVALID_DATE_ORDER",
+                ErrorCode.INVALID_DATE_ORDER,
                 "Ngày kế tiếp phải sau ngày hiệu chuẩn",
                 422,
             )
@@ -245,7 +246,7 @@ def create_calibration(
         prev = db.get(CalibrationRecord, correction_of)
         if prev is None or prev.equipment_id != eq.id:
             raise AppException(
-                "CALIBRATION_NOT_FOUND",
+                ErrorCode.CALIBRATION_NOT_FOUND,
                 "Bản ghi cần đính chính không thuộc thiết bị này",
                 404,
             )
@@ -261,7 +262,7 @@ def create_calibration(
         overridden = False
         if next_due is None:
             raise AppException(
-                "CALIBRATION_CYCLE_REQUIRED",
+                ErrorCode.CALIBRATION_CYCLE_REQUIRED,
                 "Thiết bị chưa cấu hình chu kỳ hiệu chuẩn. Hãy cấu hình chu kỳ hoặc "
                 "nhập ngày hiệu chuẩn kế tiếp thủ công (next_due_date_override).",
                 422,
@@ -285,7 +286,7 @@ def create_calibration(
                 extra={"correlationId": correlation_id, "error": str(exc)},
             )
             raise AppException(
-                "STORAGE_UNAVAILABLE", "Không thể tải CoC lên kho lưu trữ", 503
+                ErrorCode.STORAGE_UNAVAILABLE, "Không thể tải CoC lên kho lưu trữ", 503
             )
 
     rec = CalibrationRecord(

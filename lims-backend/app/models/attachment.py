@@ -21,6 +21,15 @@ VALID_OWNER_TYPES = (
     "calibration",
     "hr_profile",
     "publication",
+    "form_template",
+    "form_submission",
+    "sample_intake",
+    "sample_dispatch",
+    "research_project",
+    "research_contract",
+    "teaching_course",
+    "staff_activity",
+    "training_certificate",
 )
 
 
@@ -50,7 +59,9 @@ class Attachment(Base):
         CheckConstraint(
             "owner_type IN ('test_request', 'sample', 'sample_result', 'chemical', "
             "'chem_lot', 'document', 'document_version', 'equipment', 'calibration', "
-            "'hr_profile', 'publication')",
+            "'hr_profile', 'publication', 'form_template', 'form_submission', "
+            "'sample_intake', 'sample_dispatch', 'research_project', 'research_contract', "
+            "'teaching_course', 'staff_activity', 'training_certificate')",
             name="ck_att_owner_type",
         ),
         CheckConstraint("size IS NULL OR size >= 0", name="ck_att_size"),

@@ -29,6 +29,13 @@ function uuid(): string {
   });
 }
 
+// Correlation-id của request gần nhất — ErrorBoundary hiển thị cho người dùng
+// đọc cho quản trị viên, để tra đúng dòng log tương ứng.
+let _lastCorrelationId: string | null = null;
+export function getLastCorrelationId(): string | null {
+  return _lastCorrelationId;
+}
+
 export class ApiError extends Error {
   code: string;
   status: number;
@@ -59,6 +66,8 @@ interface RequestOptions {
   /** Nhận blob (file PDF / Excel) thay vì JSON. */
   raw?: boolean;
   signal?: AbortSignal;
+  /** Header bổ sung (vd Idempotency-Key). */
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
@@ -112,11 +121,13 @@ export function setOnSessionExpired(cb: (() => void) | null) {
 
 async function rawRequest(path: string, opts: RequestOptions, token: string | null): Promise<Response> {
   const correlationId = uuid();
+  _lastCorrelationId = correlationId;
   const headers: Record<string, string> = {
     'x-correlation-id': correlationId,
     Accept: opts.raw ? '*/*' : 'application/json',
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  Object.assign(headers, opts.headers ?? {});
   let body: BodyInit | undefined;
   if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -188,8 +199,29 @@ export async function apiGetPaged<T>(
 ): Promise<ApiResult<T>> {
   return request<T>(path, { method: 'GET', query });
 }
-export async function apiPost<T>(path: string, body?: unknown, query?: RequestOptions['query']): Promise<T> {
-  return (await request<T>(path, { method: 'POST', body, query })).data;
+export async function apiPost<T>(
+  path: string,
+  body?: unknown,
+  query?: RequestOptions['query'],
+  /**
+   * Idempotency-Key. Backend đã có IdempotencyMiddleware nhưng nó là opt-in và
+   * frontend chưa bao giờ gửi header này, nên middleware chưa từng kích hoạt.
+   *
+   * Sinh tự động ở đây ⇒ lần retry sau 401→refresh dùng LẠI đúng key, không tạo
+   * bản ghi trùng. Muốn chặn cả double-click thì component phải tự sinh key và
+   * giữ trong ref rồi truyền vào — vì mỗi lần bấm là một lời gọi apiPost mới.
+   */
+  idempotencyKey?: string,
+): Promise<T> {
+  const key = idempotencyKey ?? crypto.randomUUID();
+  return (
+    await request<T>(path, {
+      method: 'POST',
+      body,
+      query,
+      headers: { 'Idempotency-Key': key },
+    })
+  ).data;
 }
 export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return (await request<T>(path, { method: 'PATCH', body })).data;
@@ -224,6 +256,7 @@ export async function apiUpload<T>(path: string, file: File, fieldName = 'file')
   const form = new FormData();
   form.append(fieldName, file);
   const correlationId = uuid();
+  _lastCorrelationId = correlationId;
   const headers: Record<string, string> = { 'x-correlation-id': correlationId };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;

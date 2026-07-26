@@ -14,40 +14,29 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, unprocessable, validation_error
 from app.models.attachment import Attachment
 from app.models.document import Document, DocumentVersion
-from app.services import audit_service, document_common as dc, notification_service, storage_service
+from app.services import attachment_common, audit_service, document_common as dc, notification_service, storage_service
 
-# Whitelist MIME tài liệu (BR-DOC-013): PDF/DOCX/XLSX/PNG/JPG
-_ALLOWED_MIME = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/msword",
-    "application/vnd.ms-excel",
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-}
+# Whitelist MIME tài liệu (BR-DOC-013): PDF/DOCX/XLSX/PNG/JPG — allowlist nền tảng
+# dùng chung (attachment_common.GENERIC_ALLOWED_MIME) đã bao gồm đúng bộ này.
+_ALLOWED_MIME = attachment_common.GENERIC_ALLOWED_MIME
 _OWNER_TYPE = "document_version"
 
 
 def _check_mime(mime: Optional[str]) -> None:
     if mime is None or mime.lower() not in _ALLOWED_MIME:
         raise unprocessable(
-            "INVALID_FILE_TYPE",
+            ErrorCode.INVALID_FILE_TYPE,
             "Định dạng tệp không hợp lệ (chỉ PDF/DOCX/XLSX/PNG/JPG)",
         )
 
 
 def _check_size(content: bytes) -> None:
-    if len(content) > settings.max_upload_size_bytes:
-        raise unprocessable(
-            "FILE_TOO_LARGE",
-            f"Tệp vượt quá giới hạn {settings.max_upload_size_bytes // (1024 * 1024)}MB",
-        )
+    attachment_common.check_size(content)
 
 
 def _version_file(db: Session, version_id: uuid.UUID) -> Optional[Attachment]:
@@ -143,7 +132,7 @@ def create_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -155,7 +144,7 @@ def create_version(
     ).scalar_one()
     if existing_count >= 1 and not (change_note and change_note.strip()):
         raise AppException(
-            "CHANGE_NOTE_REQUIRED",
+            ErrorCode.CHANGE_NOTE_REQUIRED,
             "Bắt buộc ghi chú thay đổi từ phiên bản thứ 2",
             400,
         )
@@ -172,7 +161,7 @@ def create_version(
     ).scalar_one()
     if open_exists > 0:
         raise AppException(
-            "DRAFT_ALREADY_EXISTS",
+            ErrorCode.DRAFT_ALREADY_EXISTS,
             "Đã có phiên bản đang soạn/chờ duyệt — hoàn tất trước khi tạo mới",
             409,
         )
@@ -239,7 +228,7 @@ def update_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -248,7 +237,7 @@ def update_version(
         raise dc.forbidden("Bạn không có quyền sửa phiên bản này")
     if version.status != "draft":
         raise unprocessable(
-            "VERSION_LOCKED",
+            ErrorCode.VERSION_LOCKED,
             "Chỉ phiên bản nháp được sửa (đã gửi duyệt/ban hành thì bất biến)",
         )
     if change_note is None and content is None:
@@ -306,7 +295,7 @@ def submit_review(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -318,7 +307,7 @@ def submit_review(
         )
     if _version_file(db, version.id) is None:
         raise unprocessable(
-            "VERSION_FILE_REQUIRED", "Phiên bản chưa có tệp đính kèm để gửi duyệt"
+            ErrorCode.VERSION_FILE_REQUIRED, "Phiên bản chưa có tệp đính kèm để gửi duyệt"
         )
 
     version.submitted_by = user.id
@@ -385,7 +374,7 @@ def approve_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     # row-lock document → tuần tự hóa approve cùng tài liệu (NFR-CONCUR-DOC-001)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
@@ -395,7 +384,7 @@ def approve_version(
     # tách soạn–duyệt (BR-DOC-009, §8.3.2)
     if version.created_by == user.id:
         raise AppException(
-            "SELF_APPROVAL_FORBIDDEN",
+            ErrorCode.SELF_APPROVAL_FORBIDDEN,
             "Người duyệt phải khác người soạn phiên bản (tách trách nhiệm §8.3.2)",
             403,
             details=[{"field": "approved_by", "created_by": str(version.created_by)}],
@@ -483,7 +472,7 @@ def approve_version(
         # uq_doc_one_approved race — bản approved thứ 2 bị DB chặn (NFR-INTEG-DOC-001)
         db.rollback()
         raise AppException(
-            "VERSION_CONFLICT",
+            ErrorCode.VERSION_CONFLICT,
             "Tài liệu vừa được ban hành phiên bản khác — vui lòng tải lại",
             409,
         )
@@ -524,7 +513,7 @@ def reject_version(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     version = dc.get_version_or_404(db, document_id, version_id, lock=True)
 
@@ -532,7 +521,7 @@ def reject_version(
         raise dc.forbidden("Chỉ trưởng nhóm phòng / lãnh đạo / admin được từ chối")
     if not (reject_reason and reject_reason.strip()):
         raise AppException(
-            "REJECT_REASON_REQUIRED", "Phải nhập lý do từ chối", 400
+            ErrorCode.REJECT_REASON_REQUIRED, "Phải nhập lý do từ chối", 400
         )
     if version.status != "review":
         raise dc.invalid_state(
@@ -605,14 +594,14 @@ def download_version(
     # hiển thị version theo trạng thái (BR-DOC-011)
     if not dc.can_view_unpublished_version(user, doc, version):
         raise AppException(
-            "VERSION_NOT_PUBLISHED",
+            ErrorCode.VERSION_NOT_PUBLISHED,
             "Phiên bản chưa ban hành — bạn không có quyền tải",
             403,
         )
-    # kế toán chỉ tải approved (BR-DOC-005)
-    if user.role == "accountant" and version.status != "approved":
+    # văn phòng chỉ tải approved (BR-DOC-005)
+    if user.role == "office" and version.status != "approved":
         raise AppException(
-            "VERSION_NOT_PUBLISHED", "Kế toán chỉ được tải phiên bản đã ban hành", 403
+            ErrorCode.VERSION_NOT_PUBLISHED, "Văn phòng chỉ được tải phiên bản đã ban hành", 403
         )
 
     att = _version_file(db, version.id)
@@ -625,7 +614,7 @@ def download_version(
         )
     except Exception as exc:  # noqa: BLE001
         raise AppException(
-            "STORAGE_UNAVAILABLE", "Kho lưu trữ tạm thời không khả dụng", 503
+            ErrorCode.STORAGE_UNAVAILABLE, "Kho lưu trữ tạm thời không khả dụng", 503
         ) from exc
 
     is_obsolete = version.status == "obsolete"
@@ -710,7 +699,7 @@ def get_version(
     version = dc.get_version_or_404(db, document_id, version_id)
     if not dc.can_view_unpublished_version(user, doc, version):
         raise AppException(
-            "VERSION_NOT_PUBLISHED",
+            ErrorCode.VERSION_NOT_PUBLISHED,
             "Phiên bản chưa ban hành — bạn không có quyền xem",
             403,
         )
@@ -728,7 +717,7 @@ def list_pending_review(
     page: int,
     limit: int,
 ) -> tuple[list[dict], int]:
-    dc.deny_accountant_write(user)  # nghiệp vụ quản lý — kế toán cấm
+    dc.deny_office_write(user)  # nghiệp vụ quản lý — văn phòng cấm
     if not (dc.is_privileged(user) or user.is_dept_lead):
         raise dc.forbidden("Chỉ trưởng nhóm / lãnh đạo / admin xem hàng chờ duyệt")
 

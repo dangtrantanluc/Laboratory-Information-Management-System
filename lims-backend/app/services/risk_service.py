@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.nonconformity import Nonconformity
@@ -132,7 +133,7 @@ def create_risk(
             db.rollback()
             entity = None
             if attempt == 4:
-                raise AppException("RISK_CODE_CONFLICT", "Không sinh được mã, thử lại", 409)
+                raise AppException(ErrorCode.RISK_CODE_CONFLICT, "Không sinh được mã, thử lại", 409)
     assert entity is not None
 
     audit_service.log_action(
@@ -153,7 +154,7 @@ def update_risk(
     if not (entity.created_by == user.id or rc.is_quality_manager(user)):
         raise rc.forbidden("Chỉ người tạo hoặc QM được sửa")
     if entity.status == "closed":
-        raise AppException("RISK_CLOSED", "Rủi ro đã đóng — không thể sửa", 409)
+        raise AppException(ErrorCode.RISK_CLOSED, "Rủi ro đã đóng — không thể sửa", 409)
 
     for field in ("title", "context", "likelihood", "impact", "process_ref", "status", "owner_id", "next_review_date"):
         if field in changes:
@@ -177,7 +178,7 @@ def add_treatment(
     rc.assert_can_manage(user)
     entity = rc.get_risk_or_404(db, risk_id)
     if entity.status == "closed":
-        raise AppException("RISK_CLOSED", "Rủi ro đã đóng — không thể thêm biện pháp", 409)
+        raise AppException(ErrorCode.RISK_CLOSED, "Rủi ro đã đóng — không thể thêm biện pháp", 409)
 
     t = RiskTreatment(
         risk_id=entity.id,
@@ -215,7 +216,7 @@ def update_treatment(
     entity = rc.get_risk_or_404(db, risk_id)
     t = db.get(RiskTreatment, treatment_id)
     if t is None or t.risk_id != entity.id:
-        raise AppException("TREATMENT_NOT_FOUND", "Không tìm thấy biện pháp", 404)
+        raise AppException(ErrorCode.TREATMENT_NOT_FOUND, "Không tìm thấy biện pháp", 404)
     t.status = new_status
     t.done_at = datetime.now(timezone.utc) if new_status == "done" else None
     audit_service.log_action(
@@ -235,7 +236,7 @@ def close_risk(
     rc.assert_can_manage(user)
     entity = rc.get_risk_or_404(db, risk_id, lock=True)
     if entity.status == "closed":
-        raise AppException("RISK_CLOSED", "Rủi ro đã đóng", 409)
+        raise AppException(ErrorCode.RISK_CLOSED, "Rủi ro đã đóng", 409)
     entity.status = "closed"
     entity.closed_by = user.id
     entity.closed_at = datetime.now(timezone.utc)
@@ -307,7 +308,7 @@ def create_improvement(
             db.rollback()
             entity = None
             if attempt == 4:
-                raise AppException("IMP_CODE_CONFLICT", "Không sinh được mã, thử lại", 409)
+                raise AppException(ErrorCode.IMP_CODE_CONFLICT, "Không sinh được mã, thử lại", 409)
     assert entity is not None
     audit_service.log_action(
         db, action="IMPROVEMENT_CREATE", resource="improvement", user_id=user.id,
@@ -327,7 +328,7 @@ def update_improvement(
         raise rc.forbidden("Chỉ người tạo hoặc QM được sửa")
     if "linked_nc_id" in changes and changes["linked_nc_id"] is not None:
         if db.get(Nonconformity, changes["linked_nc_id"]) is None:
-            raise AppException("NC_NOT_FOUND", "Phiếu NC liên kết không tồn tại", 404)
+            raise AppException(ErrorCode.NC_NOT_FOUND, "Phiếu NC liên kết không tồn tại", 404)
     for field in ("status", "owner_id", "linked_nc_id"):
         if field in changes:
             setattr(entity, field, changes[field])

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateImprovement, canManageRisk } from '@/lib/rbac';
@@ -29,14 +30,16 @@ export function Improvements() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState<ImprovementStatus | ''>('');
   const [source, setSource] = useState<ImprovementSource | ''>('');
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<ImprovementItem | null>(null);
 
   const { data, loading, reload } = useAsync(
-    () => riskApi.listImprovements({ q: q || undefined, status: status || undefined, source: source || undefined, limit: 100 }),
-    [q, status, source],
+    () => riskApi.listImprovements({ q: dq || undefined, status: status || undefined, source: source || undefined, limit: 100 }),
+    [dq, status, source],
   );
 
   const columns: Column<ImprovementItem>[] = [
@@ -71,14 +74,14 @@ export function Improvements() {
       />
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="max-w-xs flex-1" />
-          <Select value={source} onChange={(e) => setSource(e.target.value as ImprovementSource | '')} className="max-w-[180px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Mã hoặc tiêu đề…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={source} onChange={(e) => setSource(e.target.value as ImprovementSource | '')} className="w-full sm:max-w-[180px]">
             <option value="">Mọi nguồn</option>
             {(Object.keys(IMPROVEMENT_SOURCE_LABELS) as ImprovementSource[]).map((s) => (
               <option key={s} value={s}>{IMPROVEMENT_SOURCE_LABELS[s]}</option>
             ))}
           </Select>
-          <Select value={status} onChange={(e) => setStatus(e.target.value as ImprovementStatus | '')} className="max-w-[180px]">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as ImprovementStatus | '')} className="w-full sm:max-w-[180px]">
             <option value="">Mọi trạng thái</option>
             {(Object.keys(IMPROVEMENT_STATUS_LABELS) as ImprovementStatus[]).map((s) => (
               <option key={s} value={s}>{IMPROVEMENT_STATUS_LABELS[s]}</option>

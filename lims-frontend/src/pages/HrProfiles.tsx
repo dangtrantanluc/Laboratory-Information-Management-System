@@ -12,6 +12,7 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatMoney, daysUntil } from '@/lib/format';
 import { canManageHr } from '@/lib/rbac';
@@ -38,17 +39,19 @@ export function HrProfiles() {
   const navigate = useNavigate();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [departmentId, setDepartmentId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, loading, reload } = useAsync(
     () =>
       hrApi.listProfiles({
-        q: q || undefined,
+        q: dq || undefined,
         department_id: departmentId || undefined,
         limit: 100,
       }),
-    [q, departmentId],
+    [dq, departmentId],
   );
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 
@@ -113,11 +116,11 @@ export function HrProfiles() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Tên hoặc email…" className="max-w-xs flex-1" />
+          <SearchInput value={q} onChange={setQ} placeholder="Tên hoặc email…" className="w-full sm:max-w-xs sm:flex-1" />
           <Select
             value={departmentId}
             onChange={(e) => setDepartmentId(e.target.value)}
-            className="max-w-[220px]"
+            className="w-full sm:max-w-[220px]"
           >
             <option value="">Mọi phòng ban</option>
             {(depts?.data ?? []).map((d) => (
@@ -197,8 +200,8 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Người dùng" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Người dùng" required className="md:col-span-2">
           <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
             <option value="">— Chọn người dùng —</option>
             {(users?.data ?? []).map((u) => (
@@ -214,7 +217,7 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         <Field label="Ngày vào làm">
           <Input type="date" value={hiredDate} onChange={(e) => setHiredDate(e.target.value)} />
         </Field>
-        <Field label="Số điện thoại" className="sm:col-span-2">
+        <Field label="Số điện thoại" className="md:col-span-2">
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xx…" />
         </Field>
       </div>

@@ -1,10 +1,11 @@
-"""Router customers (M7/chung) — admin/leader/staff đọc; admin/staff ghi; accountant CẤM."""
+"""Router customers (M7/chung) — admin/leader/staff đọc; admin/staff ghi; office CẤM."""
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, require_roles
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -13,16 +14,12 @@ from app.services import customer_service
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
-read_roles = require_roles("admin", "leader", "staff")  # accountant cấm (B03)
-write_roles = require_roles("admin", "staff")
+read_roles = require_roles("admin", "leader", "staff", "reception", "lab_manager")  # office cấm (B03)
+write_roles = require_roles("admin", "staff", "reception")  # Khách hàng thuộc Phòng nhận mẫu (GĐ2)
 
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 @router.get("")
@@ -30,7 +27,7 @@ def list_customers(
     q: Optional[str] = Query(default=None, max_length=100),
     type_filter: Optional[str] = Query(default=None, alias="type"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(read_roles),
     db: Session = Depends(get_db),
 ):
@@ -56,7 +53,7 @@ def create_customer(
         type=body.type,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -85,6 +82,6 @@ def update_customer(
         customer_id=customer_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)

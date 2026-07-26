@@ -1,0 +1,13 @@
+# ===== Dev-only deps (không cài vào image production) =====
+-r requirements.txt
+
+pytest==9.1.1
+ruff==0.15.22
+
+# fastapi.testclient (starlette.testclient) yêu cầu httpx. app/tests/middleware/
+# test_idempotency.py import TestClient nên THIẾU gói này là pytest dừng ở bước
+# collection — 0 test chạy được, kể cả các test không liên quan.
+httpx==0.28.1
+
+# Đo vùng phủ (T2.3) — ngưỡng chỉ tăng, không giảm.
+pytest-cov==7.0.0

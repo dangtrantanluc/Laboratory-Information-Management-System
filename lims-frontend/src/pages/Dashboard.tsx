@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   AlertTriangle,
+  AlertOctagon,
   Clock,
   CheckCircle2,
   Wrench,
@@ -14,6 +15,10 @@ import {
   Wallet,
   RefreshCw,
   FileDown,
+  ShieldAlert,
+  Layers,
+  FolderArchive,
+  Lightbulb,
 } from 'lucide-react';
 import {
   BarChart,
@@ -30,6 +35,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import { useChartHeight, useChartCompact } from '@/lib/useChart';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -37,23 +43,44 @@ import { LoadingState, EmptyState } from '@/components/ui/States';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useAsync } from '@/lib/useAsync';
-import { SAMPLE_STATUS_LABELS, MEASUREMENT_GROUP_LABELS } from '@/types';
+import { SAMPLE_STATUS_LABELS, MEASUREMENT_GROUP_LABELS, NC_STATUS_LABELS } from '@/types';
 import { canViewCost } from '@/lib/rbac';
 import { describeError } from '@/lib/errors';
 import * as reportingApi from '@/api/reporting';
 import { formatDateTime, formatNumber } from '@/lib/format';
+import { QmsDashboard } from './dashboards/QmsDashboard';
+import { StaffDashboard } from './dashboards/StaffDashboard';
+import { LabManagerDashboard } from './dashboards/LabManagerDashboard';
+import { ReceptionDashboard } from './dashboards/ReceptionDashboard';
+import { OfficeDashboard } from './dashboards/OfficeDashboard';
+import { LeaderDashboard } from './dashboards/LeaderDashboard';
 
-const PIE_COLORS = ['#5c6b8a', '#a29f76', '#3b82f6', '#ef4444', '#22c55e', '#8b5cf6'];
+const PIE_COLORS = ['#0d8256', '#0e7c86', '#a29f76', '#2563eb', '#ef4444', '#7c3aed'];
 
 export function Dashboard() {
+  const chartH = useChartHeight();
+  const { isMobile, xAxis, yAxis, legend } = useChartCompact();
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const showCost = canViewCost(user);
   const [exporting, setExporting] = useState(false);
 
+  // Dashboard chuyên biệt theo vai trò.
+  if (user?.role === 'qms') return <QmsDashboard />;
+  if (user?.role === 'staff') return <StaffDashboard />;
+  if (user?.role === 'lab_manager') return <LabManagerDashboard />;
+  if (user?.role === 'reception') return <ReceptionDashboard />;
+  if (user?.role === 'office') return <OfficeDashboard />;
+  if (user?.role === 'admin' || user?.role === 'leader') return <LeaderDashboard />;
+
+  const isQms = false; // mọi vai trò đã có dashboard riêng; nhánh dưới chỉ là fallback an toàn
+
   const dashQ = useAsync(() => reportingApi.getDashboard(), []);
-  const chartsQ = useAsync(() => reportingApi.getDashboardCharts(), []);
+  const chartsQ = useAsync(
+    () => reportingApi.getDashboardCharts(isQms ? { charts: 'nc_by_status,chemical_consumption' } : {}),
+    [isQms],
+  );
 
   async function exportPdf() {
     setExporting(true);
@@ -84,6 +111,14 @@ export function Dashboard() {
     [charts],
   );
 
+  const ncPieData = useMemo(() => {
+    const pts = charts?.nc_by_status?.data ?? [];
+    return pts.map((p) => ({
+      name: NC_STATUS_LABELS[p.status] ?? p.status,
+      value: p.count,
+    }));
+  }, [charts]);
+
   // Tiêu hao hóa chất: tách theo nhóm đo (KHÔNG cộng g + mL). Gộp theo period thành cột.
   const barGroups = charts?.chemical_consumption?.by_measurement_group ?? [];
   const barData = useMemo(() => {
@@ -108,6 +143,7 @@ export function Dashboard() {
   const hr = data?.hr;
   const documents = data?.documents;
   const notifications = data?.notifications;
+  const qms = data?.qms;
 
   const hasSamplesChart = charts ? 'samples_by_status' in charts : false;
 
@@ -159,8 +195,70 @@ export function Dashboard() {
       ) : (
         <>
           {/* ── KPI cards (chỉ khối có trong response) ── */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {samples?.available && (
+          <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 sm:gap-4 lg:grid-cols-4 3xl:grid-cols-5">
+            {isQms ? (
+              <>
+                {qms?.available && (
+                  <>
+                    <KpiCard
+                      icon={<ShieldAlert size={20} />}
+                      tone="overdue"
+                      label="Không phù hợp đang mở"
+                      value={qms.nc_open ?? 0}
+                      onClick={() => navigate('/nonconformities?status=open')}
+                    />
+                    <KpiCard
+                      icon={<Layers size={20} />}
+                      tone="pending"
+                      label="Đang CAPA"
+                      value={qms.nc_open_capa ?? 0}
+                      onClick={() => navigate('/nonconformities?status=in_capa')}
+                    />
+                    <KpiCard
+                      icon={<AlertOctagon size={20} />}
+                      tone="overdue"
+                      label="Rủi ro mức cao"
+                      value={qms.risk_open_high ?? 0}
+                      onClick={() => navigate('/risks?band=high')}
+                    />
+                    <KpiCard
+                      icon={<FolderArchive size={20} />}
+                      tone="warning"
+                      label="Minh chứng chờ duyệt"
+                      value={qms.evidence_pending ?? 0}
+                      onClick={() => navigate('/documents/pending')}
+                    />
+                    <KpiCard
+                      icon={<Lightbulb size={20} />}
+                      tone="info"
+                      label="Cải tiến đang thực hiện"
+                      value={qms.improvements_open ?? 0}
+                      onClick={() => navigate('/improvements?status=open')}
+                    />
+                  </>
+                )}
+                {documents?.available && (
+                  <KpiCard
+                    icon={<FileText size={20} />}
+                    tone="pending"
+                    label="Tài liệu chờ duyệt"
+                    value={documents.pending_review ?? 0}
+                    onClick={() => navigate('/documents/pending')}
+                  />
+                )}
+                {notifications?.available && (
+                  <KpiCard
+                    icon={<Bell size={20} />}
+                    tone="info"
+                    label="Thông báo chưa đọc"
+                    value={notifications.unread ?? 0}
+                    onClick={() => navigate('/notifications')}
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                {samples?.available && (
               <>
                 <KpiCard
                   icon={<ClipboardList size={20} />}
@@ -257,10 +355,12 @@ export function Dashboard() {
                 onClick={() => navigate('/notifications')}
               />
             )}
+              </>
+            )}
           </div>
 
           {/* ── Biểu đồ ── */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 3xl:grid-cols-3">
             {hasSamplesChart && charts?.samples_by_status?.available && (
               <Card>
                 <CardHeader title="Mẫu theo trạng thái" subtitle="Phân bố trạng thái mẫu" />
@@ -270,7 +370,7 @@ export function Dashboard() {
                   ) : pieData.length === 0 ? (
                     <EmptyState title="Chưa có dữ liệu mẫu" />
                   ) : (
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={chartH}>
                       <PieChart>
                         <Pie
                           data={pieData}
@@ -278,7 +378,7 @@ export function Dashboard() {
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          outerRadius={95}
+                          outerRadius={isMobile ? 68 : 95}
                           label={(e) => `${e.name}: ${e.value}`}
                           labelLine={false}
                           fontSize={11}
@@ -304,14 +404,48 @@ export function Dashboard() {
                   ) : lineData.length === 0 ? (
                     <EmptyState title="Chưa có dữ liệu" />
                   ) : (
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={chartH}>
                       <LineChart data={lineData} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" vertical={false} />
-                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7b8499' }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#7b8499' }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e8f2ec" vertical={false} />
+                        <XAxis dataKey="name" {...xAxis} tick={{ ...xAxis.tick, fill: '#6b7a72' }} />
+                        <YAxis allowDecimals={false} {...yAxis} tick={{ ...yAxis.tick, fill: '#6b7a72' }} />
                         <Tooltip />
-                        <Line type="monotone" dataKey="value" stroke="#2f3a55" strokeWidth={2} dot={{ r: 3 }} />
+                        <Line type="monotone" dataKey="value" stroke="#0d8256" strokeWidth={2} dot={{ r: 3 }} />
                       </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardBody>
+              </Card>
+            )}
+
+            {charts?.nc_by_status?.available && (
+              <Card>
+                <CardHeader title="Không phù hợp theo trạng thái" subtitle="Phân bố NC theo trạng thái xử lý" />
+                <CardBody>
+                  {chartsQ.loading ? (
+                    <LoadingState />
+                  ) : ncPieData.length === 0 ? (
+                    <EmptyState title="Chưa có dữ liệu NC" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={chartH}>
+                      <PieChart>
+                        <Pie
+                          data={ncPieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={isMobile ? 68 : 95}
+                          label={(e) => `${e.name}: ${e.value}`}
+                          labelLine={false}
+                          fontSize={11}
+                        >
+                          {ncPieData.map((_, i) => (
+                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
                     </ResponsiveContainer>
                   )}
                 </CardBody>
@@ -330,13 +464,13 @@ export function Dashboard() {
                   ) : barData.length === 0 ? (
                     <EmptyState title="Chưa có dữ liệu tiêu hao" />
                   ) : (
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={chartH}>
                       <BarChart data={barData} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" vertical={false} />
-                        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#7b8499' }} />
-                        <YAxis tick={{ fontSize: 11, fill: '#7b8499' }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e8f2ec" vertical={false} />
+                        <XAxis dataKey="name" {...xAxis} tick={{ ...xAxis.tick, fill: '#6b7a72' }} />
+                        <YAxis {...yAxis} tick={{ ...yAxis.tick, fill: '#6b7a72' }} />
                         <Tooltip />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Legend {...legend} />
                         {barKeys.map((k, i) => (
                           <Bar key={k} dataKey={k} fill={PIE_COLORS[i % PIE_COLORS.length]} radius={[4, 4, 0, 0]} />
                         ))}
@@ -371,7 +505,7 @@ function KpiCard({
     pending: 'bg-pending/10 text-pending',
     overdue: 'bg-overdue/10 text-overdue',
     success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-[#b45309]',
+    warning: 'bg-warning/10 text-warning',
   };
   return (
     <Card className={onClick ? 'cursor-pointer transition-shadow hover:shadow-pop' : ''}>

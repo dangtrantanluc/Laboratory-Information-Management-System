@@ -9,12 +9,14 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.sample_assignment import SampleAssignment
 from app.models.sample_handover import SampleHandover
 from app.models.sample_result import SampleResult
 from app.models.user import User
+from app.models.department import Department
 from app.services import audit_service, notification_service, sample_common
 
 
@@ -61,19 +63,19 @@ def create_assignment(
 ) -> dict:
     sample = sample_common.get_sample_or_404(db, sample_id, lock=True)
 
-    if not sample_common.can_lead_action(user, sample.department_id):
+    if not sample_common.can_assign_action(user, sample.department_id):
         raise sample_common.forbidden(
-            "Chỉ trưởng nhóm / lãnh đạo / admin được phân công"
+            "Chỉ trưởng nhóm / lãnh đạo / admin / phòng nhận mẫu được phân công"
         )
     if sample.status in ("done", "returned"):
         raise sample_common.invalid_state("Mẫu đã hoàn tất, không thể phân công thêm")
 
     assignee = db.get(User, assigned_to)
     if assignee is None or assignee.status != "active":
-        raise AppException("ASSIGNEE_NOT_FOUND", "Không tìm thấy người được giao", 404)
+        raise AppException(ErrorCode.ASSIGNEE_NOT_FOUND, "Không tìm thấy người được giao", 404)
     if assignee.department_id != sample.department_id:
         raise AppException(
-            "ASSIGNEE_OUT_OF_DEPT",
+            ErrorCode.ASSIGNEE_OUT_OF_DEPT,
             "Người được giao phải cùng phòng ban với mẫu",
             422,
         )
@@ -111,6 +113,22 @@ def create_assignment(
         ref_type="sample",
         ref_id=sample.id,
     )
+
+    # GĐ2: "ping" phòng lab — báo trưởng phòng lab khi mẫu được điều phối vào phòng
+    # (bỏ qua nếu chính trưởng phòng là người phân công / được giao để tránh trùng).
+    dept = db.get(Department, sample.department_id) if sample.department_id else None
+    lead_id = dept.lead_user_id if dept else None
+    if lead_id and lead_id not in (assigned_to, user.id):
+        notification_service.create_notification(
+            db,
+            user_id=lead_id,
+            type="SAMPLE_DISPATCHED",
+            title="Phòng nhận mẫu mới trong phòng",
+            body=f"Mẫu {sample.sample_code} — {part_name.strip()} (giao cho "
+            f"{sample_common.user_name(db, assigned_to)})",
+            ref_type="sample",
+            ref_id=sample.id,
+        )
     audit_service.log_action(
         db,
         action="SAMPLE_ASSIGN",
@@ -162,7 +180,7 @@ def cancel_assignment(
     ).scalar_one() > 0
     if has_result:
         raise AppException(
-            "RESULT_EXISTS", "Phân công đã có kết quả, không thể hủy", 422
+            ErrorCode.RESULT_EXISTS, "Phân công đã có kết quả, không thể hủy", 422
         )
 
     db.delete(assignment)
@@ -217,7 +235,7 @@ def create_handover(
     is_custodian = sample.current_custodian_id == user.id
     if not (is_custodian or sample_common.can_lead_action(user, sample.department_id)):
         raise AppException(
-            "NOT_CURRENT_CUSTODIAN",
+            ErrorCode.NOT_CURRENT_CUSTODIAN,
             "Bạn không phải người giữ mẫu hiện tại",
             403,
         )
@@ -227,11 +245,11 @@ def create_handover(
         raise not_found("Không tìm thấy người nhận")
     if recipient.department_id != sample.department_id:
         raise AppException(
-            "HANDOVER_OUT_OF_DEPT", "Người nhận phải cùng phòng ban với mẫu", 422
+            ErrorCode.HANDOVER_OUT_OF_DEPT, "Người nhận phải cùng phòng ban với mẫu", 422
         )
     if to_user == sample.current_custodian_id:
         raise AppException(
-            "INVALID_HANDOVER", "Người nhận đang là người giữ mẫu hiện tại", 422
+            ErrorCode.INVALID_HANDOVER, "Người nhận đang là người giữ mẫu hiện tại", 422
         )
 
     from_user = sample.current_custodian_id

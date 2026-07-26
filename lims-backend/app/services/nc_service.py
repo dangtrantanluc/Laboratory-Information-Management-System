@@ -11,13 +11,14 @@ Mọi thao tác qua 1 transaction + audit (§8.4). NC đã closed/cancelled → 
 """
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.nonconformity import Capa, CapaAction, Nonconformity
@@ -136,7 +137,7 @@ def create_nc(
             entity = None
             if attempt == 4:
                 raise AppException(
-                    "NC_CODE_CONFLICT", "Không sinh được mã NC, thử lại", 409
+                    ErrorCode.NC_CODE_CONFLICT, "Không sinh được mã NC, thử lại", 409
                 )
     assert entity is not None
 
@@ -171,11 +172,11 @@ def update_nc(
     ip: Optional[str],
 ) -> dict:
     entity = nc.get_nc_or_404(db, nc_id, lock=True)
-    # người tạo hoặc QM được sửa; accountant đã bị chặn ở read/create
+    # người tạo hoặc QM được sửa; office đã bị chặn ở read/create
     if not (entity.raised_by == user.id or nc.is_quality_manager(user)):
         raise nc.forbidden("Chỉ người tạo hoặc QM được sửa phiếu này")
     if entity.status in ("closed", "cancelled"):
-        raise AppException("NC_CLOSED", "Phiếu đã đóng/hủy — không thể sửa", 409)
+        raise AppException(ErrorCode.NC_CLOSED, "Phiếu đã đóng/hủy — không thể sửa", 409)
 
     for field in ("severity", "impact_assessment", "affected_ref_type", "affected_ref_id"):
         if field in changes:
@@ -210,10 +211,10 @@ def cancel_nc(
     nc.assert_can_manage(db, user)
     entity = nc.get_nc_or_404(db, nc_id, lock=True)
     if entity.status == "closed":
-        raise AppException("NC_CLOSED", "Phiếu đã đóng — không thể hủy", 409)
+        raise AppException(ErrorCode.NC_CLOSED, "Phiếu đã đóng — không thể hủy", 409)
     if entity.status == "in_capa":
         raise AppException(
-            "NC_HAS_CAPA", "Phiếu đang có CAPA — không thể hủy. Hãy đóng CAPA.", 409
+            ErrorCode.NC_HAS_CAPA, "Phiếu đang có CAPA — không thể hủy. Hãy đóng CAPA.", 409
         )
     entity.status = "cancelled"
     entity.updated_by = user.id
@@ -246,9 +247,9 @@ def open_capa(
     nc.assert_can_manage(db, user)
     entity = nc.get_nc_or_404(db, nc_id, lock=True)
     if entity.status in ("closed", "cancelled"):
-        raise AppException("NC_CLOSED", "Phiếu đã đóng/hủy — không thể mở CAPA", 409)
+        raise AppException(ErrorCode.NC_CLOSED, "Phiếu đã đóng/hủy — không thể mở CAPA", 409)
     if nc.get_capa_for_nc(db, nc_id) is not None:
-        raise AppException("CAPA_EXISTS", "Phiếu này đã có CAPA", 409)
+        raise AppException(ErrorCode.CAPA_EXISTS, "Phiếu này đã có CAPA", 409)
 
     owner_id = payload["owner_id"]
     capa = Capa(
@@ -357,7 +358,7 @@ def update_action(
 
     action = db.get(CapaAction, action_id)
     if action is None or action.capa_id != capa.id:
-        raise AppException("ACTION_NOT_FOUND", "Không tìm thấy hành động", 404)
+        raise AppException(ErrorCode.ACTION_NOT_FOUND, "Không tìm thấy hành động", 404)
     action.status = new_status
     action.done_at = datetime.now(timezone.utc) if new_status == "done" else None
     if note is not None:
@@ -392,9 +393,9 @@ def close_capa(
     entity = nc.get_nc_or_404(db, nc_id, lock=True)
     capa = nc.get_capa_for_nc(db, nc_id)
     if capa is None:
-        raise AppException("CAPA_NOT_OPENED", "Phiếu chưa mở CAPA", 409)
+        raise AppException(ErrorCode.CAPA_NOT_OPENED, "Phiếu chưa mở CAPA", 409)
     if capa.status == "closed":
-        raise AppException("CAPA_CLOSED_IMMUTABLE", "CAPA đã đóng — bất biến", 409)
+        raise AppException(ErrorCode.CAPA_CLOSED_IMMUTABLE, "CAPA đã đóng — bất biến", 409)
 
     # mọi action phải done (§8.7 — không đóng khi còn việc dở)
     open_actions = db.execute(
@@ -404,7 +405,7 @@ def close_capa(
     ).scalar_one()
     if open_actions > 0:
         raise AppException(
-            "ACTIONS_INCOMPLETE",
+            ErrorCode.ACTIONS_INCOMPLETE,
             f"Còn {open_actions} hành động chưa hoàn thành — không thể đóng CAPA",
             422,
         )
@@ -463,7 +464,7 @@ def close_capa(
 def _capa_editable_or_raise(db: Session, nc_id: uuid.UUID) -> Capa:
     capa = nc.get_capa_for_nc(db, nc_id)
     if capa is None:
-        raise AppException("CAPA_NOT_OPENED", "Phiếu chưa mở CAPA", 409)
+        raise AppException(ErrorCode.CAPA_NOT_OPENED, "Phiếu chưa mở CAPA", 409)
     if capa.status == "closed":
-        raise AppException("CAPA_CLOSED_IMMUTABLE", "CAPA đã đóng — bất biến", 409)
+        raise AppException(ErrorCode.CAPA_CLOSED_IMMUTABLE, "CAPA đã đóng — bất biến", 409)
     return capa

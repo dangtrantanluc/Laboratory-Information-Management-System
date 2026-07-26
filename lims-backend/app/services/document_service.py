@@ -12,6 +12,8 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
+from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, validation_error
 from app.models.audit_log import AuditLog
@@ -126,7 +128,7 @@ def list_documents(
             )
         )
         # tài liệu chưa có current chỉ hiện cho người soạn/duyệt phòng đó (BR-DOC-011)
-        # → ẩn no-current ngoài phòng cho staff/accountant
+        # → ẩn no-current ngoài phòng cho staff/office
         conditions.append(
             or_(
                 Document.current_version_id.isnot(None),
@@ -162,7 +164,7 @@ def create_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     if not (title and title.strip()):
         raise validation_error("Tiêu đề tài liệu không được rỗng")
     dc.get_active_type_or_422(db, type_code)
@@ -170,7 +172,7 @@ def create_document(
     sec = security_level or "internal"
     if sec not in _VALID_SECURITY:
         raise AppException(
-            "INVALID_CONFIDENTIALITY", "Mức bảo mật không hợp lệ", 422
+            ErrorCode.INVALID_CONFIDENTIALITY, "Mức bảo mật không hợp lệ", 422
         )
 
     # phòng sở hữu: staff ép = phòng mình
@@ -187,14 +189,13 @@ def create_document(
 
     dept = db.get(Department, dept_id)
     if dept is None:
-        raise AppException("DEPARTMENT_NOT_FOUND", "Không tìm thấy phòng ban", 404)
+        raise AppException(ErrorCode.DEPARTMENT_NOT_FOUND, "Không tìm thấy phòng ban", 404)
 
     # validate file sớm (tránh tạo tài liệu rỗng nếu file sai)
     dvs._check_mime(mime)
     dvs._check_size(content)
 
     # sinh document_code + retry chống race UNIQUE (FR-DOC-003 A1)
-    last_err: Optional[Exception] = None
     for _ in range(5):
         code = dc.next_document_code(db, type_code=type_code, dept=dept)
         doc = Document(
@@ -210,13 +211,12 @@ def create_document(
         try:
             db.flush()
             break
-        except IntegrityError as exc:
+        except IntegrityError:
             db.rollback()
-            last_err = exc
             doc = None  # type: ignore
     if doc is None:
         raise AppException(
-            "DUPLICATE_DOCUMENT_CODE",
+            ErrorCode.DUPLICATE_DOCUMENT_CODE,
             "Không sinh được mã tài liệu duy nhất, vui lòng thử lại",
             409,
         )
@@ -350,7 +350,7 @@ def update_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -372,7 +372,7 @@ def update_document(
     if security_level is not None:
         if security_level not in _VALID_SECURITY:
             raise AppException(
-                "INVALID_CONFIDENTIALITY", "Mức bảo mật không hợp lệ", 422
+                ErrorCode.INVALID_CONFIDENTIALITY, "Mức bảo mật không hợp lệ", 422
             )
         doc.security_level = security_level
     doc.updated_by = user.id
@@ -410,7 +410,7 @@ def delete_document(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    dc.deny_accountant_write(user)
+    dc.deny_office_write(user)
     doc = dc.get_document_or_404(db, document_id, lock=True)
     dc.assert_write_scope(user, doc.department_id)
 
@@ -424,7 +424,7 @@ def delete_document(
     ).scalar_one()
     if has_published > 0:
         raise AppException(
-            "DOCUMENT_HAS_APPROVED_VERSION",
+            ErrorCode.DOCUMENT_HAS_APPROVED_VERSION,
             "Tài liệu đã có phiên bản ban hành — không được xóa (giữ hồ sơ §8.4)",
             422,
         )
@@ -527,8 +527,8 @@ def _resolve_range(from_: Optional[date], to_: Optional[date]) -> tuple[datetime
 
 
 def _assert_stats_scope(user: CurrentUser, doc: Document) -> None:
-    if user.role == "accountant":
-        raise dc.forbidden("Kế toán không xem được thống kê truy cập")
+    if user.role == "office":
+        raise dc.forbidden("Văn phòng không xem được thống kê truy cập")
     if dc.is_privileged(user):
         return
     if user.department_id != doc.department_id:
@@ -619,8 +619,8 @@ def aggregate_access_stats(
     top: int,
     sort_by: str,
 ) -> dict:
-    if user.role == "accountant":
-        raise dc.forbidden("Kế toán không xem được thống kê truy cập")
+    if user.role == "office":
+        raise dc.forbidden("Văn phòng không xem được thống kê truy cập")
     if top < 1 or top > 100:
         raise validation_error("Tham số top phải trong khoảng 1..100")
     start, end = _resolve_range(from_, to_)
@@ -712,61 +712,62 @@ def export_access_stats_xlsx(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> bytes:
-    if not dc.is_privileged(user):
-        raise dc.forbidden("Chỉ admin / lãnh đạo được xuất báo cáo")
-    stats = aggregate_access_stats(
-        db,
-        user=user,
-        from_=from_,
-        to_=to_,
-        department_id=department_id,
-        action=action,
-        top=100,
-        sort_by="total",
-    )
-
-    import io
-
-    from openpyxl import Workbook
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Thống kê truy cập tài liệu"
-    rng = stats["range"]
-    summ = stats["summary"]
-    ws.append(["BÁO CÁO THỐNG KÊ TRUY CẬP TÀI LIỆU (R15)"])
-    ws.append(["Khoảng thời gian", f"{rng['from']} → {rng['to']}"])
-    ws.append(["Tổng lượt xem", summ["total_view"]])
-    ws.append(["Tổng lượt tải", summ["total_download"]])
-    ws.append(["Tổng lượt sửa", summ["total_edit"]])
-    ws.append(["Số tài liệu", summ["document_count"]])
-    ws.append([])
-    ws.append(["Mã tài liệu", "Tiêu đề", "Phòng", "Xem", "Tải", "Sửa", "Tổng"])
-    for d in stats["top_documents"]:
-        ws.append(
-            [
-                d["document_code"],
-                d["title"],
-                d["department_name"],
-                d["view"],
-                d["download"],
-                d["edit"],
-                d["total"],
-            ]
+    with export_slot():
+        if not dc.is_privileged(user):
+            raise dc.forbidden("Chỉ admin / lãnh đạo được xuất báo cáo")
+        stats = aggregate_access_stats(
+            db,
+            user=user,
+            from_=from_,
+            to_=to_,
+            department_id=department_id,
+            action=action,
+            top=100,
+            sort_by="total",
         )
 
-    audit_service.log_action(
-        db,
-        action="DOCUMENT_STATS_EXPORT",
-        resource="document",
-        user_id=user.id,
-        resource_id=None,
-        correlation_id=correlation_id,
-        ip=ip,
-        detail={"range": rng},
-    )
-    db.commit()
+        import io
 
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Thống kê truy cập tài liệu"
+        rng = stats["range"]
+        summ = stats["summary"]
+        ws.append(["BÁO CÁO THỐNG KÊ TRUY CẬP TÀI LIỆU (R15)"])
+        ws.append(["Khoảng thời gian", f"{rng['from']} → {rng['to']}"])
+        ws.append(["Tổng lượt xem", summ["total_view"]])
+        ws.append(["Tổng lượt tải", summ["total_download"]])
+        ws.append(["Tổng lượt sửa", summ["total_edit"]])
+        ws.append(["Số tài liệu", summ["document_count"]])
+        ws.append([])
+        ws.append(["Mã tài liệu", "Tiêu đề", "Phòng", "Xem", "Tải", "Sửa", "Tổng"])
+        for d in stats["top_documents"]:
+            ws.append(
+                [
+                    d["document_code"],
+                    d["title"],
+                    d["department_name"],
+                    d["view"],
+                    d["download"],
+                    d["edit"],
+                    d["total"],
+                ]
+            )
+
+        audit_service.log_action(
+            db,
+            action="DOCUMENT_STATS_EXPORT",
+            resource="document",
+            user_id=user.id,
+            resource_id=None,
+            correlation_id=correlation_id,
+            ip=ip,
+            detail={"range": rng},
+        )
+        db.commit()
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()

@@ -58,7 +58,9 @@ class RolePermission(Base):
     __table_args__ = (
         UniqueConstraint("role", "resource", "action", name="uq_rp_role_res_act"),
         CheckConstraint(
-            "role IN ('admin', 'leader', 'accountant', 'staff')", name="ck_rp_role"
+            "role IN ('admin', 'leader', 'office', 'staff', "
+            "'reception', 'qms', 'lab_manager')",
+            name="ck_rp_role",
         ),
         CheckConstraint(
             "scope IN ('all', 'department', 'own')", name="ck_rp_scope"

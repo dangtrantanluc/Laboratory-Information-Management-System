@@ -12,6 +12,7 @@ import { RequestStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateSample } from '@/lib/rbac';
@@ -24,12 +25,14 @@ export function SampleRequests() {
   const navigate = useNavigate();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [status, setStatus] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => samplesApi.listRequests({ q: q || undefined, status: status || undefined, limit: 100 }),
-    [q, status],
+    () => samplesApi.listRequests({ q: dq || undefined, status: status || undefined, limit: 100 }),
+    [dq, status],
   );
 
   const columns: Column<TestRequestListItem>[] = [
@@ -59,11 +62,12 @@ export function SampleRequests() {
     },
     {
       key: 'received_at',
+      priority: 1,
       header: 'Ngày nhận',
       sortValue: (r) => r.received_at,
       render: (r) => formatDate(r.received_at),
     },
-    { key: 'status', header: 'Trạng thái', render: (r) => <RequestStatusBadge status={r.status} /> },
+    { key: 'status', priority: 1, header: 'Trạng thái', render: (r) => <RequestStatusBadge status={r.status} /> },
   ];
 
   return (
@@ -83,8 +87,8 @@ export function SampleRequests() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
-          <SearchInput value={q} onChange={setQ} placeholder="Mã phiếu / khách / người gửi…" className="max-w-xs flex-1" />
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="max-w-[180px]">
+          <SearchInput value={q} onChange={setQ} placeholder="Mã phiếu / khách / người gửi…" className="w-full sm:max-w-xs sm:flex-1" />
+          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full sm:max-w-[180px]">
             <option value="">Mọi trạng thái</option>
             <option value="draft">Nháp</option>
             <option value="active">Đang xử lý</option>

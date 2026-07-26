@@ -10,6 +10,22 @@ import sys
 from datetime import datetime, timezone
 
 from app.config import settings
+from app.core.context import get_correlation_id
+
+
+class CorrelationIdLogFilter(logging.Filter):
+    """Chèn correlationId (từ ContextVar) vào MỌI LogRecord nếu record chưa tự set.
+
+    Nhờ đó điều tra theo 1 correlationId thấy được toàn bộ log của request, không phụ
+    thuộc call site có nhớ truyền `extra={'correlationId': ...}` hay không.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not getattr(record, "correlationId", None):
+            cid = get_correlation_id()
+            if cid:
+                record.correlationId = cid
+        return True
 
 _RESERVED = {
     "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
@@ -39,6 +55,7 @@ class JsonFormatter(logging.Formatter):
 def setup_logging() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
+    handler.addFilter(CorrelationIdLogFilter())
 
     root = logging.getLogger()
     root.handlers.clear()

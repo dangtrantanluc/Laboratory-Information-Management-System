@@ -13,20 +13,29 @@ BEGIN;
 
 -- ── Users (a2..a8) — hash của "Lims@1234" ──────────────────────────────────
 INSERT INTO users (id, email, password_hash, full_name, department_id, role, status, password_changed_at, created_by) VALUES
- ('00000000-0000-0000-0000-0000000000a2','hoa.tm@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','TS. Trần Minh Hòa',   '00000000-0000-0000-0000-0000000000d2','leader',    'active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a3','huong.lt@lims.local', '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','KS. Lê Thị Hương',    '00000000-0000-0000-0000-0000000000d2','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a4','nam.pv@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Phạm Văn Nam',    '00000000-0000-0000-0000-0000000000d2','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a5','sinh.nt@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','TS. Nguyễn Thị Sinh', '00000000-0000-0000-0000-0000000000d3','leader',    'active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a6','son.vd@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Vũ Đức Sơn',      '00000000-0000-0000-0000-0000000000d3','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a7','ke.dt@lims.local',    '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Đỗ Thị Kế',       '00000000-0000-0000-0000-0000000000d4','accountant','active', now(), '00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-0000000000a8','long.hv@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','KS. Hoàng Văn Long',  '00000000-0000-0000-0000-0000000000d2','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1')
+ ('00000000-0000-0000-0000-0000000000a2','hoa.tm@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','TS. Trần Minh Hòa',   '00000000-0000-0000-0000-000000000e22','leader',    'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a3','huong.lt@lims.local', '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','KS. Lê Thị Hương',    '00000000-0000-0000-0000-000000000e22','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a4','nam.pv@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Phạm Văn Nam',    '00000000-0000-0000-0000-000000000e22','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a5','sinh.nt@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','TS. Nguyễn Thị Sinh', '00000000-0000-0000-0000-000000000e13','leader',    'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a6','son.vd@lims.local',   '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Vũ Đức Sơn',      '00000000-0000-0000-0000-000000000e13','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a7','ke.dt@lims.local',    '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Đỗ Thị Kế',       '00000000-0000-0000-0000-0000000000d4','office','active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000a8','long.hv@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','KS. Hoàng Văn Long',  '00000000-0000-0000-0000-000000000e22','staff',     'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ -- M11: tài khoản test cho các vai trò mới (mật khẩu chung "Lims@1234")
+ ('00000000-0000-0000-0000-0000000000a9','reception@lims.local','$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Phòng Nhận mẫu',  '00000000-0000-0000-0000-0000000000f1','reception', 'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000aa','qms@lims.local',      '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','ThS. Quản lý chất lượng','00000000-0000-0000-0000-0000000000f2','qms',       'active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000ab','biet.hv@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','ThS. Huỳnh Văn Biết', '00000000-0000-0000-0000-000000000e11','lab_manager','active', now(), '00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-0000000000ac','ktv.lab@lims.local',  '$2b$12$CJ7aBPZ1OtDcvq.trbUbKeDIRRDXelYCwWDtpl/3IsfAgRhBicjOe','CN. Kỹ thuật viên Lab','00000000-0000-0000-0000-000000000e11','staff',      'active', now(), '00000000-0000-0000-0000-0000000000a1')
 ON CONFLICT (id) DO NOTHING;
 
 -- Gán trưởng phòng
 UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a1' WHERE id='00000000-0000-0000-0000-0000000000d1' AND lead_user_id IS NULL;
-UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a2' WHERE id='00000000-0000-0000-0000-0000000000d2' AND lead_user_id IS NULL;
-UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a5' WHERE id='00000000-0000-0000-0000-0000000000d3' AND lead_user_id IS NULL;
+UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a2' WHERE id='00000000-0000-0000-0000-000000000e22' AND lead_user_id IS NULL;
+UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a5' WHERE id='00000000-0000-0000-0000-000000000e13' AND lead_user_id IS NULL;
 UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a7' WHERE id='00000000-0000-0000-0000-0000000000d4' AND lead_user_id IS NULL;
+-- M11: trưởng phòng lab Sinh học phân tử + trưởng phòng chức năng
+UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000ab' WHERE id='00000000-0000-0000-0000-000000000e11' AND lead_user_id IS NULL;
+UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a9' WHERE id='00000000-0000-0000-0000-0000000000f1' AND lead_user_id IS NULL;
+UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000aa' WHERE id='00000000-0000-0000-0000-0000000000f2' AND lead_user_id IS NULL;
 
 -- ── Customers ──────────────────────────────────────────────────────────────
 INSERT INTO customers (id, name, contact, type, note, created_by) VALUES
@@ -39,26 +48,26 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Test requests ──────────────────────────────────────────────────────────
 INSERT INTO test_requests (id, request_code, customer_id, sender_name, department_id, received_by, received_at, note, created_by) VALUES
- ('00000000-0000-0000-0000-000000020001','YC-2026-0001','00000000-0000-0000-0000-000000010001',NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2', now()-interval '8 days', 'Định lượng hoạt chất + độ ẩm 2 mẫu viên nén','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000020002','YC-2026-0002','00000000-0000-0000-0000-000000010002',NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a3', now()-interval '6 days', 'Kiểm nghiệm chéo pH và tạp chất','00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-000000020003','YC-2026-0003','00000000-0000-0000-0000-000000010005',NULL,'00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5', now()-interval '5 days', 'Vi sinh + định danh vi khuẩn mẫu tôm','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000020004','YC-2026-0004',NULL,'Sở Y tế Cần Thơ','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2', now()-interval '3 days', 'Mẫu nước — chỉ tiêu hóa lý','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000020005','YC-2026-0005','00000000-0000-0000-0000-000000010003',NULL,'00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a6', now()-interval '2 days', 'Mẫu nước sinh hoạt — vi sinh','00000000-0000-0000-0000-0000000000a6'),
- ('00000000-0000-0000-0000-000000020006','YC-2026-0006','00000000-0000-0000-0000-000000010004',NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2', now()-interval '12 days', 'Kim loại nặng — yêu cầu nội bộ','00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-000000020001','YC-2026-0001','00000000-0000-0000-0000-000000010001',NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2', now()-interval '8 days', 'Định lượng hoạt chất + độ ẩm 2 mẫu viên nén','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000020002','YC-2026-0002','00000000-0000-0000-0000-000000010002',NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a3', now()-interval '6 days', 'Kiểm nghiệm chéo pH và tạp chất','00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-000000020003','YC-2026-0003','00000000-0000-0000-0000-000000010005',NULL,'00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5', now()-interval '5 days', 'Vi sinh + định danh vi khuẩn mẫu tôm','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000020004','YC-2026-0004',NULL,'Sở Y tế Cần Thơ','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2', now()-interval '3 days', 'Mẫu nước — chỉ tiêu hóa lý','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000020005','YC-2026-0005','00000000-0000-0000-0000-000000010003',NULL,'00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a6', now()-interval '2 days', 'Mẫu nước sinh hoạt — vi sinh','00000000-0000-0000-0000-0000000000a6'),
+ ('00000000-0000-0000-0000-000000020006','YC-2026-0006','00000000-0000-0000-0000-000000010004',NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2', now()-interval '12 days', 'Kim loại nặng — yêu cầu nội bộ','00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Samples ────────────────────────────────────────────────────────────────
 INSERT INTO samples (id, sample_code, request_id, department_id, received_by, current_custodian_id, description, received_at, deadline_at, completed_at, status, condition_status, condition_note, created_by) VALUES
- ('00000000-0000-0000-0000-000000030001','SP-2026-0001','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a3','Viên nén Paracetamol 500mg — lô A', now()-interval '8 days', now()+interval '2 days', NULL, 'testing','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000030002','SP-2026-0002','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a4','Viên nén Paracetamol 500mg — lô B', now()-interval '8 days', now()-interval '1 days', now()-interval '1 days', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000030003','SP-2026-0003','00000000-0000-0000-0000-000000020002','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a3','00000000-0000-0000-0000-0000000000a3','Dung dịch mẫu kiểm nghiệm chéo', now()-interval '6 days', now()+interval '4 days', NULL, 'assigned','acceptable',NULL,'00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-000000030004','SP-2026-0004','00000000-0000-0000-0000-000000020002','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a3','00000000-0000-0000-0000-0000000000a8','Mẫu bột — tạp chất', now()-interval '6 days', now()-interval '2 days', NULL, 'overdue','acceptable',NULL,'00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-000000030005','SP-2026-0005','00000000-0000-0000-0000-000000020003','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000a6','Mẫu tôm đông lạnh — vi sinh tổng số', now()-interval '5 days', now()+interval '3 days', NULL, 'testing','acceptable',NULL,'00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000030006','SP-2026-0006','00000000-0000-0000-0000-000000020003','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000a5','Mẫu tôm — định danh vi khuẩn', now()-interval '5 days', now()-interval '6 hours', now()-interval '6 hours', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000030007','SP-2026-0007','00000000-0000-0000-0000-000000020004','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a4','Mẫu nước máy — hóa lý', now()-interval '3 days', now()+interval '5 days', NULL, 'received','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000030008','SP-2026-0008','00000000-0000-0000-0000-000000020005','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a6','00000000-0000-0000-0000-0000000000a6','Mẫu nước sinh hoạt — bao bì rò rỉ', now()-interval '2 days', now()+interval '6 days', NULL, 'returned','not_acceptable','Bao bì rò rỉ, thể tích không đủ — trả lại khách bổ sung','00000000-0000-0000-0000-0000000000a6'),
- ('00000000-0000-0000-0000-000000030009','SP-2026-0009','00000000-0000-0000-0000-000000020006','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a3','Mẫu cá — kim loại nặng (Pb, Cd)', now()-interval '12 days', now()-interval '4 days', now()-interval '4 days', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-00000003000a','SP-2026-0010','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a8','Viên nén Paracetamol — mẫu lưu', now()-interval '8 days', now()+interval '1 days', NULL, 'assigned','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-000000030001','SP-2026-0001','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a3','Viên nén Paracetamol 500mg — lô A', now()-interval '8 days', now()+interval '2 days', NULL, 'testing','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000030002','SP-2026-0002','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a4','Viên nén Paracetamol 500mg — lô B', now()-interval '8 days', now()-interval '1 days', now()-interval '1 days', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000030003','SP-2026-0003','00000000-0000-0000-0000-000000020002','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a3','00000000-0000-0000-0000-0000000000a3','Dung dịch mẫu kiểm nghiệm chéo', now()-interval '6 days', now()+interval '4 days', NULL, 'assigned','acceptable',NULL,'00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-000000030004','SP-2026-0004','00000000-0000-0000-0000-000000020002','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a3','00000000-0000-0000-0000-0000000000a8','Mẫu bột — tạp chất', now()-interval '6 days', now()-interval '2 days', NULL, 'overdue','acceptable',NULL,'00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-000000030005','SP-2026-0005','00000000-0000-0000-0000-000000020003','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000a6','Mẫu tôm đông lạnh — vi sinh tổng số', now()-interval '5 days', now()+interval '3 days', NULL, 'testing','acceptable',NULL,'00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000030006','SP-2026-0006','00000000-0000-0000-0000-000000020003','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000a5','Mẫu tôm — định danh vi khuẩn', now()-interval '5 days', now()-interval '6 hours', now()-interval '6 hours', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000030007','SP-2026-0007','00000000-0000-0000-0000-000000020004','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a4','Mẫu nước máy — hóa lý', now()-interval '3 days', now()+interval '5 days', NULL, 'received','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000030008','SP-2026-0008','00000000-0000-0000-0000-000000020005','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a6','00000000-0000-0000-0000-0000000000a6','Mẫu nước sinh hoạt — bao bì rò rỉ', now()-interval '2 days', now()+interval '6 days', NULL, 'returned','not_acceptable','Bao bì rò rỉ, thể tích không đủ — trả lại khách bổ sung','00000000-0000-0000-0000-0000000000a6'),
+ ('00000000-0000-0000-0000-000000030009','SP-2026-0009','00000000-0000-0000-0000-000000020006','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a3','Mẫu cá — kim loại nặng (Pb, Cd)', now()-interval '12 days', now()-interval '4 days', now()-interval '4 days', 'done','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-00000003000a','SP-2026-0010','00000000-0000-0000-0000-000000020001','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000a8','Viên nén Paracetamol — mẫu lưu', now()-interval '8 days', now()+interval '1 days', NULL, 'assigned','acceptable',NULL,'00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Sample assignments ─────────────────────────────────────────────────────
@@ -81,12 +90,12 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Chemicals ──────────────────────────────────────────────────────────────
 INSERT INTO chemicals (id, name, cas_no, manufacturer, base_unit, measurement_group, hazard_code, reorder_threshold, department_id, status, created_by) VALUES
- ('00000000-0000-0000-0000-000000060001','Natri hydroxit (NaOH)','1310-73-2','Merck','g','mass','GHS05', 500,   '00000000-0000-0000-0000-0000000000d2','active','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000060002','Axit clohydric (HCl) 37%','7647-01-0','Merck','mL','volume','GHS05,GHS07', 1000, '00000000-0000-0000-0000-0000000000d2','active','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000060003','Ethanol tuyệt đối','64-17-5','Xilong','mL','volume','GHS02', 2000, '00000000-0000-0000-0000-0000000000d2','active','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000060004','Methanol (HPLC grade)','67-56-1','Merck','mL','volume','GHS02,GHS06', 1000, '00000000-0000-0000-0000-0000000000d2','active','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000060005','Thạch dinh dưỡng (Nutrient Agar)',NULL,'HiMedia','g','mass',NULL, 300, '00000000-0000-0000-0000-0000000000d3','active','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000060006','Kali dicromat (K2Cr2O7)','7778-50-9','Merck','g','mass','GHS03,GHS08', 200, '00000000-0000-0000-0000-0000000000d2','active','00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-000000060001','Natri hydroxit (NaOH)','1310-73-2','Merck','g','mass','GHS05', 500,   '00000000-0000-0000-0000-000000000e22','active','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000060002','Axit clohydric (HCl) 37%','7647-01-0','Merck','mL','volume','GHS05,GHS07', 1000, '00000000-0000-0000-0000-000000000e22','active','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000060003','Ethanol tuyệt đối','64-17-5','Xilong','mL','volume','GHS02', 2000, '00000000-0000-0000-0000-000000000e22','active','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000060004','Methanol (HPLC grade)','67-56-1','Merck','mL','volume','GHS02,GHS06', 1000, '00000000-0000-0000-0000-000000000e22','active','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000060005','Thạch dinh dưỡng (Nutrient Agar)',NULL,'HiMedia','g','mass',NULL, 300, '00000000-0000-0000-0000-000000000e13','active','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000060006','Kali dicromat (K2Cr2O7)','7778-50-9','Merck','g','mass','GHS03,GHS08', 200, '00000000-0000-0000-0000-000000000e22','active','00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 -- Ẩn 2 chemical rác cũ (test) khỏi danh sách active
@@ -112,12 +121,12 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Documents (current_version_id set sau khi có version) ──────────────────
 INSERT INTO documents (id, code, title, type, department_id, security_level, status, current_version_id, created_by) VALUES
- ('00000000-0000-0000-0000-000000090001','SOP-HOA-001','SOP Định lượng hoạt chất bằng HPLC','sop','00000000-0000-0000-0000-0000000000d2','internal','active',NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000090002','SOP-HOA-002','SOP Xác định độ ẩm bằng phương pháp sấy','sop','00000000-0000-0000-0000-0000000000d2','internal','active',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000090001','SOP-HOA-001','SOP Định lượng hoạt chất bằng HPLC','sop','00000000-0000-0000-0000-000000000e22','internal','active',NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000090002','SOP-HOA-002','SOP Xác định độ ẩm bằng phương pháp sấy','sop','00000000-0000-0000-0000-000000000e22','internal','active',NULL,'00000000-0000-0000-0000-0000000000a2'),
  ('00000000-0000-0000-0000-000000090003','QT-QLCL-001','Quy trình kiểm soát tài liệu ISO 17025','process','00000000-0000-0000-0000-0000000000d1','internal','active',NULL,'00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-000000090004','BM-HOA-005','Biểu mẫu phiếu kết quả thử nghiệm','form','00000000-0000-0000-0000-0000000000d2','internal','active',NULL,'00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-000000090005','SOP-SINH-001','SOP Định danh vi khuẩn gây bệnh','sop','00000000-0000-0000-0000-0000000000d3','restricted','active',NULL,'00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000090006','HD-ATSH-001','Hướng dẫn an toàn sinh học cấp 2','guide','00000000-0000-0000-0000-0000000000d3','internal','active',NULL,'00000000-0000-0000-0000-0000000000a5')
+ ('00000000-0000-0000-0000-000000090004','BM-HOA-005','Biểu mẫu phiếu kết quả thử nghiệm','form','00000000-0000-0000-0000-000000000e22','internal','active',NULL,'00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-000000090005','SOP-SINH-001','SOP Định danh vi khuẩn gây bệnh','sop','00000000-0000-0000-0000-000000000e13','restricted','active',NULL,'00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000090006','HD-ATSH-001','Hướng dẫn an toàn sinh học cấp 2','guide','00000000-0000-0000-0000-000000000e13','internal','active',NULL,'00000000-0000-0000-0000-0000000000a5')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Document versions ──────────────────────────────────────────────────────
@@ -142,12 +151,12 @@ UPDATE documents SET current_version_id='00000000-0000-0000-0000-0000000a0005' W
 
 -- ── Equipments ─────────────────────────────────────────────────────────────
 INSERT INTO equipments (id, code, name, location, department_id, responsible_user_id, purchase_date, status, calibration_cycle_value, calibration_cycle_unit, next_due_date, note, created_by) VALUES
- ('00000000-0000-0000-0000-0000000b0001','TB-HOA-001','Cân phân tích Sartorius BSA224S','Phòng cân — Lab Hóa','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a3',(now()-interval '3 years')::date,'active',12,'month',(now()+interval '200 days')::date,'Độ chính xác 0.1mg','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000b0002','TB-HOA-002','Máy quang phổ UV-Vis Shimadzu','Lab Hóa — bàn 3','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2',(now()-interval '4 years')::date,'active',12,'month',(now()+interval '20 days')::date,'Sắp đến hạn hiệu chuẩn','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000b0003','TB-HOA-003','Tủ sấy Memmert UN55','Lab Hóa','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a4',(now()-interval '2 years')::date,'active',24,'month',(now()+interval '350 days')::date,NULL,'00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000b0004','TB-SINH-001','Nồi hấp tiệt trùng Hirayama','Lab Sinh','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a6',(now()-interval '5 years')::date,'active',12,'month',(now()-interval '5 days')::date,'ĐÃ QUÁ HẠN hiệu chuẩn','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000b0005','TB-SINH-002','Kính hiển vi Olympus CX23','Lab Sinh','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5',(now()-interval '1 years')::date,'maintenance',NULL,NULL,NULL,'Đang bảo trì đèn','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000b0006','TB-HOA-004','Máy ly tâm Hettich EBA 200','Lab Hóa','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a8',(now()-interval '2 years')::date,'active',12,'month',(now()+interval '265 days')::date,NULL,'00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-0000000b0001','TB-HOA-001','Cân phân tích Sartorius BSA224S','Phòng cân — Lab Hóa','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a3',(now()-interval '3 years')::date,'active',12,'month',(now()+interval '200 days')::date,'Độ chính xác 0.1mg','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000b0002','TB-HOA-002','Máy quang phổ UV-Vis Shimadzu','Lab Hóa — bàn 3','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2',(now()-interval '4 years')::date,'active',12,'month',(now()+interval '20 days')::date,'Sắp đến hạn hiệu chuẩn','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000b0003','TB-HOA-003','Tủ sấy Memmert UN55','Lab Hóa','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a4',(now()-interval '2 years')::date,'active',24,'month',(now()+interval '350 days')::date,NULL,'00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000b0004','TB-SINH-001','Nồi hấp tiệt trùng Hirayama','Lab Sinh','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a6',(now()-interval '5 years')::date,'active',12,'month',(now()-interval '5 days')::date,'ĐÃ QUÁ HẠN hiệu chuẩn','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000b0005','TB-SINH-002','Kính hiển vi Olympus CX23','Lab Sinh','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5',(now()-interval '1 years')::date,'maintenance',NULL,NULL,NULL,'Đang bảo trì đèn','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000b0006','TB-HOA-004','Máy ly tâm Hettich EBA 200','Lab Hóa','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a8',(now()-interval '2 years')::date,'active',12,'month',(now()+interval '265 days')::date,NULL,'00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Calibration records (immutable — chỉ INSERT) ──────────────────────────
@@ -160,10 +169,10 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Research projects ──────────────────────────────────────────────────────
 INSERT INTO research_projects (id, code, title, level, lead_user_id, department_id, start_date, end_date, status, created_by) VALUES
- ('00000000-0000-0000-0000-0000000d0001','DT-2025-01','Nghiên cứu quy trình định lượng hoạt chất trong dược liệu bằng HPLC','university','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000d2',(now()-interval '300 days')::date,(now()+interval '120 days')::date,'ongoing','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000d0002','DT-2024-05','Phân lập vi khuẩn probiotic từ thực phẩm lên men truyền thống','ministry','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000d3',(now()-interval '700 days')::date,(now()-interval '100 days')::date,'completed','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000d0003','DT-2026-02','Ứng dụng cảm biến sinh học phát hiện dư lượng kháng sinh trong thủy sản','national','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000d3',(now()-interval '120 days')::date,(now()+interval '600 days')::date,'ongoing','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000d0004','DT-2023-09','Đánh giá kim loại nặng trong thủy sản vùng ĐBSCL','province','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000d2',(now()-interval '900 days')::date,(now()-interval '300 days')::date,'accepted','00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-0000000d0001','DT-2025-01','Nghiên cứu quy trình định lượng hoạt chất trong dược liệu bằng HPLC','university','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-000000000e22',(now()-interval '300 days')::date,(now()+interval '120 days')::date,'ongoing','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000d0002','DT-2024-05','Phân lập vi khuẩn probiotic từ thực phẩm lên men truyền thống','ministry','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-000000000e13',(now()-interval '700 days')::date,(now()-interval '100 days')::date,'completed','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000d0003','DT-2026-02','Ứng dụng cảm biến sinh học phát hiện dư lượng kháng sinh trong thủy sản','national','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-000000000e13',(now()-interval '120 days')::date,(now()+interval '600 days')::date,'ongoing','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000d0004','DT-2023-09','Đánh giá kim loại nặng trong thủy sản vùng ĐBSCL','province','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-000000000e22',(now()-interval '900 days')::date,(now()-interval '300 days')::date,'accepted','00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO project_members (project_id, user_id, role_in_project) VALUES
@@ -181,11 +190,11 @@ ON CONFLICT (project_id, user_id) DO NOTHING;
 
 -- ── Publications ───────────────────────────────────────────────────────────
 INSERT INTO publications (id, title, journal, year, doi, category, type, patent_no, issuing_authority, department_id, created_by) VALUES
- ('00000000-0000-0000-0000-0000000e0001','A validated HPLC method for simultaneous determination of active compounds in herbal tablets','Journal of Pharmaceutical Analysis',2025,'10.1016/j.jpha.2025.01.012','isi_q1','paper',NULL,NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000e0002','Isolation and characterization of probiotic bacteria from fermented foods','Food Microbiology',2024,'10.1016/j.fm.2024.104321','isi_q2','paper',NULL,NULL,'00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000e0003','Heavy metal contamination in aquatic products of the Mekong Delta','Chemosphere',2023,'10.1016/j.chemosphere.2023.138777','isi_q1','paper',NULL,NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000e0004','Xây dựng quy trình xác định độ ẩm dược liệu bằng phương pháp sấy','Tạp chí Phân tích Hóa Lý Sinh',2025,NULL,'domestic','paper',NULL,NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-0000000e0005','Quy trình sản xuất chế phẩm probiotic từ vi khuẩn phân lập',NULL,2024,NULL,NULL,'patent','VN1-2024-01234','Cục Sở hữu trí tuệ','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5')
+ ('00000000-0000-0000-0000-0000000e0001','A validated HPLC method for simultaneous determination of active compounds in herbal tablets','Journal of Pharmaceutical Analysis',2025,'10.1016/j.jpha.2025.01.012','isi_q1','paper',NULL,NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000e0002','Isolation and characterization of probiotic bacteria from fermented foods','Food Microbiology',2024,'10.1016/j.fm.2024.104321','isi_q2','paper',NULL,NULL,'00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000e0003','Heavy metal contamination in aquatic products of the Mekong Delta','Chemosphere',2023,'10.1016/j.chemosphere.2023.138777','isi_q1','paper',NULL,NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000e0004','Xây dựng quy trình xác định độ ẩm dược liệu bằng phương pháp sấy','Tạp chí Phân tích Hóa Lý Sinh',2025,NULL,'domestic','paper',NULL,NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-0000000e0005','Quy trình sản xuất chế phẩm probiotic từ vi khuẩn phân lập',NULL,2024,NULL,NULL,'patent','VN1-2024-01234','Cục Sở hữu trí tuệ','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO publication_authors (publication_id, author_order, user_id, external_name, is_corresponding) VALUES
@@ -203,31 +212,31 @@ ON CONFLICT (publication_id, author_order) DO NOTHING;
 
 -- ── Student mentorships ────────────────────────────────────────────────────
 INSERT INTO student_mentorships (id, mentor_id, student_name, topic, year, type, department_id, created_by) VALUES
- ('00000000-0000-0000-0000-0000000f0001','00000000-0000-0000-0000-0000000000a2','Nguyễn Thị Lan','Định lượng paracetamol trong viên nén bằng HPLC',2025,'thesis_bachelor','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000f0002','00000000-0000-0000-0000-0000000000a5','Trần Văn Bình','Khảo sát hệ vi sinh trong sản phẩm lên men',2025,'thesis_master','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-0000000f0003','00000000-0000-0000-0000-0000000000a2','Lê Hoàng Phúc','Tối ưu điều kiện chiết hoạt chất từ dược liệu',2024,'student_research','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-0000000f0004','00000000-0000-0000-0000-0000000000a5','Phạm Thu Trang','Cảm biến sinh học phát hiện kháng sinh',2026,'thesis_phd','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5')
+ ('00000000-0000-0000-0000-0000000f0001','00000000-0000-0000-0000-0000000000a2','Nguyễn Thị Lan','Định lượng paracetamol trong viên nén bằng HPLC',2025,'thesis_bachelor','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000f0002','00000000-0000-0000-0000-0000000000a5','Trần Văn Bình','Khảo sát hệ vi sinh trong sản phẩm lên men',2025,'thesis_master','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-0000000f0003','00000000-0000-0000-0000-0000000000a2','Lê Hoàng Phúc','Tối ưu điều kiện chiết hoạt chất từ dược liệu',2024,'student_research','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-0000000f0004','00000000-0000-0000-0000-0000000000a5','Phạm Thu Trang','Cảm biến sinh học phát hiện kháng sinh',2026,'thesis_phd','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Lab registrations ──────────────────────────────────────────────────────
 INSERT INTO lab_registrations (id, student_name, mentor_id, registered_at, registered_from, registered_to, purpose, status, approved_by, approved_at, department_id, created_by) VALUES
- ('00000000-0000-0000-0000-000000100001','Đặng Minh Quân','00000000-0000-0000-0000-0000000000a2',(now()-interval '2 days')::date,(now()+interval '5 days')::date,(now()+interval '40 days')::date,'Thực tập phân tích HPLC','pending',NULL,NULL,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000100002','Vũ Thị Ngọc','00000000-0000-0000-0000-0000000000a5',(now()-interval '20 days')::date,(now()-interval '15 days')::date,(now()+interval '30 days')::date,'Nghiên cứu vi sinh cho luận văn','approved','00000000-0000-0000-0000-0000000000a5', now()-interval '18 days','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000100003','Hồ Văn Tài','00000000-0000-0000-0000-0000000000a2',(now()-interval '25 days')::date,(now()-interval '20 days')::date,(now()-interval '5 days')::date,'Đăng ký trùng lịch thiết bị','rejected','00000000-0000-0000-0000-0000000000a1', now()-interval '23 days','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2')
+ ('00000000-0000-0000-0000-000000100001','Đặng Minh Quân','00000000-0000-0000-0000-0000000000a2',(now()-interval '2 days')::date,(now()+interval '5 days')::date,(now()+interval '40 days')::date,'Thực tập phân tích HPLC','pending',NULL,NULL,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000100002','Vũ Thị Ngọc','00000000-0000-0000-0000-0000000000a5',(now()-interval '20 days')::date,(now()-interval '15 days')::date,(now()+interval '30 days')::date,'Nghiên cứu vi sinh cho luận văn','approved','00000000-0000-0000-0000-0000000000a5', now()-interval '18 days','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000100003','Hồ Văn Tài','00000000-0000-0000-0000-0000000000a2',(now()-interval '25 days')::date,(now()-interval '20 days')::date,(now()-interval '5 days')::date,'Đăng ký trùng lịch thiết bị','rejected','00000000-0000-0000-0000-0000000000a1', now()-interval '23 days','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Teaching courses ───────────────────────────────────────────────────────
 INSERT INTO teaching_courses (id, user_id, course_name, semester, year, department_id, created_by) VALUES
- ('00000000-0000-0000-0000-000000110001','00000000-0000-0000-0000-0000000000a2','Hóa phân tích','HK1',2025,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000110002','00000000-0000-0000-0000-0000000000a2','Thực hành Hóa phân tích','HK1',2025,'00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000110003','00000000-0000-0000-0000-0000000000a5','Vi sinh vật học','HK2',2025,'00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5'),
- ('00000000-0000-0000-0000-000000110004','00000000-0000-0000-0000-0000000000a5','Công nghệ vi sinh','HK1',2026,'00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5')
+ ('00000000-0000-0000-0000-000000110001','00000000-0000-0000-0000-0000000000a2','Hóa phân tích','HK1',2025,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000110002','00000000-0000-0000-0000-0000000000a2','Thực hành Hóa phân tích','HK1',2025,'00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000110003','00000000-0000-0000-0000-0000000000a5','Vi sinh vật học','HK2',2025,'00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5'),
+ ('00000000-0000-0000-0000-000000110004','00000000-0000-0000-0000-0000000000a5','Công nghệ vi sinh','HK1',2026,'00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Community services ─────────────────────────────────────────────────────
 INSERT INTO community_services (id, content, performed_at, host, performer_user_id, department_id, created_by) VALUES
- ('00000000-0000-0000-0000-000000120001','Tư vấn kiểm nghiệm chất lượng nước sinh hoạt cho các trường học vùng sâu',(now()-interval '60 days')::date,'Phòng GD&ĐT huyện','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-0000000000d2','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000120002','Tập huấn an toàn sinh học phòng thí nghiệm cho giáo viên THPT',(now()-interval '120 days')::date,'Sở KH&CN','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-0000000000d3','00000000-0000-0000-0000-0000000000a5')
+ ('00000000-0000-0000-0000-000000120001','Tư vấn kiểm nghiệm chất lượng nước sinh hoạt cho các trường học vùng sâu',(now()-interval '60 days')::date,'Phòng GD&ĐT huyện','00000000-0000-0000-0000-0000000000a2','00000000-0000-0000-0000-000000000e22','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000120002','Tập huấn an toàn sinh học phòng thí nghiệm cho giáo viên THPT',(now()-interval '120 days')::date,'Sở KH&CN','00000000-0000-0000-0000-0000000000a5','00000000-0000-0000-0000-000000000e13','00000000-0000-0000-0000-0000000000a5')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── HR profiles (phải trước competences/salary_history — FK tới hr_profiles) ──
@@ -268,6 +277,18 @@ ON CONFLICT (id) DO NOTHING;
 -- ── Overdue reason (cho mẫu quá hạn) ──────────────────────────────────────
 INSERT INTO overdue_reasons (id, sample_id, reason, by_user, at) VALUES
  ('00000000-0000-0000-0000-000000160001','00000000-0000-0000-0000-000000030004','Chờ khách hàng bổ sung thông tin mẫu và điều kiện bảo quản','00000000-0000-0000-0000-0000000000a2', now()-interval '1 days')
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Kho biểu mẫu VILAS (GĐ3) — vài mẫu demo theo điều khoản ISO/IEC 17025 ──────
+INSERT INTO form_templates (id, code, title, iso_clause, category, year, is_active, created_by) VALUES
+ ('00000000-0000-0000-0000-000000170001','BM HC.TĐTTNB.01','Biên bản họp (Giao ban)','4','BM',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170002','BM 6.2.01','Nhu cầu nhân sự','6.2','BM',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170003','BM 6.2.04','Kế hoạch đào tạo','6.2','BM',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170004','QT 6.2','Quy trình quản lý nhân sự','6.2','QT',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170005','BM 6.6.01','Danh sách nhà cung cấp','6.6','BM',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170006','BM 6.6.03','Phiếu đề nghị mua hàng','6.6','BM',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170007','HD 7.5','Hướng dẫn lập hồ sơ kỹ thuật','7.5','HD',2026,true,'00000000-0000-0000-0000-0000000000aa'),
+ ('00000000-0000-0000-0000-000000170008','QT 8.3','Kiểm soát tài liệu','8.3','QT',2026,true,'00000000-0000-0000-0000-0000000000aa')
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

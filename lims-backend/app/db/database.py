@@ -15,6 +15,9 @@ engine = create_engine(
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_pre_ping=True,  # tránh "server closed connection" sau idle
+    # Cạn pool → FAIL NHANH (mặc định 30s là quá lâu, giữ request treo) — dễ chẩn đoán +
+    # trả lỗi sớm cho client thay vì tắc nghẽn dây chuyền (PRODUCTION_READINESS_REVIEW D4).
+    pool_timeout=settings.db_pool_timeout,
 )
 
 SessionLocal = sessionmaker(

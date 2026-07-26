@@ -47,6 +47,16 @@ export function TeachingCourses() {
     { key: 'user', header: 'Người phụ trách', render: (c) => c.user_name ?? '—' },
     { key: 'semester', header: 'Học kỳ', render: (c) => c.semester },
     { key: 'year', header: 'Năm', align: 'center', sortValue: (c) => c.year, render: (c) => c.year },
+    {
+      key: 'hours',
+      header: 'Số tiết (LT/TH)',
+      align: 'center',
+      render: (c) => {
+        const th = (c.hk1_theory_hours ?? 0) + (c.hk2_theory_hours ?? 0);
+        const pr = (c.hk1_practice_hours ?? 0) + (c.hk2_practice_hours ?? 0);
+        return th || pr ? `${th} / ${pr}` : '—';
+      },
+    },
     ...(canManage
       ? [
           {
@@ -54,7 +64,7 @@ export function TeachingCourses() {
             header: '',
             align: 'right' as const,
             render: (c: TeachingCourse) => (
-              <div className="flex justify-end gap-1">
+              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
                   <Pencil size={14} />
                 </Button>
@@ -83,7 +93,14 @@ export function TeachingCourses() {
         }
       />
       <Card>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(c) => c.id}
+          loading={loading}
+          pageSize={12}
+          onRowClick={canManage ? (c) => setEditTarget(c) : undefined}
+        />
       </Card>
 
       {createOpen && (
@@ -138,7 +155,6 @@ function TeachingModal({
   const [year, setYear] = useState(String(course?.year ?? new Date().getFullYear()));
   const [submitting, setSubmitting] = useState(false);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
-  const isStaff = user?.role === 'staff';
 
   async function submit() {
     if (!courseName.trim()) return toast.error('Nhập tên môn');
@@ -186,10 +202,10 @@ function TeachingModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {!editing && (
-          <Field label="Người phụ trách" required className="sm:col-span-2">
-            <Select value={userId} onChange={(e) => setUserId(e.target.value)} disabled={isStaff}>
+          <Field label="Người phụ trách" required className="md:col-span-2">
+            <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
               <option value="">— Chọn —</option>
               {(users?.data ?? []).map((u) => (
                 <option key={u.id} value={u.id}>
@@ -199,7 +215,7 @@ function TeachingModal({
             </Select>
           </Field>
         )}
-        <Field label="Tên môn" required className="sm:col-span-2">
+        <Field label="Tên môn" required className="md:col-span-2">
           <Input value={courseName} onChange={(e) => setCourseName(e.target.value)} />
         </Field>
         <Field label="Học kỳ" required>

@@ -13,6 +13,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
 from app.models.sample import Sample
@@ -59,7 +60,7 @@ def run_due_soon(db: Session) -> dict:
     """CRON-1: nhắc mẫu sắp tới hạn trong các mốc (3 ngày, 1 ngày)."""
     lock_key = "cron:lock:sample-due-soon"
     if not _acquire_lock(lock_key):
-        raise AppException("LOCK_HELD", "Cron đang chạy, vui lòng thử lại sau", 409)
+        raise AppException(ErrorCode.LOCK_HELD, "Cron đang chạy, vui lòng thử lại sau", 409)
 
     r = get_redis()
     now = datetime.now(timezone.utc)
@@ -123,7 +124,7 @@ def run_overdue(db: Session, *, actor_id: Optional[uuid.UUID] = None) -> dict:
     """CRON-2: đánh dấu mẫu quá hạn chưa done → overdue (idempotent)."""
     lock_key = "cron:lock:sample-overdue"
     if not _acquire_lock(lock_key):
-        raise AppException("LOCK_HELD", "Cron đang chạy, vui lòng thử lại sau", 409)
+        raise AppException(ErrorCode.LOCK_HELD, "Cron đang chạy, vui lòng thử lại sau", 409)
 
     now = datetime.now(timezone.utc)
     scanned = 0

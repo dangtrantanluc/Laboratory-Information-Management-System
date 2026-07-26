@@ -2,7 +2,7 @@
 nhuận), badge cảnh báo runtime, người phụ trách cùng phòng, error factories, MIME whitelist.
 
 Tập trung logic dùng chung mọi service M5 để khớp contract (18-contract-m5-api.md):
-- RBAC: đọc roles_permissions M5 (leader=👁 / accountant=read / staff=read all + ghi
+- RBAC: đọc roles_permissions M5 (leader=👁 / office=read / staff=read all + ghi
   phòng mình / admin=full). Endpoint ghi → has_permission(equipment:create/update,
   calibration:create); scope phòng (staff chỉ phòng mình — BR-EQP-003).
 - Badge cảnh báo (FR-EQP-010, BR-EQP-009/010): runtime từ next_due_date vs today +
@@ -20,6 +20,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -57,16 +58,16 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def equipment_not_found() -> AppException:
-    return AppException("EQUIPMENT_NOT_FOUND", "Không tìm thấy thiết bị", 404)
+    return AppException(ErrorCode.EQUIPMENT_NOT_FOUND, "Không tìm thấy thiết bị", 404)
 
 
 def calibration_not_found() -> AppException:
     return AppException(
-        "CALIBRATION_NOT_FOUND", "Không tìm thấy bản ghi hiệu chuẩn", 404
+        ErrorCode.CALIBRATION_NOT_FOUND, "Không tìm thấy bản ghi hiệu chuẩn", 404
     )
 
 
@@ -77,19 +78,19 @@ def is_privileged(user: CurrentUser) -> bool:
 
 
 def assert_can_create(db: Session, user: CurrentUser) -> None:
-    """Quyền tạo thiết bị — equipment:create (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền tạo thiết bị — equipment:create (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "equipment", "create"):
         raise forbidden("Vai trò của bạn không được tạo thiết bị")
 
 
 def assert_can_update(db: Session, user: CurrentUser) -> None:
-    """Quyền sửa thiết bị — equipment:update (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền sửa thiết bị — equipment:update (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "equipment", "update"):
         raise forbidden("Vai trò của bạn không được sửa thiết bị")
 
 
 def assert_can_calibrate(db: Session, user: CurrentUser) -> None:
-    """Quyền ghi hiệu chuẩn — calibration:create (admin all; staff dept). leader/accountant KHÔNG."""
+    """Quyền ghi hiệu chuẩn — calibration:create (admin all; staff dept). leader/office KHÔNG."""
     if not has_permission(db, user.role, "calibration", "create"):
         raise forbidden("Vai trò của bạn không được ghi hiệu chuẩn")
 
@@ -155,10 +156,10 @@ def validate_responsible(
         return
     u = db.get(User, responsible_user_id)
     if u is None:
-        raise AppException("USER_NOT_FOUND", "Người phụ trách không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người phụ trách không tồn tại", 404)
     if u.department_id != dept_id:
         raise AppException(
-            "RESPONSIBLE_NOT_IN_DEPARTMENT",
+            ErrorCode.RESPONSIBLE_NOT_IN_DEPARTMENT,
             "Người phụ trách phải thuộc cùng phòng với thiết bị",
             422,
             [{"field": "responsible_user_id", "message": "Khác phòng với thiết bị"}],
@@ -169,14 +170,14 @@ def validate_responsible(
 def validate_cycle_pair(value: Optional[int], unit: Optional[str]) -> None:
     if (value is None) != (unit is None):
         raise AppException(
-            "INVALID_CALIBRATION_CYCLE",
+            ErrorCode.INVALID_CALIBRATION_CYCLE,
             "Chu kỳ hiệu chuẩn cần đủ cả giá trị và đơn vị (hoặc bỏ trống cả hai)",
             422,
             [{"field": "calibration_cycle_value", "message": "value & unit phải đi cùng nhau"}],
         )
     if value is not None and value <= 0:
         raise AppException(
-            "INVALID_CALIBRATION_CYCLE",
+            ErrorCode.INVALID_CALIBRATION_CYCLE,
             "Giá trị chu kỳ phải > 0",
             422,
             [{"field": "calibration_cycle_value", "message": "phải > 0"}],

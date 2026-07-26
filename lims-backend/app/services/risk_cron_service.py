@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
@@ -41,7 +42,7 @@ def run_risk_review_due(
 ) -> dict:
     """CRON-8 — quét rủi ro tới hạn đánh giá lại, nhắc in-app owner idempotent."""
     if not _acquire_lock(_LOCK_KEY):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-8 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-8 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = as_of_date or now.date()
@@ -84,19 +85,15 @@ def run_risk_review_due(
             by_milestone[days_left] += 1
             db.flush()
 
-        db.commit()
-    finally:
-        _release_lock(_LOCK_KEY)
-
-    try:
+        # Audit CRON trong CÙNG transaction → 1 commit (PRODUCTION_READINESS_REVIEW L3).
         audit_service.log_action(
             db, action="CRON_RISK_REVIEW_REMINDER", resource="risk_cron",
             user_id=actor.id if actor else None, correlation_id=None,
             detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
         )
         db.commit()
-    except Exception:  # noqa: BLE001
-        db.rollback()
+    finally:
+        _release_lock(_LOCK_KEY)
 
     logger.info(
         "CRON-8 risk-review-due done",

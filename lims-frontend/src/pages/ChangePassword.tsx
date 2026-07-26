@@ -42,7 +42,7 @@ export function ChangePassword() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-plate px-4">
+    <div className="flex min-h-screen-dvh items-center justify-center bg-plate px-4 py-8 px-safe">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blueberry text-white">
@@ -58,7 +58,7 @@ export function ChangePassword() {
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="rounded-xl border border-hairline bg-white p-6 shadow-card">
+        <form onSubmit={onSubmit} className="rounded-xl border border-hairline bg-surface p-5 shadow-card sm:p-6">
           <div className="flex flex-col gap-4">
             <Field label="Mật khẩu hiện tại" required>
               <Input

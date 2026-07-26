@@ -1,16 +1,18 @@
 """Router M4.1 — Hồ sơ nhân sự, lương (hệ số×cơ sở), HĐ, chu kỳ, lịch sử lương, năng lực.
 
 Field-level RBAC lương/HĐ/PII strip ở service (hr_common.strip_profile). Quyền sửa lương/HĐ
-= admin/accountant (SALARY_FORBIDDEN). LƯU Ý thứ tự đăng ký: /hr-profiles/me tĩnh đăng ký
+= admin/office (SALARY_FORBIDDEN). LƯU Ý thứ tự đăng ký: /hr-profiles/me tĩnh đăng ký
 trước /hr-profiles/{user_id} động.
 """
 import uuid
-from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.error_codes import ErrorCode
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user, require_roles
 from app.core.exceptions import AppException
 from app.core.responses import normalize_pagination, ok, paginated
@@ -35,10 +37,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 # ===================== #1 LIST =====================
 @router.get("/hr-profiles")
 def list_profiles(
@@ -48,8 +46,8 @@ def list_profiles(
     contract_expiring_within_days: Optional[int] = Query(default=None, ge=1, le=3650),
     salary_raise_within_days: Optional[int] = Query(default=None, ge=1, le=3650),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
-    user: CurrentUser = Depends(require_roles("admin", "leader", "accountant")),
+    limit: int = Query(default=20, ge=1, le=100),
+    user: CurrentUser = Depends(require_roles("admin", "leader", "office")),
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
@@ -83,7 +81,7 @@ def create_profile(
         hired_date=body.hired_date,
         phone=body.phone,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -123,7 +121,7 @@ def update_profile(
         target_user_id=user_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -145,7 +143,7 @@ def update_contract(
         contract_type=body.contract_type,
         contract_end_date=body.contract_end_date,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -165,7 +163,7 @@ def update_salary_cycle(
         target_user_id=user_id,
         salary_cycle_years=body.salary_cycle_years,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -189,7 +187,7 @@ def create_salary_raise(
         raise_date=body.raise_date,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -199,7 +197,7 @@ def create_salary_raise(
 def list_salary_history(
     user_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -240,7 +238,7 @@ def create_competence(
         target_user_id=user_id,
         payload=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -252,9 +250,9 @@ def competence_summary(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services import research_service
+    from app.services.research import competence_service
 
-    return ok(research_service.competence_summary(db, user=user, target_user_id=user_id))
+    return ok(competence_service.competence_summary(db, user=user, target_user_id=user_id))
 
 
 # ===================== #12 PATCH competence =====================
@@ -273,7 +271,7 @@ def update_competence(
         competence_id=competence_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -291,38 +289,39 @@ def delete_competence(
         user=user,
         competence_id=competence_id,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
 
 
 # ===================== #14 POST competence attachment =====================
 @router.post("/competences/{competence_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_competence_attachment(
+def upload_competence_attachment(
     competence_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services import hr_common as hc
+    with upload_slot():
+        from app.services import hr_common as hc
 
-    hc.assert_can_manage_competence(user)
-    comp = hr_service.get_competence_or_404(db, competence_id)
-    if file.content_type not in _COMPETENCE_MIME_WHITELIST:
-        raise AppException(
-            "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+        hc.assert_can_manage_competence(user)
+        comp = hr_service.get_competence_or_404(db, competence_id)
+        if file.content_type not in _COMPETENCE_MIME_WHITELIST:
+            raise AppException(
+                ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
+            )
+        content = file.file.read()
+        # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
+        data = attachment_service.create_attachment(
+            db,
+            user=user,
+            owner_type="hr_profile",
+            owner_id=comp.user_id,
+            file_name=file.filename or "competence",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
         )
-    content = await file.read()
-    # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
-    data = attachment_service.create_attachment(
-        db,
-        user=user,
-        owner_type="hr_profile",
-        owner_id=comp.user_id,
-        file_name=file.filename or "competence",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+        return ok(data)

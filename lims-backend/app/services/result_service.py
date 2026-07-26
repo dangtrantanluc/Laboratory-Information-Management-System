@@ -4,14 +4,15 @@ trả lại, tạo phiên bản sửa (versioning immutable, D6).
 Tách nhập-duyệt (approved_by ≠ entered_by, D8). approved → bất biến + công khai nội bộ.
 """
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found, validation_error
+from app.core.exceptions import AppException, validation_error
 from app.models.sample import Sample
 from app.models.sample_assignment import SampleAssignment
 from app.models.sample_result import SampleResult
@@ -19,17 +20,11 @@ from app.services import audit_service, sample_common
 
 
 def _get_assignment_or_404(db: Session, assignment_id: uuid.UUID) -> SampleAssignment:
-    a = db.get(SampleAssignment, assignment_id)
-    if a is None:
-        raise not_found("Không tìm thấy phân công")
-    return a
+    return get_or_404(db, SampleAssignment, assignment_id, "Không tìm thấy phân công")
 
 
 def _get_result_or_404(db: Session, result_id: uuid.UUID) -> SampleResult:
-    r = db.get(SampleResult, result_id)
-    if r is None:
-        raise not_found("Không tìm thấy kết quả")
-    return r
+    return get_or_404(db, SampleResult, result_id, "Không tìm thấy kết quả")
 
 
 def _current_result(db: Session, assignment_id: uuid.UUID) -> Optional[SampleResult]:
@@ -107,7 +102,7 @@ def enter_result(
     # chỉ assignee hoặc Admin
     if not (assignment.assigned_to == user.id or user.role == "admin"):
         raise AppException(
-            "NOT_ASSIGNEE", "Bạn không phải người được giao phần việc này", 403
+            ErrorCode.NOT_ASSIGNEE, "Bạn không phải người được giao phần việc này", 403
         )
     if sample.status in ("done", "returned"):
         raise sample_common.invalid_state("Mẫu đã hoàn tất, không thể nhập kết quả")
@@ -116,7 +111,7 @@ def enter_result(
     current = _current_result(db, assignment_id)
     if current is not None and current.approved_by is not None:
         raise AppException(
-            "RESULT_LOCKED",
+            ErrorCode.RESULT_LOCKED,
             "Kết quả đã duyệt — sửa phải tạo phiên bản mới (revise)",
             422,
         )
@@ -202,13 +197,13 @@ def approve_result(
     if not sample_common.can_lead_action(user, sample.department_id):
         raise sample_common.forbidden("Chỉ trưởng nhóm / lãnh đạo / admin được duyệt")
     if result.approved_by is not None:
-        raise AppException("RESULT_ALREADY_APPROVED", "Kết quả đã được duyệt", 422)
+        raise AppException(ErrorCode.RESULT_ALREADY_APPROVED, "Kết quả đã được duyệt", 422)
     if not result.is_current:
-        raise AppException("NO_RESULT_TO_APPROVE", "Không có kết quả hiện hành để duyệt", 422)
+        raise AppException(ErrorCode.NO_RESULT_TO_APPROVE, "Không có kết quả hiện hành để duyệt", 422)
     # Tách nhập-duyệt (BR-011)
     if result.entered_by == user.id:
         raise AppException(
-            "SELF_APPROVAL_FORBIDDEN", "Không được tự duyệt kết quả của chính mình", 403
+            ErrorCode.SELF_APPROVAL_FORBIDDEN, "Không được tự duyệt kết quả của chính mình", 403
         )
 
     result.approved_by = user.id
@@ -277,7 +272,7 @@ def return_result(
         raise sample_common.forbidden("Chỉ trưởng nhóm / lãnh đạo / admin được trả lại")
     if result.approved_by is not None:
         raise AppException(
-            "RESULT_ALREADY_APPROVED",
+            ErrorCode.RESULT_ALREADY_APPROVED,
             "Kết quả đã duyệt — phải tạo phiên bản sửa (revise)",
             422,
         )
@@ -324,17 +319,17 @@ def revise_result(
     is_owner = result.entered_by == user.id
     if not (is_owner or sample_common.can_lead_action(user, sample.department_id)):
         raise AppException(
-            "RESULT_NOT_OWNER", "Bạn không có quyền sửa kết quả này", 403
+            ErrorCode.RESULT_NOT_OWNER, "Bạn không có quyền sửa kết quả này", 403
         )
     if result.approved_by is None:
         raise AppException(
-            "RESULT_NOT_APPROVED",
+            ErrorCode.RESULT_NOT_APPROVED,
             "Kết quả chưa duyệt — sửa trực tiếp được, không cần tạo phiên bản",
             422,
         )
     if not (reason and reason.strip()):
         raise AppException(
-            "REVISION_REASON_REQUIRED", "Tạo phiên bản sửa phải có lý do", 400
+            ErrorCode.REVISION_REASON_REQUIRED, "Tạo phiên bản sửa phải có lý do", 400
         )
     if not result_data:
         raise validation_error("Dữ liệu kết quả không được rỗng")

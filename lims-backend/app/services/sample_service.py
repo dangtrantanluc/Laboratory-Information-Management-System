@@ -2,7 +2,7 @@
 on-time report, QR (FR-001/002/004/012/013/014/015/016/019).
 
 State transitions qua sample_common.change_status (whitelist + audit). Mọi thao tác ghi
-trong transaction với row-lock khi đụng trạng thái (finalize). Cấm Kế toán toàn bộ.
+trong transaction với row-lock khi đụng trạng thái (finalize). Cấm Văn phòng toàn bộ.
 """
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found, validation_error
 from app.models.overdue_reason import OverdueReason
@@ -72,11 +73,11 @@ def add_sample(
 
     if deadline_at <= req.received_at:
         raise AppException(
-            "INVALID_DEADLINE", "Hạn hoàn thành phải sau ngày nhận mẫu", 422
+            ErrorCode.INVALID_DEADLINE, "Hạn hoàn thành phải sau ngày nhận mẫu", 422
         )
     if condition_status == "not_acceptable" and not (condition_note and condition_note.strip()):
         raise AppException(
-            "CONDITION_REASON_REQUIRED",
+            ErrorCode.CONDITION_REASON_REQUIRED,
             "Mẫu không đạt điều kiện phải ghi lý do",
             400,
         )
@@ -108,7 +109,7 @@ def add_sample(
             req = db.get(TestRequest, request_id)
     else:
         raise AppException(
-            "INTERNAL_ERROR", "Không sinh được mã mẫu, vui lòng thử lại", 500
+            ErrorCode.INTERNAL_ERROR, "Không sinh được mã mẫu, vui lòng thử lại", 500
         )
 
     audit_service.log_action(
@@ -267,8 +268,9 @@ def list_request_samples(
     return items, total
 
 
-def get_sample_detail(db: Session, sample_id: uuid.UUID) -> dict:
+def get_sample_detail(db: Session, sample_id: uuid.UUID, *, user: CurrentUser) -> dict:
     sample = sample_common.get_sample_or_404(db, sample_id)
+    sample_common.assert_read_scope(user, sample.department_id)
     req = db.get(TestRequest, sample.request_id)
     customer_name = None
     if req and req.customer_id:
@@ -356,7 +358,7 @@ def update_sample(
         detail={"diff": diff},
     )
     db.commit()
-    return get_sample_detail(db, sample_id)
+    return get_sample_detail(db, sample_id, user=user)
 
 
 def update_condition(
@@ -373,7 +375,7 @@ def update_condition(
     sample_common.assert_write_scope(user, sample.department_id)
     if condition_status == "not_acceptable" and not (condition_note and condition_note.strip()):
         raise AppException(
-            "CONDITION_REASON_REQUIRED", "Mẫu không đạt điều kiện phải ghi lý do", 400
+            ErrorCode.CONDITION_REASON_REQUIRED, "Mẫu không đạt điều kiện phải ghi lý do", 400
         )
     sample.condition_status = condition_status
     sample.condition_note = condition_note
@@ -412,7 +414,7 @@ def update_deadline(
     if sample.status == "returned":
         raise sample_common.invalid_state("Không thể sửa deadline mẫu đã trả kết quả")
     if deadline_at <= sample.received_at:
-        raise AppException("INVALID_DEADLINE", "Hạn mới phải sau ngày nhận mẫu", 422)
+        raise AppException(ErrorCode.INVALID_DEADLINE, "Hạn mới phải sau ngày nhận mẫu", 422)
 
     previous = sample.deadline_at
     sample.deadline_at = deadline_at
@@ -525,7 +527,7 @@ def add_overdue_reason(
     sample_common.assert_write_scope(user, sample.department_id)
     if sample.status != "overdue":
         raise AppException(
-            "SAMPLE_NOT_OVERDUE", "Mẫu không ở trạng thái trễ hạn", 422
+            ErrorCode.SAMPLE_NOT_OVERDUE, "Mẫu không ở trạng thái trễ hạn", 422
         )
     ovr = OverdueReason(sample_id=sample.id, reason=reason.strip(), by_user=user.id)
     db.add(ovr)
@@ -575,7 +577,7 @@ def finalize_sample(
     total_a, approved_a = _assignment_stats(db, sample.id)
     if total_a == 0 or approved_a != total_a:
         raise AppException(
-            "RESULTS_NOT_APPROVED",
+            ErrorCode.RESULTS_NOT_APPROVED,
             "Còn phần việc chưa được duyệt, không thể chốt mẫu",
             422,
         )
@@ -590,7 +592,7 @@ def finalize_sample(
         ).scalar_one() > 0
         if not has_reason:
             raise AppException(
-                "OVERDUE_REASON_REQUIRED",
+                ErrorCode.OVERDUE_REASON_REQUIRED,
                 "Mẫu trễ hạn phải nhập lý do trễ trước khi chốt",
                 422,
             )
@@ -673,10 +675,8 @@ def on_time_report(
     groups: dict = {}
     for s in samples:
         if group_by == "user":
-            key_id = s.received_by
             key_name = sample_common.user_name(db, s.received_by) or str(s.received_by)
         else:
-            key_id = s.department_id
             key_name = sample_common.dept_name(db, s.department_id) or str(s.department_id)
         g = groups.setdefault(
             key_name, {"group": key_name, "total_done": 0, "on_time": 0, "late": 0}

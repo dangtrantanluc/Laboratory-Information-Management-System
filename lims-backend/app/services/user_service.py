@@ -10,24 +10,23 @@ from typing import Optional
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.core import security
+from app.core.db_helpers import get_or_404
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import (
     AppException,
     conflict,
-    not_found,
     unprocessable,
 )
 from app.models.department import Department
 from app.models.refresh_token import RefreshToken
 from app.models.user import User, VALID_ROLES
-from app.services import audit_service
+from app.services import audit_service, avatar_service, email_service
 
 
 def _get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
-    user = db.get(User, user_id)
-    if user is None:
-        raise not_found("Không tìm thấy người dùng")
-    return user
+    return get_or_404(db, User, user_id, "Không tìm thấy người dùng")
 
 
 def _email_exists(db: Session, email: str, exclude_id: Optional[uuid.UUID] = None) -> bool:
@@ -50,7 +49,7 @@ def _validate_department(db: Session, department_id: uuid.UUID) -> Department:
     dept = db.get(Department, department_id)
     if dept is None:
         raise AppException(
-            "DEPARTMENT_NOT_FOUND", "Phòng ban không tồn tại", 404
+            ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng ban không tồn tại", 404
         )
     return dept
 
@@ -88,13 +87,19 @@ def list_users(
         .limit(limit)
     ).scalars().all()
 
-    # nạp tên phòng + cờ lead
-    result = [_serialize_user_list(db, u) for u in rows]
+    # Nạp phòng ban MỘT LƯỢT thay vì N lượt: bản cũ gọi db.get(Department) cho
+    # từng dòng nên GET /users?limit=100 phát sinh 1 + 100 truy vấn (F-12).
+    dept_ids = {u.department_id for u in rows if u.department_id}
+    depts = (
+        {d.id: d for d in db.scalars(select(Department).where(Department.id.in_(dept_ids)))}
+        if dept_ids
+        else {}
+    )
+    result = [_serialize_user_list(u, depts.get(u.department_id)) for u in rows]
     return result, total
 
 
-def _serialize_user_list(db: Session, user: User) -> dict:
-    dept = db.get(Department, user.department_id) if user.department_id else None
+def _serialize_user_list(user: User, dept: Optional[Department]) -> dict:
     return {
         "id": user.id,
         "email": str(user.email),
@@ -104,6 +109,7 @@ def _serialize_user_list(db: Session, user: User) -> dict:
         "department_name": dept.name if dept else None,
         "is_dept_lead": bool(dept and dept.lead_user_id == user.id),
         "status": user.status,
+        "email_verified_at": user.email_verified_at,
         "last_login_at": user.last_login_at,
         "created_at": user.created_at,
     }
@@ -121,6 +127,8 @@ def serialize_user_detail(db: Session, user: User) -> dict:
         ),
         "is_dept_lead": bool(dept and dept.lead_user_id == user.id),
         "status": user.status,
+        "email_verified_at": user.email_verified_at,
+        "avatar_url": avatar_service.avatar_url(user.avatar_key),
         "last_login_at": user.last_login_at,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
@@ -146,9 +154,9 @@ def create_user(
 ) -> dict:
     email_norm = email.strip().lower()
     if _email_exists(db, email_norm):
-        raise conflict("EMAIL_EXISTS", "Email đã tồn tại trong hệ thống")
+        raise conflict(ErrorCode.EMAIL_EXISTS, "Email đã tồn tại trong hệ thống")
     if role not in VALID_ROLES:
-        raise AppException("VALIDATION_ERROR", "Vai trò không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Vai trò không hợp lệ", 400)
 
     dept = None
     if department_id is not None:
@@ -210,7 +218,7 @@ def update_user(
         email_norm = changes["email"].strip().lower()
         if email_norm != str(user.email):
             if _email_exists(db, email_norm, exclude_id=user.id):
-                raise conflict("EMAIL_EXISTS", "Email đã tồn tại")
+                raise conflict(ErrorCode.EMAIL_EXISTS, "Email đã tồn tại")
             diff["email"] = {"from": str(user.email), "to": email_norm}
             user.email = email_norm
 
@@ -225,7 +233,7 @@ def update_user(
             if user.role == "admin" and new_role != "admin":
                 if _count_active_admins(db, exclude_id=user.id) == 0:
                     raise unprocessable(
-                        "LAST_ADMIN_PROTECTED",
+                        ErrorCode.LAST_ADMIN_PROTECTED,
                         "Không thể hạ vai trò admin cuối cùng của hệ thống",
                     )
             diff["role"] = {"from": user.role, "to": new_role}
@@ -243,7 +251,7 @@ def update_user(
             user.department_id = new_dept
 
     if not diff:
-        raise AppException("VALIDATION_ERROR", "Không có thay đổi nào hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Không có thay đổi nào hợp lệ", 400)
 
     user.updated_by = actor_id
     user.updated_at = func.now()
@@ -278,13 +286,13 @@ def set_status(
         # Chặn self-disable
         if user.id == actor_id:
             raise unprocessable(
-                "SELF_DISABLE_FORBIDDEN", "Không thể tự vô hiệu hóa chính mình"
+                ErrorCode.SELF_DISABLE_FORBIDDEN, "Không thể tự vô hiệu hóa chính mình"
             )
         # Chặn vô hiệu admin cuối cùng
         if user.role == "admin" and user.status == "active":
             if _count_active_admins(db, exclude_id=user.id) == 0:
                 raise unprocessable(
-                    "LAST_ADMIN_PROTECTED",
+                    ErrorCode.LAST_ADMIN_PROTECTED,
                     "Không thể vô hiệu hóa admin cuối cùng của hệ thống",
                 )
 
@@ -357,3 +365,123 @@ def reset_password(
         "must_change_password": must_change,
         "reset_at": user.updated_at,
     }
+
+
+# ──────────────────────── m30: duyệt tài khoản tự đăng ký ────────────────────────
+
+ROLE_LABELS_VI = {
+    "admin": "Quản trị viên",
+    "leader": "Ban lãnh đạo",
+    "office": "Văn phòng",
+    "staff": "Nhân viên / KTV",
+    "reception": "Phòng nhận mẫu",
+    "qms": "Quản lý chất lượng",
+    "lab_manager": "Trưởng phòng lab",
+}
+
+
+def approve_registration(
+    db: Session,
+    *,
+    actor_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    department_id: Optional[uuid.UUID],
+    is_dept_lead: bool = False,
+    correlation_id: Optional[str] = None,
+    ip: Optional[str] = None,
+) -> dict:
+    """Kích hoạt tài khoản đang chờ, gán vai trò + phòng ban thật.
+
+    Đây là điểm DUY NHẤT biến 'pending' → 'active'. Vai trò do Quản trị viên chọn ở
+    bước này, không phải do người đăng ký khai — chặn tự cấp quyền.
+    """
+    user = _get_user_or_404(db, user_id)
+
+    if user.status != "pending":
+        raise unprocessable(
+            ErrorCode.NOT_PENDING, "Tài khoản này không ở trạng thái chờ duyệt"
+        )
+    if user.email_verified_at is None:
+        raise unprocessable(
+            ErrorCode.EMAIL_NOT_VERIFIED,
+            "Người dùng chưa xác thực địa chỉ email. Chưa thể duyệt tài khoản.",
+        )
+    if role not in VALID_ROLES:
+        raise unprocessable(ErrorCode.INVALID_ROLE, "Vai trò không hợp lệ")
+
+    dept = _validate_department(db, department_id) if department_id else None
+
+    user.role = role
+    user.department_id = department_id
+    user.status = "active"
+    user.updated_by = actor_id
+    user.updated_at = func.now()
+
+    # is_dept_lead không phải cột của users — nó là quan hệ departments.lead_user_id
+    # (giữ đúng mô hình hiện có, không nhân bản trạng thái).
+    if dept is not None and is_dept_lead:
+        dept.lead_user_id = user.id
+
+    audit_service.log_action(
+        db,
+        action="APPROVE_REGISTRATION",
+        resource="user",
+        user_id=actor_id,
+        resource_id=user.id,
+        correlation_id=correlation_id,
+        ip=ip,
+        detail={"role": role, "department_id": str(department_id) if department_id else None},
+    )
+    db.commit()
+    db.refresh(user)
+
+    email_service.send_account_approved(
+        to=str(user.email),
+        full_name=user.full_name,
+        role_label=ROLE_LABELS_VI.get(role, role),
+        login_url=f"{settings.app_public_url}/login",
+    )
+    return serialize_user_detail(db, user)
+
+
+def reject_registration(
+    db: Session,
+    *,
+    actor_id: uuid.UUID,
+    user_id: uuid.UUID,
+    reason: str,
+    correlation_id: Optional[str] = None,
+    ip: Optional[str] = None,
+) -> dict:
+    """Từ chối yêu cầu mở tài khoản → chuyển sang 'disabled'.
+
+    Cố ý KHÔNG xoá bản ghi: audit trail của ISO/IEC 17025 cần lưu vết ai đã yêu cầu
+    và ai đã từ chối. Ngoài ra giữ hàng users cũng chặn đăng ký lại spam cùng email.
+    """
+    user = _get_user_or_404(db, user_id)
+    if user.status != "pending":
+        raise unprocessable(
+            ErrorCode.NOT_PENDING, "Tài khoản này không ở trạng thái chờ duyệt"
+        )
+
+    user.status = "disabled"
+    user.updated_by = actor_id
+    user.updated_at = func.now()
+
+    audit_service.log_action(
+        db,
+        action="REJECT_REGISTRATION",
+        resource="user",
+        user_id=actor_id,
+        resource_id=user.id,
+        correlation_id=correlation_id,
+        ip=ip,
+        detail={"reason": reason},
+    )
+    db.commit()
+
+    email_service.send_account_rejected(
+        to=str(user.email), full_name=user.full_name, reason=reason
+    )
+    return {"id": user.id, "status": "disabled"}

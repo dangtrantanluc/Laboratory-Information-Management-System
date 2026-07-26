@@ -795,7 +795,7 @@ function ResultModal({
           <div className="flex flex-col gap-3">
             {rows.map((row, idx) => (
               <div key={idx} className="rounded-lg border border-hairline bg-plate/40 p-3">
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
                   <Field label="Chỉ tiêu">
                     <Input
                       value={row.name}

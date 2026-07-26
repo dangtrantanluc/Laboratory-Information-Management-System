@@ -1,6 +1,6 @@
 """Attachment service — tải file dùng chung (M7 #30) + upload generic cho M1/M2.
 
-RBAC theo owner resource: M7 chỉ enforce phần đã biết (M1 mẫu/kết quả: cấm accountant).
+RBAC theo owner resource: M7 chỉ enforce phần đã biết (M1 mẫu/kết quả: cấm office).
 Khi M1/M2/M3 có RBAC chi tiết, sẽ mở rộng _check_owner_read_permission.
 """
 import uuid
@@ -9,25 +9,26 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, forbidden, not_found, unprocessable
+from app.core.exceptions import AppException, not_found, unprocessable
 from app.models.attachment import Attachment, VALID_OWNER_TYPES
-from app.services import audit_service, storage_service
+from app.services import attachment_common, audit_service, storage_service
 
-# owner_type thuộc nghiệp vụ M1 (mẫu/kết quả) — kế toán bị cấm (B03)
+# owner_type thuộc nghiệp vụ M1 (mẫu/kết quả) — văn phòng bị cấm (B03)
 _M1_OWNER_TYPES = {"test_request", "sample", "sample_result"}
 
 
 def _check_owner_read_permission(user: CurrentUser, owner_type: str) -> None:
     """RBAC theo owner resource. M7 enforce phần đã chốt; module sau mở rộng.
 
-    - M1 (mẫu/kết quả): kế toán bị cấm → FORBIDDEN_ACCOUNTANT (B03).
+    - M1 (mẫu/kết quả): văn phòng bị cấm → FORBIDDEN_OFFICE (B03).
     - Các owner_type khác: mọi vai trò đã đăng nhập được đọc (M2/M3 nới RBAC riêng sau).
     """
-    if owner_type in _M1_OWNER_TYPES and user.role == "accountant":
+    if owner_type in _M1_OWNER_TYPES and user.role == "office":
         raise AppException(
-            "FORBIDDEN_ACCOUNTANT",
-            "Kế toán không được truy cập tài nguyên mẫu/kết quả",
+            ErrorCode.FORBIDDEN_OFFICE,
+            "Văn phòng không được truy cập tài nguyên mẫu/kết quả",
             403,
         )
 
@@ -51,8 +52,14 @@ def get_download(
 
     _check_owner_read_permission(user, att.owner_type)
 
+    # Chặn stored-XSS: chỉ phục vụ inline nếu mime nằm trong allowlist an toàn,
+    # bất kể client yêu cầu `disposition=inline` (PRODUCTION_READINESS_REVIEW
+    # §Security: "Same-origin inline file serving enables stored XSS").
+    safe_inline = inline and attachment_common.is_inline_safe(
+        att.mime, allowed=attachment_common.GENERIC_ALLOWED_MIME
+    )
     download_url = storage_service.presigned_get_url(
-        att.file_key, file_name=att.file_name, inline=inline
+        att.file_key, file_name=att.file_name, inline=safe_inline
     )
 
     uploader_name = None
@@ -114,15 +121,10 @@ def create_attachment(
     sẽ được module tương ứng bổ sung. M7 chỉ chấp nhận owner_type trong whitelist.
     """
     if owner_type not in VALID_OWNER_TYPES:
-        raise unprocessable("INVALID_OWNER_TYPE", "Loại đối tượng đính kèm không hợp lệ")
+        raise unprocessable(ErrorCode.INVALID_OWNER_TYPE, "Loại đối tượng đính kèm không hợp lệ")
 
-    from app.config import settings
-
-    if len(content) > settings.max_upload_size_bytes:
-        raise unprocessable(
-            "FILE_TOO_LARGE",
-            f"Tệp vượt quá giới hạn {settings.max_upload_size_bytes // (1024*1024)}MB",
-        )
+    attachment_common.check_mime(mime, allowed=attachment_common.GENERIC_ALLOWED_MIME)
+    attachment_common.check_size(content)
 
     file_key = storage_service.build_object_key(owner_type, owner_id, file_name)
     storage_service.put_object(file_key, content, content_type=mime)

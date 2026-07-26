@@ -2,7 +2,7 @@
 kết quả, chốt done, lý do trễ, danh sách overdue, xuất phiếu PDF.
 
 LƯU Ý thứ tự: /samples/overdue đăng ký TRƯỚC /samples/{sample_id} (tránh nuốt path).
-Kế toán cấm toàn bộ. Phạm vi phòng cho ghi.
+Văn phòng cấm toàn bộ. Phạm vi phòng cho ghi.
 """
 import uuid
 from datetime import datetime
@@ -11,14 +11,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
 from app.schemas.sample import (
-    ApproveResultRequest,
     CreateAssignmentRequest,
     CreateHandoverRequest,
-    CreateResultRequest,
     FinalizeRequest,
     OverdueReasonRequest,
     UpdateConditionRequest,
@@ -41,10 +41,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 # ===== List / search =====
 @router.get("")
 def list_samples(
@@ -59,11 +55,11 @@ def list_samples(
     deadline_to: Optional[datetime] = Query(default=None),
     overdue_only: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
     items, total = sample_service.list_samples(
         db,
@@ -90,11 +86,11 @@ def list_overdue(
     within_days: int = Query(default=3, ge=1, le=30),
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
     items, total = sample_service.list_overdue(
         db,
@@ -114,8 +110,8 @@ def get_sample(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
-    return ok(sample_service.get_sample_detail(db, sample_id))
+    sample_common.deny_office(user)
+    return ok(sample_service.get_sample_detail(db, sample_id, user=user))
 
 
 @router.patch("/{sample_id}")
@@ -126,14 +122,14 @@ def update_sample(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.update_sample(
         db,
         user=user,
         sample_id=sample_id,
         changes=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -146,7 +142,7 @@ def update_condition(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.update_condition(
         db,
         user=user,
@@ -154,7 +150,7 @@ def update_condition(
         condition_status=body.condition_status,
         condition_note=body.condition_note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -167,14 +163,14 @@ def update_deadline(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.update_deadline(
         db,
         user=user,
         sample_id=sample_id,
         deadline_at=body.deadline_at,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -185,7 +181,7 @@ def get_qr(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(sample_service.get_qr(db, sample_id=sample_id))
 
 
@@ -196,31 +192,32 @@ def list_sample_attachments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(sample_attachment_service.list_sample_attachments(db, sample_id=sample_id))
 
 
 @router.post("/{sample_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_sample_attachment(
+def upload_sample_attachment(
     sample_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
-    content = await file.read()
-    data = sample_attachment_service.upload_sample_attachment(
-        db,
-        user=user,
-        sample_id=sample_id,
-        file_name=file.filename or "file",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        sample_common.deny_office(user)
+        content = file.file.read()
+        data = sample_attachment_service.upload_sample_attachment(
+            db,
+            user=user,
+            sample_id=sample_id,
+            file_name=file.filename or "file",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== Assignments =====
@@ -230,7 +227,7 @@ def list_assignments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(assignment_service.list_assignments(db, sample_id=sample_id))
 
 
@@ -242,7 +239,7 @@ def create_assignment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = assignment_service.create_assignment(
         db,
         user=user,
@@ -250,7 +247,7 @@ def create_assignment(
         part_name=body.part_name,
         assigned_to=body.assigned_to,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -264,7 +261,7 @@ def create_handover(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = assignment_service.create_handover(
         db,
         user=user,
@@ -272,7 +269,7 @@ def create_handover(
         to_user=body.to_user,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -283,7 +280,7 @@ def get_custody_chain(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(assignment_service.get_custody_chain(db, sample_id=sample_id))
 
 
@@ -294,7 +291,7 @@ def sample_results(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(result_service.sample_results_summary(db, user=user, sample_id=sample_id))
 
 
@@ -307,14 +304,14 @@ def finalize_sample(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.finalize_sample(
         db,
         user=user,
         sample_id=sample_id,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -328,14 +325,14 @@ def add_overdue_reason(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.add_overdue_reason(
         db,
         user=user,
         sample_id=sample_id,
         reason=body.reason,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -349,14 +346,14 @@ def export_report(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     pdf_bytes, file_name = sample_report_service.export_report(
         db,
         user=user,
         sample_id=sample_id,
         reissue=reissue,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=pdf_bytes,

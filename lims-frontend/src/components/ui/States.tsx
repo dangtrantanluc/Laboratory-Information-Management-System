@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Inbox, Loader2 } from 'lucide-react';
+import { Sprout, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export function EmptyState({
@@ -22,8 +22,9 @@ export function EmptyState({
         className,
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-plate text-stem">
-        {icon ?? <Inbox size={22} />}
+      {/* Empty state botanical: mầm cây trên nền lá — ấm hơn "hộp trống" */}
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blueberry/10 text-blueberry">
+        {icon ?? <Sprout size={24} />}
       </div>
       <div>
         <p className="text-sm font-semibold text-ink">{title}</p>
@@ -43,6 +44,21 @@ export function LoadingState({ label = 'Đang tải dữ liệu…' }: { label?:
     <div className="flex flex-col items-center justify-center gap-3 py-14 text-subink">
       <Spinner className="h-6 w-6" />
       <p className="text-sm">{label}</p>
+    </div>
+  );
+}
+
+/** Skeleton cho DataTable ở chế độ thẻ (dưới md). */
+export function CardSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="divide-y divide-hairline">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex flex-col gap-2 px-4 py-3.5">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-hairline/70" />
+          <div className="h-3 w-1/2 animate-pulse rounded bg-hairline/50" />
+          <div className="h-3 w-2/5 animate-pulse rounded bg-hairline/50" />
+        </div>
+      ))}
     </div>
   );
 }

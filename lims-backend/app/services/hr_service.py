@@ -7,15 +7,16 @@ last_salary_raise_date + tính lại next_salary_raise_date + audit HR_SALARY_RA
 (KHÔNG log giá trị tiền — BR-HR-024).
 """
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Optional
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.department import Department
 from app.models.hr import (
     Competence,
     ContractType,
@@ -67,10 +68,7 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
 
 
 def _get_profile_or_404(db: Session, user_id: uuid.UUID) -> HrProfile:
-    p = db.get(HrProfile, user_id)
-    if p is None:
-        raise AppException("PROFILE_NOT_FOUND", "Hồ sơ nhân sự không tồn tại", 404)
-    return p
+    return get_or_404(db, HrProfile, user_id, "Hồ sơ nhân sự không tồn tại", code=ErrorCode.PROFILE_NOT_FOUND)
 
 
 def _recompute_next(p: HrProfile) -> None:
@@ -150,13 +148,13 @@ def create_profile(
     hc.assert_can_manage_profile(user)
     target = db.get(User, target_user_id)
     if target is None:
-        raise AppException("USER_NOT_FOUND", "Người dùng không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
     if db.get(HrProfile, target_user_id) is not None:
         raise AppException(
-            "DUPLICATE_PROFILE", "Người dùng đã có hồ sơ nhân sự (1-1)", 409
+            ErrorCode.DUPLICATE_PROFILE, "Người dùng đã có hồ sơ nhân sự (1-1)", 409
         )
     if not job_title or not job_title.strip():
-        raise AppException("VALIDATION_ERROR", "Thiếu chức danh (job_title)", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu chức danh (job_title)", 400)
 
     p = HrProfile(
         user_id=target_user_id,
@@ -214,7 +212,7 @@ def update_profile(
     forbidden_fields = (hc.SALARY_FIELDS | hc.CONTRACT_FIELDS) - {"phone"}
     if any(k in forbidden_fields for k in changes):
         raise AppException(
-            "VALIDATION_ERROR",
+            ErrorCode.VALIDATION_ERROR,
             "Lương/hợp đồng phải sửa qua endpoint riêng (/contract, /salary-raises, "
             "/salary-cycle)",
             400,
@@ -225,11 +223,11 @@ def update_profile(
         if field in changes:
             value = changes[field]
             if field == "job_title" and (not value or not str(value).strip()):
-                raise AppException("VALIDATION_ERROR", "job_title không được rỗng", 400)
+                raise AppException(ErrorCode.VALIDATION_ERROR, "job_title không được rỗng", 400)
             setattr(p, field, value.strip() if isinstance(value, str) else value)
             changed_fields.append(field)
     if not changed_fields:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     p.updated_by = user.id
     p.updated_at = func.now()
     db.flush()
@@ -260,17 +258,17 @@ def update_contract(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
-    hc.assert_can_edit_salary(user)  # HĐ = nhóm tài chính → admin/accountant
+    hc.assert_can_edit_salary(user)  # HĐ = nhóm tài chính → admin/office
     p = _get_profile_or_404(db, target_user_id)
     if not contract_type:
-        raise AppException("VALIDATION_ERROR", "Thiếu contract_type", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu contract_type", 400)
     if db.get(ContractType, contract_type) is None:
         raise AppException(
-            "INVALID_CONTRACT_TYPE", "Loại hợp đồng ngoài danh mục", 400
+            ErrorCode.INVALID_CONTRACT_TYPE, "Loại hợp đồng ngoài danh mục", 400
         )
     if contract_end_date and contract_end_date <= contract_signed_date:
         raise AppException(
-            "INVALID_DATE_ORDER",
+            ErrorCode.INVALID_DATE_ORDER,
             "Ngày hết hạn HĐ phải sau ngày ký",
             422,
             [{"field": "contract_end_date", "message": "<= contract_signed_date"}],
@@ -320,7 +318,7 @@ def update_salary_cycle(
     hc.assert_can_edit_salary(user)
     p = _get_profile_or_404(db, target_user_id)
     if not isinstance(salary_cycle_years, int) or salary_cycle_years < 1:
-        raise AppException("INVALID_CYCLE", "salary_cycle_years phải là số nguyên >= 1", 400)
+        raise AppException(ErrorCode.INVALID_CYCLE, "salary_cycle_years phải là số nguyên >= 1", 400)
     p.salary_cycle_years = salary_cycle_years
     _recompute_next(p)
     p.updated_by = user.id
@@ -365,7 +363,7 @@ def create_salary_raise(
     p = _get_profile_or_404(db, target_user_id)
 
     if not salary_grade or not salary_grade.strip():
-        raise AppException("VALIDATION_ERROR", "Thiếu salary_grade", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu salary_grade", 400)
     coeff = hc.parse_decimal(salary_coefficient, field="salary_coefficient", positive=True)
     hc.assert_max_decimals(coeff, field="salary_coefficient", places=2)
     base = hc.parse_decimal(base_salary_amount, field="base_salary_amount", positive=True)
@@ -375,7 +373,7 @@ def create_salary_raise(
 
     if raise_date > date.today():
         raise AppException(
-            "FUTURE_RAISE_NOT_ALLOWED", "Ngày nâng lương không được ở tương lai", 422
+            ErrorCode.FUTURE_RAISE_NOT_ALLOWED, "Ngày nâng lương không được ở tương lai", 422
         )
 
     # Snapshot mức cũ → bản ghi lịch sử immutable
@@ -501,9 +499,9 @@ def _competence_dict(db: Session, c: Competence) -> dict:
 
 
 def _assert_competence_read(user: CurrentUser, target_user_id: uuid.UUID) -> None:
-    """Đọc năng lực: admin/leader (all); staff của mình. Accountant → 403 (không tài chính)."""
-    if user.role == "accountant":
-        raise hc.forbidden("Kế toán không quản lý hồ sơ năng lực")
+    """Đọc năng lực: admin/leader (all); staff của mình. Office → 403 (không tài chính)."""
+    if user.role == "office":
+        raise hc.forbidden("Văn phòng không quản lý hồ sơ năng lực")
     if user.role == "staff" and user.id != target_user_id:
         raise hc.forbidden("Bạn chỉ được xem năng lực của chính mình")
 
@@ -521,7 +519,7 @@ def list_competences(
     conditions = [Competence.user_id == target_user_id]
     if kind:
         if kind not in ("degree", "certificate", "authorization"):
-            raise AppException("VALIDATION_ERROR", "kind không hợp lệ", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "kind không hợp lệ", 400)
         conditions.append(Competence.kind == kind)
     rows = db.execute(
         select(Competence).where(*conditions).order_by(Competence.created_at.desc())
@@ -567,24 +565,24 @@ def _build_competence(
 ) -> Competence:
     kind = payload.get("kind")
     if kind not in ("degree", "certificate", "authorization"):
-        raise AppException("VALIDATION_ERROR", "kind không hợp lệ", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "kind không hợp lệ", 400)
     title = payload.get("title")
     if not title or not str(title).strip():
-        raise AppException("VALIDATION_ERROR", "Thiếu title", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu title", 400)
     issued = payload.get("issued_date")
     expiry = payload.get("expiry_date")
     if expiry and issued and expiry < issued:
-        raise AppException("INVALID_DATE_ORDER", "expiry_date phải >= issued_date", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "expiry_date phải >= issued_date", 422)
     scope_detail = payload.get("scope_detail")
     authorized_by = payload.get("authorized_by")
     if kind == "authorization":
         if not scope_detail or not str(scope_detail).strip():
             raise AppException(
-                "VALIDATION_ERROR", "Thiếu scope_detail (bắt buộc khi ủy quyền)", 400
+                ErrorCode.VALIDATION_ERROR, "Thiếu scope_detail (bắt buộc khi ủy quyền)", 400
             )
         if not authorized_by:
             raise AppException(
-                "VALIDATION_ERROR", "Thiếu authorized_by (bắt buộc khi ủy quyền)", 400
+                ErrorCode.VALIDATION_ERROR, "Thiếu authorized_by (bắt buộc khi ủy quyền)", 400
             )
         hc.assert_user_exists(db, authorized_by)
     return Competence(
@@ -613,13 +611,13 @@ def update_competence(
     hc.assert_can_manage_competence(user)
     c = db.get(Competence, competence_id)
     if c is None:
-        raise AppException("COMPETENCE_NOT_FOUND", "Mục năng lực không tồn tại", 404)
+        raise AppException(ErrorCode.COMPETENCE_NOT_FOUND, "Mục năng lực không tồn tại", 404)
     if not changes:
-        raise AppException("VALIDATION_ERROR", "Body rỗng", 400)
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     new_issued = changes.get("issued_date", c.issued_date)
     new_expiry = changes.get("expiry_date", c.expiry_date)
     if new_expiry and new_issued and new_expiry < new_issued:
-        raise AppException("INVALID_DATE_ORDER", "expiry_date phải >= issued_date", 422)
+        raise AppException(ErrorCode.INVALID_DATE_ORDER, "expiry_date phải >= issued_date", 422)
     for field in (
         "kind",
         "title",
@@ -636,7 +634,7 @@ def update_competence(
                 "certificate",
                 "authorization",
             ):
-                raise AppException("VALIDATION_ERROR", "kind không hợp lệ", 400)
+                raise AppException(ErrorCode.VALIDATION_ERROR, "kind không hợp lệ", 400)
             if field == "authorized_by" and value is not None:
                 hc.assert_user_exists(db, value)
             setattr(c, field, value)
@@ -669,7 +667,7 @@ def delete_competence(
     hc.assert_can_manage_competence(user)
     c = db.get(Competence, competence_id)
     if c is None:
-        raise AppException("COMPETENCE_NOT_FOUND", "Mục năng lực không tồn tại", 404)
+        raise AppException(ErrorCode.COMPETENCE_NOT_FOUND, "Mục năng lực không tồn tại", 404)
     target = c.user_id
     db.delete(c)
     audit_service.log_action(
@@ -688,5 +686,5 @@ def delete_competence(
 def get_competence_or_404(db: Session, competence_id: uuid.UUID) -> Competence:
     c = db.get(Competence, competence_id)
     if c is None:
-        raise AppException("COMPETENCE_NOT_FOUND", "Mục năng lực không tồn tại", 404)
+        raise AppException(ErrorCode.COMPETENCE_NOT_FOUND, "Mục năng lực không tồn tại", 404)
     return c

@@ -1,7 +1,7 @@
 """M6 common helpers — Báo cáo & Thống kê (Reporting & Analytics).
 
 Tập trung logic dùng chung cho mọi service M6:
-- RBAC scope theo vai trò (BR-RPT-001/002/010): staff ép phòng mình; accountant không
+- RBAC scope theo vai trò (BR-RPT-001/002/010): staff ép phòng mình; office không
   mẫu (B03); field tiền chỉ vai trò tài chính; R15 chỉ admin/leader.
 - Bộ lọc thời gian thống nhất `[from, to)` nửa mở (BR-RPT-009, CONSTRAINT-5).
 - Phân rã thời gian (day/week/month) cho line/bar chart.
@@ -17,9 +17,9 @@ import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.core.rbac import has_permission
@@ -31,6 +31,7 @@ logger = logging.getLogger("lims.report")
 
 CACHE_TTL_SECONDS = 60  # BR-RPT-011 / §0.8
 VALID_GROUP_BY = ("day", "week", "month")
+MAX_RANGE_DAYS = 730  # chặn [from,to) quá rộng — tránh dump timeline không giới hạn
 
 # Cột tiền bị strip với vai trò KHÔNG có chemical:cost (BR-RPT-002, đồng bộ M2)
 PRICE_FIELDS = frozenset(
@@ -52,15 +53,21 @@ def err(code: str, message: str, http: int = 400, details=None) -> AppException:
 
 
 def forbidden(message: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
-    return AppException("FORBIDDEN", message, 403)
+    return AppException(ErrorCode.FORBIDDEN, message, 403)
 
 
 def invalid_date_range() -> AppException:
-    return AppException("INVALID_DATE_RANGE", "from phải nhỏ hơn to", 422)
+    return AppException(ErrorCode.INVALID_DATE_RANGE, "from phải nhỏ hơn to", 422)
 
 
 def invalid_group_by() -> AppException:
-    return AppException("INVALID_GROUP_BY", "group_by chỉ nhận day|week|month", 422)
+    return AppException(ErrorCode.INVALID_GROUP_BY, "group_by chỉ nhận day|week|month", 422)
+
+
+def date_range_too_wide() -> AppException:
+    return AppException(
+        ErrorCode.DATE_RANGE_TOO_WIDE, f"Khoảng thời gian tối đa {MAX_RANGE_DAYS} ngày", 422,
+    )
 
 
 # ===== RBAC =====
@@ -69,19 +76,19 @@ def is_privileged(user: CurrentUser) -> bool:
     return user.role in ("admin", "leader")
 
 
-def is_accountant(user: CurrentUser) -> bool:
-    return user.role == "accountant"
+def is_office(user: CurrentUser) -> bool:
+    return user.role == "office"
 
 
 def can_see_cost(db: Session, user: CurrentUser) -> bool:
-    """Vai trò tài chính (admin/leader/accountant) — quyền chemical:cost (BR-RPT-002)."""
+    """Vai trò tài chính (admin/leader/office) — quyền chemical:cost (BR-RPT-002)."""
     return has_permission(db, user.role, "chemical", "cost")
 
 
-def deny_accountant_samples(user: CurrentUser) -> None:
-    """Endpoint chuyên về mẫu (#3, export samples): accountant → 403 (B03)."""
-    if is_accountant(user):
-        raise forbidden("Kế toán không được truy cập báo cáo mẫu/kết quả (B03)")
+def deny_office_samples(user: CurrentUser) -> None:
+    """Endpoint chuyên về mẫu (#3, export samples): office → 403 (B03)."""
+    if is_office(user):
+        raise forbidden("Văn phòng không được truy cập báo cáo mẫu/kết quả (B03)")
 
 
 def require_audit_read(db: Session, user: CurrentUser) -> None:
@@ -94,13 +101,13 @@ def resolve_scope_department(
     db: Session, user: CurrentUser, requested: Optional[uuid.UUID]
 ) -> Optional[uuid.UUID]:
     """Phạm vi đếm theo phòng (BR-RPT-001):
-    - admin/leader/accountant: theo yêu cầu (None = toàn hệ thống). Validate tồn tại.
+    - admin/leader/office: theo yêu cầu (None = toàn hệ thống). Validate tồn tại.
     - staff: ÉP về phòng mình (KHÔNG 403 dù truyền phòng khác — AC4 FR-RPT-005).
     """
     if requested is not None and not is_staff_forced(user):
         if db.get(Department, requested) is None:
             raise AppException(
-                "DEPARTMENT_NOT_FOUND", "Phòng ban không tồn tại", 404
+                ErrorCode.DEPARTMENT_NOT_FOUND, "Phòng ban không tồn tại", 404
             )
         return requested
     if is_staff_forced(user):
@@ -109,7 +116,7 @@ def resolve_scope_department(
 
 
 def is_staff_forced(user: CurrentUser) -> bool:
-    """staff (KTV) bị ép scope phòng. admin/leader/accountant không bị ép."""
+    """staff (KTV) bị ép scope phòng. admin/leader/office không bị ép."""
     return user.role == "staff"
 
 
@@ -137,6 +144,8 @@ def resolve_range(
         date_to = date_to or d_def[1]
     if date_from >= date_to:
         raise invalid_date_range()
+    if (date_to - date_from).days > MAX_RANGE_DAYS:
+        raise date_range_too_wide()
     return date_from, date_to
 
 
@@ -209,7 +218,7 @@ def dept_name(db: Session, dept_id: Optional[uuid.UUID]) -> Optional[str]:
 def get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
     u = db.get(User, user_id)
     if u is None:
-        raise AppException("USER_NOT_FOUND", "Người dùng không tồn tại", 404)
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
     return u
 
 

@@ -256,6 +256,9 @@ class ResearchProject(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_reports.id", ondelete="SET NULL"), nullable=True
+    )
     code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     level: Mapped[str | None] = mapped_column(
@@ -263,14 +266,26 @@ class ResearchProject(Base):
         ForeignKey("research_project_levels.code", ondelete="RESTRICT"),
         nullable=True,
     )
-    lead_user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    # Chủ nhiệm: user_id HOẶC lead_external_name (người ngoài hệ thống) — theo pattern D1.
+    lead_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
+    lead_external_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
     )
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)  # "2024-2025"
+    # Kinh phí (Excel: "100 triệu" → chuẩn hoá NUMERIC). Chuyển giao sản phẩm.
+    budget_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    budget_currency: Mapped[str | None] = mapped_column(
+        String(8), nullable=True, server_default=text("'VND'")
+    )
+    is_transferred: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    transfer_product: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, server_default=text("'ongoing'")
     )
@@ -297,6 +312,10 @@ class ResearchProject(Base):
             "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
             name="ck_rp_date_order",
         ),
+        CheckConstraint(
+            "lead_user_id IS NOT NULL OR lead_external_name IS NOT NULL",
+            name="ck_rp_lead_present",
+        ),
     )
 
 
@@ -304,14 +323,20 @@ class ResearchProject(Base):
 class ProjectMember(Base):
     __tablename__ = "project_members"
 
+    # PK là id riêng (không phải (project_id,user_id)) để cho phép thành viên NGOÀI hệ
+    # thống (user_id NULL, external_name) — theo pattern D1 giống publication_authors.
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     project_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("research_projects.id", ondelete="CASCADE"),
         nullable=False,
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
     )
+    external_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role_in_project: Mapped[str] = mapped_column(
         String(64), nullable=False, server_default=text("'member'")
     )
@@ -319,7 +344,13 @@ class ProjectMember(Base):
         TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
     )
 
-    __table_args__ = (PrimaryKeyConstraint("project_id", "user_id", name="pk_project_members"),)
+    __table_args__ = (
+        CheckConstraint(
+            "(user_id IS NOT NULL AND external_name IS NULL) "
+            "OR (user_id IS NULL AND external_name IS NOT NULL)",
+            name="ck_pm_member_xor",
+        ),
+    )
 
 
 # ===================== TABLE 7: publications =====================
@@ -328,6 +359,9 @@ class Publication(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_reports.id", ondelete="SET NULL"), nullable=True
     )
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     journal: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -339,10 +373,22 @@ class Publication(Base):
         nullable=True,
     )
     type: Mapped[str] = mapped_column(
-        String(8), nullable=False, server_default=text("'paper'")
+        String(12), nullable=False, server_default=text("'paper'")
     )
+    # paper: phạm vi trong nước / quốc tế + cờ chỉ mục (Excel cột SCIE/SSCI, Scopus, ACI).
+    pub_scope: Mapped[str | None] = mapped_column(String(16), nullable=True)  # domestic|international
+    is_scie: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    is_ssci: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    is_scopus: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    is_aci: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # patent: bổ sung số đơn/ngày nộp, ngày cấp, chủ bằng (Excel bảng sáng chế).
     patent_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
     issuing_authority: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    application_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    application_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    granted_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    patent_holder: Mapped[str | None] = mapped_column(String(255), nullable=True)
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
     )
@@ -360,10 +406,14 @@ class Publication(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("type IN ('paper', 'patent')", name="ck_pub_type"),
+        CheckConstraint("type IN ('paper', 'patent', 'conference')", name="ck_pub_type"),
         CheckConstraint(
             "type <> 'patent' OR (patent_no IS NOT NULL AND length(btrim(patent_no)) > 0)",
             name="ck_pub_patent_no",
+        ),
+        CheckConstraint(
+            "pub_scope IS NULL OR pub_scope IN ('domestic', 'international')",
+            name="ck_pub_scope",
         ),
     )
 
@@ -385,6 +435,8 @@ class PublicationAuthor(Base):
     is_corresponding: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
+    # Vai trò tác giả (Excel: "Tác giả liên hệ" / "ĐTG" / "TG"): corresponding|main|co.
+    author_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -500,12 +552,24 @@ class TeachingCourse(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_reports.id", ondelete="SET NULL"), nullable=True
     )
+    # Giảng viên: user_id (nội bộ) HOẶC lecturer_external_name (ngoài HT) — XOR.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    lecturer_external_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     course_name: Mapped[str] = mapped_column(String(255), nullable=False)
     semester: Mapped[str | None] = mapped_column(String(32), nullable=True)
     year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)  # "2024-2025"
+    # Số tiết theo học kỳ × loại (Excel: HKI/HKII × Lý thuyết/Thực hành).
+    hk1_theory_hours: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    hk1_practice_hours: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    hk2_theory_hours: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    hk2_practice_hours: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     department_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
     )
@@ -525,6 +589,11 @@ class TeachingCourse(Base):
     __table_args__ = (
         UniqueConstraint(
             "user_id", "course_name", "semester", "year", name="uq_tc_user_course_term"
+        ),
+        CheckConstraint(
+            "(user_id IS NOT NULL AND lecturer_external_name IS NULL) "
+            "OR (user_id IS NULL AND lecturer_external_name IS NOT NULL)",
+            name="ck_tc_lecturer_xor",
         ),
     )
 
@@ -556,4 +625,168 @@ class CommunityService(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
+# ===================== TABLE 13: research_contracts (mới — menu NCKH > Hợp đồng) =====================
+class ResearchContract(Base):
+    __tablename__ = "research_contracts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_reports.id", ondelete="SET NULL"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    contract_type: Mapped[str | None] = mapped_column(String(64), nullable=True)  # Nghiên cứu|Tư vấn KHCN|...
+    value_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    currency: Mapped[str | None] = mapped_column(
+        String(8), nullable=True, server_default=text("'VND'")
+    )
+    partner_org: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "end_date IS NULL OR start_date IS NULL OR end_date >= start_date",
+            name="ck_rc_date_order",
+        ),
+    )
+
+
+# ===================== TABLE 14: staff_activities (mới — menu Công tác khác) =====================
+class StaffActivity(Base):
+    """Đảng / Công đoàn / VILAS / khác — mỗi dòng 1 hoạt động + minh chứng."""
+
+    __tablename__ = "staff_activities"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    report_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_reports.id", ondelete="SET NULL"), nullable=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # dang|cong_doan|vilas|khac
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    performed_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    performer_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('dang', 'cong_doan', 'vilas', 'khac')", name="ck_sa_kind"
+        ),
+    )
+
+
+# ===================== TABLE 15: training_certificates (mới — Phục vụ CĐ > Cấp GCN) =====================
+class TrainingCertificate(Base):
+    __tablename__ = "training_certificates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    issued_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    certificate_no: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    recipient_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    course_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    host_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+
+# ===================== TABLE 16: activity_reports (báo cáo hoạt động tháng) =====================
+class ActivityReport(Base):
+    """Gói báo cáo hoạt động 1 kỳ (tháng) của 1 người. Các dòng hoạt động tạo thẳng vào
+    bảng thành tích (research_projects/publications/teaching_courses/research_contracts/
+    staff_activities) gắn report_id → hiện ở module tương ứng; văn phòng xem danh sách này."""
+
+    __tablename__ = "activity_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    reporter_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
+    period_label: Mapped[str] = mapped_column(String(32), nullable=False)  # "01/2026"
+    period_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default=text("'submitted'")
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (
+        CheckConstraint("status IN ('draft','submitted','reviewed')", name="ck_ar_status"),
+        UniqueConstraint("reporter_user_id", "period_label", name="uq_ar_reporter_period"),
     )

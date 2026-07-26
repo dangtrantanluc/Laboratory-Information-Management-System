@@ -2,7 +2,7 @@
 
 LƯU Ý thứ tự đăng ký: các path tĩnh (/documents/pending-review, /documents/access-stats,
 /documents/access-stats/export) PHẢI khai báo TRƯỚC /documents/{document_id} (tránh
-nuốt path). Kế toán cấm mọi endpoint ghi; phạm vi phòng + 2 mức bảo mật enforce service.
+nuốt path). Văn phòng cấm mọi endpoint ghi; phạm vi phòng + 2 mức bảo mật enforce service.
 """
 import uuid
 from datetime import date
@@ -11,6 +11,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -30,10 +32,6 @@ lookup_router = APIRouter(tags=["m3-documents"])
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
 
 
 # ===== 1. Danh mục loại tài liệu =====
@@ -58,7 +56,7 @@ def list_confidentiality_levels(
 def pending_review(
     department_id: Optional[uuid.UUID] = Query(default=None),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -114,7 +112,7 @@ def access_stats_export(
         department_id=department_id,
         action=action,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return Response(
         content=data,
@@ -134,7 +132,7 @@ def list_documents(
     security_level: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -155,7 +153,7 @@ def list_documents(
 
 # ===== 4. Create document + first version (multipart) =====
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_document(
+def create_document(
     request: Request,
     title: str = Form(...),
     type: str = Form(...),
@@ -166,22 +164,23 @@ async def create_document(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
-    data = document_service.create_document(
-        db,
-        user=user,
-        title=title,
-        type_code=type,
-        department_id=department_id,
-        security_level=security_level,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = document_service.create_document(
+            db,
+            user=user,
+            title=title,
+            type_code=type,
+            department_id=department_id,
+            security_level=security_level,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 5. Document detail =====
@@ -213,12 +212,15 @@ def update_document(
         type_code=body.type,
         security_level=body.security_level,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
 
 # ===== 7. Soft-delete document =====
+# CỐ Ý trả 200 + body {id, status:"deleted"} (KHÔNG 204) — đây là SOFT-delete, client dùng
+# status trả về để cập nhật UI. Khác quy ước 204 của các DELETE cứng khác; giữ có chủ đích
+# (PRODUCTION_READINESS_REVIEW L5) để không phá vỡ wire-contract của frontend.
 @router.delete("/{document_id}")
 def delete_document(
     document_id: uuid.UUID,
@@ -232,7 +234,7 @@ def delete_document(
             user=user,
             document_id=document_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -275,7 +277,7 @@ def list_versions(
     document_id: uuid.UUID,
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -293,7 +295,7 @@ def list_versions(
 
 # ===== 9. Create new version (multipart) =====
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)
-async def create_version(
+def create_version(
     document_id: uuid.UUID,
     request: Request,
     change_note: Optional[str] = Form(default=None),
@@ -301,19 +303,20 @@ async def create_version(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
-    data = dvs.create_version(
-        db,
-        user=user,
-        document_id=document_id,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = dvs.create_version(
+            db,
+            user=user,
+            document_id=document_id,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 10. Get single version =====
@@ -349,14 +352,14 @@ def update_version(
         content=None,
         mime=None,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
 
 # ===== 11b. Update version file (multipart, thay file draft) =====
 @router.put("/{document_id}/versions/{version_id}/file")
-async def replace_version_file(
+def replace_version_file(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     request: Request,
@@ -365,20 +368,21 @@ async def replace_version_file(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
-    data = dvs.update_version(
-        db,
-        user=user,
-        document_id=document_id,
-        version_id=version_id,
-        change_note=change_note,
-        file_name=file.filename or "document",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        content = file.file.read()
+        data = dvs.update_version(
+            db,
+            user=user,
+            document_id=document_id,
+            version_id=version_id,
+            change_note=change_note,
+            file_name=file.filename or "document",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)
 
 
 # ===== 12. Submit review =====
@@ -397,7 +401,7 @@ def submit_review(
             document_id=document_id,
             version_id=version_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -420,7 +424,7 @@ def approve_version(
             version_id=version_id,
             note=body.note if body else None,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -443,7 +447,7 @@ def reject_version(
             version_id=version_id,
             reject_reason=body.reject_reason,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -464,6 +468,6 @@ def download_version(
             document_id=document_id,
             version_id=version_id,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )

@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException
 from app.core.redis_client import get_redis
 from app.models.chemical import (
@@ -72,7 +73,7 @@ def _milestone_for(target: date, today: date):
 def run_chem_expiry(db: Session) -> dict:
     lock_key = "cron:lock:chem-expiry"
     if not _acquire_lock(lock_key):
-        raise AppException("CRON_ALREADY_RUNNING", "CRON-6 đang chạy", 409)
+        raise AppException(ErrorCode.CRON_ALREADY_RUNNING, "CRON-6 đang chạy", 409)
 
     now = datetime.now(timezone.utc)
     today = now.date()

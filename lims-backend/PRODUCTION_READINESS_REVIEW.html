@@ -1,0 +1,1446 @@
+<title>LIMS Backend — Production Readiness Review</title>
+<style>
+@font-face {
+  font-family: 'ui-serif-stack';
+  src: local('Iowan Old Style'), local('Sitka Text'), local('Charter');
+}
+
+:root {
+  --paper: #f2f5f4;
+  --panel: #ffffff;
+  --panel-raised: #fbfcfc;
+  --ink: #131a1d;
+  --ink-soft: #4d5b5e;
+  --ink-faint: #7c8b8e;
+  --line: #d8dfdd;
+  --line-soft: #e6ebe9;
+  --accent: #1b6e73;
+  --accent-ink: #0f4d51;
+  --accent-soft: #e2f0ef;
+  --sev-critical: #b5372a;
+  --sev-critical-soft: #fbe9e6;
+  --sev-high: #b06a12;
+  --sev-high-soft: #faeed9;
+  --sev-medium: #92781a;
+  --sev-medium-soft: #f5f0d9;
+  --sev-low: #556873;
+  --sev-low-soft: #e7ecee;
+  --pos: #2f7a4f;
+  --pos-soft: #e5f2ea;
+  --shadow: 0 1px 2px rgba(20, 30, 32, 0.06), 0 8px 24px -12px rgba(20, 30, 32, 0.18);
+  --font-display: "Iowan Old Style", "Sitka Text", Charter, Georgia, "Noto Serif", serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1517;
+  --panel: #161e21;
+  --panel-raised: #1b2427;
+  --ink: #e7edec;
+  --ink-soft: #a9b7b8;
+  --ink-faint: #78888a;
+  --line: #2a363a;
+  --line-soft: #212b2e;
+  --accent: #5ec1c6;
+  --accent-ink: #bfeaec;
+  --accent-soft: #16302f;
+  --sev-critical: #e2695a;
+  --sev-critical-soft: #331d1a;
+  --sev-high: #dc9a4a;
+  --sev-high-soft: #332715;
+  --sev-medium: #d3bd52;
+  --sev-medium-soft: #302c17;
+  --sev-low: #9db0b6;
+  --sev-low-soft: #202a2d;
+  --pos: #6bbf8f;
+  --pos-soft: #172a20;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1517;
+    --panel: #161e21;
+    --panel-raised: #1b2427;
+    --ink: #e7edec;
+    --ink-soft: #a9b7b8;
+    --ink-faint: #78888a;
+    --line: #2a363a;
+    --line-soft: #212b2e;
+    --accent: #5ec1c6;
+    --accent-ink: #bfeaec;
+    --accent-soft: #16302f;
+    --sev-critical: #e2695a;
+    --sev-critical-soft: #331d1a;
+    --sev-high: #dc9a4a;
+    --sev-high-soft: #332715;
+    --sev-medium: #d3bd52;
+    --sev-medium-soft: #302c17;
+    --sev-low: #9db0b6;
+    --sev-low-soft: #202a2d;
+    --pos: #6bbf8f;
+    --pos-soft: #172a20;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; }
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-wrap: balance;
+  color: var(--ink);
+  margin: 0;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+/* ---------- Rail ---------- */
+.rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 2rem 1.25rem 2rem 1.75rem;
+  border-right: 1px solid var(--line);
+}
+.rail-brand {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: 0.35rem;
+}
+.rail-title {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  margin-bottom: 1.75rem;
+}
+.rail nav { display: flex; flex-direction: column; gap: 0.15rem; }
+.rail-group-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 1.1rem 0 0.4rem;
+}
+.rail a.rail-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.32rem 0.5rem;
+  border-radius: 5px;
+  font-size: 0.87rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.rail a.rail-link:hover { background: var(--panel-raised); color: var(--ink); }
+.rail a.rail-link .n {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Main ---------- */
+main { padding: 2.5rem clamp(1.25rem, 4vw, 3.5rem) 5rem; min-width: 0; }
+
+.cover {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2.25rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin-bottom: 0.6rem;
+}
+.cover h1 { font-size: clamp(1.7rem, 3vw, 2.35rem); max-width: 30ch; }
+.cover .dek {
+  margin-top: 0.85rem;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+}
+.cover .scope {
+  margin-top: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* ---------- Scorebar ---------- */
+.scorebar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1.75rem 0 0;
+}
+.score-tile { background: var(--panel); padding: 1.1rem 1.15rem; }
+.score-tile .label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.score-tile .value {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
+  line-height: 1;
+}
+.score-tile .value small { font-size: 1rem; color: var(--ink-faint); font-family: var(--font-mono); }
+.score-tile .bar { height: 4px; border-radius: 2px; background: var(--line-soft); margin-top: 0.6rem; overflow: hidden; }
+.score-tile .bar > span { display: block; height: 100%; background: var(--accent); }
+.score-tile .note { margin-top: 0.5rem; font-size: 0.82rem; color: var(--ink-soft); }
+
+section.block { margin-bottom: 3rem; scroll-margin-top: 1.5rem; }
+section.block > h2 {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+section.block > h2 .idx { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-ink); }
+.block-intro { margin-top: 0.6rem; color: var(--ink-soft); max-width: 74ch; font-size: 0.98rem; }
+
+/* ---------- Severity tally strip ---------- */
+.tally { display: flex; gap: 0.9rem; flex-wrap: wrap; margin-top: 1.25rem; }
+.tally .chip {
+  display: flex; align-items: baseline; gap: 0.4rem;
+  font-family: var(--font-mono); font-size: 0.78rem;
+  padding: 0.3rem 0.65rem; border-radius: 999px;
+  border: 1px solid var(--line);
+}
+.tally .chip b { font-size: 0.95rem; }
+.tally .chip.crit { color: var(--sev-critical); border-color: color-mix(in srgb, var(--sev-critical) 35%, var(--line)); background: var(--sev-critical-soft); }
+.tally .chip.high { color: var(--sev-high); border-color: color-mix(in srgb, var(--sev-high) 35%, var(--line)); background: var(--sev-high-soft); }
+.tally .chip.med  { color: var(--sev-medium); border-color: color-mix(in srgb, var(--sev-medium) 35%, var(--line)); background: var(--sev-medium-soft); }
+.tally .chip.low  { color: var(--sev-low); border-color: color-mix(in srgb, var(--sev-low) 35%, var(--line)); background: var(--sev-low-soft); }
+
+/* ---------- Ranked lists (risks / ROI) ---------- */
+.ranked { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1.25rem; }
+.ranked li { list-style: none; }
+.rank-card {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  gap: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.15rem;
+  box-shadow: var(--shadow);
+}
+.rank-card .num {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rank-card h3 { font-size: 1.02rem; font-family: var(--font-body); font-weight: 700; }
+.rank-card p { margin: 0.35rem 0 0; color: var(--ink-soft); font-size: 0.92rem; }
+.rank-card .meta { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ---------- Findings ---------- */
+.findings { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 1.5rem; }
+.finding {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sev-low);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.finding[data-sev="Critical"] { border-left-color: var(--sev-critical); }
+.finding[data-sev="High"] { border-left-color: var(--sev-high); }
+.finding[data-sev="Medium"] { border-left-color: var(--sev-medium); }
+.finding[data-sev="Low"] { border-left-color: var(--sev-low); }
+.finding[data-sev="Positive"] { border-left-color: var(--pos); }
+
+.finding > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.96rem;
+}
+.finding > summary::-webkit-details-marker { display: none; }
+.finding > summary .caret {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  transition: transform 0.15s ease;
+  flex: none;
+}
+.finding[open] > summary .caret { transform: rotate(90deg); }
+.finding > summary .issue-text { font-weight: 600; flex: 1; }
+.finding > summary .sev-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  flex: none;
+}
+.finding[data-sev="Critical"] .sev-tag { color: var(--sev-critical); background: var(--sev-critical-soft); }
+.finding[data-sev="High"] .sev-tag { color: var(--sev-high); background: var(--sev-high-soft); }
+.finding[data-sev="Medium"] .sev-tag { color: var(--sev-medium); background: var(--sev-medium-soft); }
+.finding[data-sev="Low"] .sev-tag { color: var(--sev-low); background: var(--sev-low-soft); }
+.finding[data-sev="Positive"] .sev-tag { color: var(--pos); background: var(--pos-soft); }
+
+.finding-body { padding: 0 1.1rem 1.15rem; }
+.finding-files {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  margin-bottom: 0.8rem;
+  word-break: break-word;
+}
+.finding-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0.7rem 1.4rem;
+}
+.finding-grid .full { grid-column: 1 / -1; }
+.finding-grid dt {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 0.15rem;
+}
+.finding-grid dd { margin: 0; font-size: 0.91rem; color: var(--ink); }
+.tagrow { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  background: var(--panel-raised);
+}
+.tag.timing-now { color: var(--sev-critical); border-color: color-mix(in srgb, var(--sev-critical) 30%, var(--line)); }
+.tag.timing-later { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+.tag.timing-debt { color: var(--ink-faint); }
+
+/* ---------- Roadmap ---------- */
+.roadmap { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+.phase {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 1.15rem 1.3rem;
+}
+.phase-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.phase-head h3 { font-size: 1.08rem; }
+.phase-head .when { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-faint); }
+.phase-head .effort {
+  font-family: var(--font-mono); font-size: 0.75rem;
+  color: var(--accent-ink); background: var(--accent-soft);
+  padding: 0.2rem 0.55rem; border-radius: 6px;
+}
+.phase ul { margin: 0.75rem 0 0; padding-left: 1.15rem; }
+.phase li { margin-bottom: 0.35rem; font-size: 0.93rem; }
+
+table.simple { border-collapse: collapse; width: 100%; margin-top: 1rem; font-size: 0.9rem; }
+table.simple th, table.simple td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line-soft); }
+table.simple th { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.wrap-x { overflow-x: auto; }
+
+footer.colophon {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 880px) {
+  .shell { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+  .scorebar { grid-template-columns: repeat(2, 1fr); }
+  .finding-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-brand">Production Readiness Review</div>
+    <div class="rail-title">LIMS Backend<br><span style="color:var(--ink-faint); font-size:0.85rem; font-family:var(--font-mono);">39 routers · 54 services · 27 models</span></div>
+    <nav id="rail-nav" aria-label="Report sections"></nav>
+  </aside>
+
+  <main>
+    <div class="cover">
+      <div class="eyebrow">Five-Year Operating Horizon · lims-backend</div>
+      <h1>Production Readiness Review</h1>
+      <p class="dek">A full-surface audit of the LIMS backend — FastAPI + SQLAlchemy, 39 routers across M1–M20 modules — reviewed as a system expected to carry real lab operations, regulatory audit trail, and staff PII for the next five years.</p>
+      <div class="scope">Scope: architecture · data layer · security · API surface · reliability/ops · performance — 58 findings, 6 review passes</div>
+
+      <div class="scorebar" id="scorebar"></div>
+    </div>
+
+    <section class="block" id="risks">
+      <h2><span class="idx">§1</span> Top 5 Risks</h2>
+      <p class="block-intro">Ranked by the combination of blast radius and how little effort it currently takes to trigger them. These are the findings that should shape any go/no-go conversation about external production deployment.</p>
+      <ol class="ranked" id="risks-list"></ol>
+    </section>
+
+    <section class="block" id="roi">
+      <h2><span class="idx">§2</span> Top 5 Improvements by ROI</h2>
+      <p class="block-intro">Ranked by impact per hour of engineering effort — the fastest way to retire the most dangerous exposure in §1.</p>
+      <ol class="ranked" id="roi-list"></ol>
+    </section>
+
+    <section class="block" id="roadmap">
+      <h2><span class="idx">§3</span> Phased Refactoring Roadmap</h2>
+      <p class="block-intro">Sequenced so each phase closes the risk class the previous one couldn't touch yet — hardening before scaling, scaling before restructuring.</p>
+      <div class="roadmap" id="roadmap-list"></div>
+    </section>
+
+    <section class="block" id="architecture">
+      <h2><span class="idx">§4</span> Architecture &amp; Design</h2>
+      <p class="block-intro">Covers: architecture, domain modeling, dependency direction, layering, SOLID, Clean Architecture, DDD boundaries, design patterns, extensibility.</p>
+      <div class="tally" data-pillar="architecture"></div>
+      <div class="findings" data-pillar="architecture"></div>
+    </section>
+
+    <section class="block" id="data">
+      <h2><span class="idx">§5</span> Database, Transactions &amp; Concurrency</h2>
+      <p class="block-intro">Covers: database design, transaction boundaries, concurrency control.</p>
+      <div class="tally" data-pillar="data"></div>
+      <div class="findings" data-pillar="data"></div>
+    </section>
+
+    <section class="block" id="security">
+      <h2><span class="idx">§6</span> Security</h2>
+      <p class="block-intro">Covers: OWASP Top 10 categories and business-logic authorization (IDOR, scope enforcement).</p>
+      <div class="tally" data-pillar="security"></div>
+      <div class="findings" data-pillar="security"></div>
+    </section>
+
+    <section class="block" id="api">
+      <h2><span class="idx">§7</span> API Design</h2>
+      <p class="block-intro">Covers: REST conventions, response contracts, pagination, versioning, idempotency.</p>
+      <div class="tally" data-pillar="api"></div>
+      <div class="findings" data-pillar="api"></div>
+    </section>
+
+    <section class="block" id="reliability">
+      <h2><span class="idx">§8</span> Reliability, Observability, Deployment &amp; Testing</h2>
+      <p class="block-intro">Covers: reliability, failure modes, observability, deployment readiness, testing strategy, technical debt tracking.</p>
+      <div class="tally" data-pillar="reliability"></div>
+      <div class="findings" data-pillar="reliability"></div>
+    </section>
+
+    <section class="block" id="performance">
+      <h2><span class="idx">§9</span> Performance, Memory &amp; Scalability</h2>
+      <p class="block-intro">Covers: performance, memory usage, scalability.</p>
+      <div class="tally" data-pillar="performance"></div>
+      <div class="findings" data-pillar="performance"></div>
+    </section>
+
+    <footer class="colophon">
+      Reviewed as a transaction-script monolith intended for continuous operation through 2031. Severity/effort/timing reflect the system's current state at time of review; re-score after each roadmap phase lands.
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+const SCORES = [
+  { label: "Architecture", value: 6.5, note: "Disciplined conventions, weak enforced boundaries." },
+  { label: "Production Readiness", value: 3.5, note: "Not deployable externally until Phase 0 closes." },
+  { label: "Maintainability", value: 6.0, note: "Consistent locally, duplicated across modules." },
+  { label: "Security", value: 5.0, note: "Strong auth core, critical operational gaps." },
+];
+
+const RISKS = [
+  {
+    title: "Default secrets and open infrastructure ports in the only deployment config",
+    why: "The sole docker-compose.yml ships with ENVIRONMENT=development, a fallback JWT secret, and default Postgres/Redis/MinIO credentials with host ports published. Nothing stops this exact file from being what actually ships.",
+    tags: ["Critical", "Security"],
+  },
+  {
+    title: "Stored XSS via unrestricted file upload served inline, same-origin",
+    why: "The generic attachment path has no MIME allowlist (unlike its sample-specific sibling), and uploaded content can be served with disposition=inline from the app's own origin — a same-origin script payload away from session-cookie theft on any viewer, including admins.",
+    tags: ["Critical", "Security"],
+  },
+  {
+    title: "Async middleware performs a blocking sync DB write on nearly every GET request",
+    why: "AccessStatMiddleware.dispatch is async but calls a synchronous psycopg2 insert+commit inline — this stalls the single event loop for every whitelisted request (most list/dashboard/report endpoints), not just the thread handling it.",
+    tags: ["Critical", "Performance"],
+  },
+  {
+    title: "Migrations run unconditionally inside every container's entrypoint, no coordination lock",
+    why: "entrypoint.sh runs alembic upgrade head on every boot with no advisory lock. Any rolling deploy or horizontal scale-out races multiple containers against the same migration.",
+    tags: ["High", "Reliability"],
+  },
+  {
+    title: "Near-zero test coverage on the largest, most regulated state-machine services",
+    why: "research_service.py (1,678 lines), chemical_service.py (850), document_version_service.py (779), sample_service.py (724) — chain-of-custody, stock atomicity, and document-versioning logic for an ISO17025-adjacent system — carry zero automated tests and no CI gate to require them going forward.",
+    tags: ["Critical", "Testing"],
+  },
+];
+
+const ROI = [
+  {
+    title: "Ship a hardened production compose profile with a startup secret guard",
+    why: "Refuse to boot in production with the default JWT secret or default infra credentials; close host-published DB/Redis/MinIO ports in a prod profile. A few hours of work that closes the single largest exposure in the review.",
+    effort: "S",
+  },
+  {
+    title: "Unify attachment MIME validation and force safe Content-Disposition",
+    why: "Reuse the existing, already-correct allowlist from the sample-attachment path across every upload route, and never serve non-safelisted types inline. Closes the stored-XSS chain outright.",
+    effort: "S",
+  },
+  {
+    title: "Move the access-stat write off the event loop; move migrations out of the container entrypoint",
+    why: "Two independent one-file changes — run the middleware's DB write via a threadpool, and run alembic upgrade as a one-shot pre-deploy step instead of on every container boot. Removes two systemic stability failure modes in one sprint.",
+    effort: "S/M",
+  },
+  {
+    title: "Add indexes on FK, status, and date columns across the schema",
+    why: "Every list/report/join query currently sequential-scans as data grows; this is the single highest-leverage database change for the system's 5-year data-volume trajectory.",
+    effort: "M",
+  },
+  {
+    title: "Stand up a minimal CI pipeline and make tests mandatory for new business logic",
+    why: "Lint, the 2 test files already added this session, a Docker build, and a migration dry-run on every PR — the cheapest way to stop this list from growing faster than it shrinks.",
+    effort: "S/M",
+  },
+];
+
+const ROADMAP = [
+  {
+    name: "Phase 0 — Stop the bleeding",
+    when: "This sprint, before any further external deployment",
+    effort: "~1–2 weeks",
+    items: [
+      "Production secret/env startup guard + hardened compose profile (close exposed DB/Redis/MinIO ports, rotate default creds)",
+      "Unify attachment MIME allowlist; force attachment disposition for non-safelisted types",
+      "Add read-scope check to sample-detail GET (IDOR)",
+      "Move AccessStatMiddleware's DB write off the event loop",
+      "Decouple alembic migrations from container entrypoint into a one-shot, lock-guarded step",
+    ],
+  },
+  {
+    name: "Phase 1 — Stabilize",
+    when: "Weeks 2–6",
+    effort: "~3–4 weeks",
+    items: [
+      "Add indexes across FK / status / date columns schema-wide",
+      "Batch-load related rows in chemical transaction list/export and form/report exports (kill N+1)",
+      "Add explicit timeouts to webpush() and MinIO calls; move push dispatch off the request path",
+      "Stand up minimal CI: lint, pytest, Docker build, migration dry-run on every PR",
+      "Add security-headers middleware and IP-based rate limiting on auth endpoints",
+    ],
+  },
+  {
+    name: "Phase 2 — Harden & test",
+    when: "Quarter 2",
+    effort: "~6–8 weeks, alongside feature work",
+    items: [
+      "Service-layer test coverage in priority order: chemical transactions, sample state machine, document versioning, HR salary math",
+      "Idempotency-key support for creation endpoints (samples, test requests, chemical transactions)",
+      "Incrementally adopt response_model on the highest-traffic resources",
+      "Auto-inject correlation ID into every log record via a contextvar + logging filter",
+      "Harden health checks (log the actual failure, add a MinIO check) and add scheduler run-history monitoring",
+    ],
+  },
+  {
+    name: "Phase 3 — Scale-readiness",
+    when: "Quarter 3+",
+    effort: "~1 quarter, partial capacity",
+    items: [
+      "Add metrics (Prometheus) and basic tracing",
+      "Move scheduling to a single dedicated worker instead of every replica; document the Redis-lock reliance explicitly",
+      "Extract the shared RBAC-scope and state-transition primitive currently duplicated across 7 *_common.py files",
+      "Generalize the dashboard's read-through cache pattern to other expensive, slow-changing aggregates",
+      "Re-tune the DB connection pool once findings above remove the connection-holding root causes; load-test"
+    ],
+  },
+  {
+    name: "Phase 4 — Accepted debt (revisit only if triggered)",
+    when: "No fixed date — reassess if the trigger condition occurs",
+    effort: "L, opportunistic",
+    items: [
+      "Restructure services/routers into module-scoped packages (only if team size or a real module-extraction need grows)",
+      "Repository-pattern / use-case layer extraction (only if the testing investment in Phase 2 proves insufficient)",
+      "API versioning infrastructure (only once a second real API consumer is scoped)",
+      "Replace COUNT()-based sequential code generation with an atomic counter table (only once yearly volume makes it slow)",
+      "Reconsider UUIDv4 vs. sequential/UUIDv7 PKs on append-only tables (only if index bloat is measured)"
+    ],
+  },
+];
+
+const PILLARS = {
+  architecture: [
+    {
+      sev: "High",
+      issue: "Module boundaries (M1–M20) exist only in comments, not in code structure",
+      files: "app/services/ (54 files, flat), app/routers/ (39 files, flat), app/models/__init__.py (27-class barrel)",
+      why: "The domain is explicitly organized into numbered modules everywhere in docstrings and docs, but the Python package tree ignores that grouping entirely — anything can import anything.",
+      impact: "As the team grows, there is no natural code-ownership boundary, and extracting any module into a separate service means manually tracing comment labels rather than moving a self-contained package.",
+      effort: "L",
+      recommendation: "For new work, adopt app/modules/<mXX_name>/{router,service,models}.py packages with an import-boundary rule enforced in CI; migrate existing modules opportunistically.",
+      tradeoff: "Touches many import paths for no immediate runtime benefit.",
+      timing: "later",
+    },
+    {
+      sev: "High",
+      issue: "M6 (reporting) reads directly from every other module's ORM tables instead of through owned interfaces",
+      files: "app/services/dashboard_service.py, app/services/unified_report_service.py",
+      why: "A deliberate, documented choice to avoid re-running business logic, but it couples the reporting module to the internal schema of every other module.",
+      impact: "Any module changing its own table shape silently breaks M6; extracting any single module later requires rewriting every cross-module query that reaches into it.",
+      effort: "L",
+      recommendation: "Have each module expose a narrow, explicit read-model function even if internally it is the same optimized query — turning an implicit schema dependency into an explicit, versioned contract.",
+      tradeoff: "Formalizing this adds indirection the team explicitly avoided for a real perf/complexity reason.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "High",
+      issue: "Per-module *_common.py files copy-paste the same RBAC-scope and state-machine boilerplate seven times",
+      files: "sample_common.py, document_common.py, chemical_common.py, hr_common.py, nc_common.py, risk_common.py, equipment_common.py",
+      why: "Each module reimplements its own is_privileged(), assert_write_scope(), get_X_or_404(), and transition+audit helper rather than sharing one primitive.",
+      impact: "A security fix to write-scope enforcement in one module will not propagate to the other six unless someone remembers to check all of them — a real risk on a regulated system.",
+      effort: "M",
+      recommendation: "Extract a generic assert_department_write_scope() and get_or_404() into app/core/; keep each module's state whitelist as data driven by one shared run_transition() helper.",
+      tradeoff: "Slightly more abstraction for logic that currently reads simply in place.",
+      timing: "now",
+    },
+    {
+      sev: "Critical",
+      issue: "No repository/data-access seam, and the largest service files have almost no tests",
+      files: "163+ inline db.execute/db.get/db.query call sites; research_service.py (1,678 lines), chemical_service.py (850), document_version_service.py (779), sample_service.py (724), hr_service.py (692) — all untested before this session",
+      why: "SQLAlchemy Session is the de facto only repository; every service is coupled directly to live ORM access with no substitutable seam for testing.",
+      impact: "Five years of feature churn on state-machine-heavy modules will accumulate regressions caught only in manual QA or production, since there is no automated safety net on the largest, most business-critical files.",
+      effort: "L",
+      recommendation: "Skip a full repository-pattern retrofit; instead mandate service-level tests against a real test DB as a merge gate for new/changed code, prioritizing samples, documents, and chemicals first.",
+      tradeoff: "Targeted testing investment beats an abstraction layer the team doesn't otherwise need.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Sequential code generation via COUNT(*) LIKE 'PREFIX-YEAR-%' with retry-on-conflict",
+      files: "sample_common.py (_next_code), document_common.py (next_document_code)",
+      why: "Computing the next number by counting rows matching a prefix pattern grows linearly with yearly volume and produces retry storms under concurrent writers.",
+      impact: "Over a 5-year horizon with growing sample/document volume, peak-hour intake will see increasing retries and slower code generation.",
+      effort: "S",
+      recommendation: "Replace with a per-(prefix,year) counter table using an atomic UPDATE ... RETURNING, keeping the same public function signature.",
+      tradeoff: "Requires a small migration; behavior otherwise unchanged.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "In-process APScheduler is not inherently safe for horizontal scaling",
+      files: "app/scheduler.py, app/main.py (start_scheduler() on FastAPI startup)",
+      why: "Every API process starts its own BackgroundScheduler; running more than one replica means every replica fires the same jobs at the same wall-clock time.",
+      impact: "A future move to multi-replica HA needs every cron service verified idempotent under concurrent execution — it is only partially protected today via per-job Redis locks.",
+      effort: "S/M",
+      recommendation: "Add a Redis leader-lock around start_scheduler(), or move scheduling to a single dedicated worker / external trigger.",
+      tradeoff: "Adds a moving part for a problem that does not exist yet at single-replica scale.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "In-function imports used specifically to dodge circular dependencies",
+      files: "31 occurrences across 12 files, e.g. sample_common.py, document_common.py, hr_common.py, attachment_service.py",
+      why: "Local imports used to avoid circular imports are a symptom of a real bidirectional dependency, not a fix.",
+      impact: "As more modules are added, these workarounds proliferate until a cycle appears that cannot be papered over, surfacing as a late boot failure.",
+      effort: "M",
+      recommendation: "Invert the dependency — have state-transition helpers return the audit payload and let the calling service invoke audit_service directly, removing *_common's need to import it at all.",
+      tradeoff: "One extra line per call site in exchange for a clean, static import graph.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "Medium",
+      issue: "No use-case/interactor layer — services conflate policy, persistence, and audit in single large functions",
+      files: "sample_service.py finalize_sample (~85 lines: authorization + rules + transition + audit + commit + response shaping in one function); repeated shape across most *_service.py files",
+      why: "There is no seam separating pure business-rule policy from I/O orchestration, so testing a rule requires exercising the full DB-backed flow.",
+      impact: "As QMS/regulatory rule changes accumulate over 5 years, new rules get bolted onto already 500–1,700-line functions instead of composed from smaller testable units.",
+      effort: "L",
+      recommendation: "When a service function exceeds ~150–200 lines or gains a 4th responsibility, split a pure policy function into the module's *_common.py from the I/O orchestrator.",
+      tradeoff: "More files/indirection; only worth it for the largest, most-changed services.",
+      timing: "accept-as-debt",
+    },
+  ],
+
+  data: [
+    {
+      sev: "Critical",
+      issue: "Zero explicit indexes anywhere in the schema beyond primary/unique keys",
+      files: "all 27 models; 21 migrations (grep for index=True / Index() / create_index = 0 hits)",
+      why: "PostgreSQL does not auto-index foreign-key columns; department_id, status, created_at, and every FK used in filters/joins have no index.",
+      impact: "Once samples, chemical_transactions, audit_logs, and document_access_log grow past a few hundred thousand rows, every filtered list/report/join query becomes a sequential scan.",
+      effort: "M",
+      recommendation: "Add composite/partial indexes on department_id, status, created_at/at for the high-volume tables, and on all FK columns used in WHERE/JOIN.",
+      tradeoff: "Slightly slower writes and more storage — negligible next to the read cost avoided.",
+      timing: "now",
+    },
+    {
+      sev: "Critical",
+      issue: "Synchronous outbound Web Push calls execute inside open DB transactions while holding row locks",
+      files: "push_service.py (webpush(), no timeout) called from notification_service.py, invoked from chemical_txn_service.py (_reorder_check, before commit) and document_version_service.py (before commit), both already holding with_for_update() locks",
+      why: "pywebpush.webpush() has no timeout and can block on a slow/unreachable push endpoint while the DB transaction still holds row locks and a checked-out pool connection.",
+      impact: "Concurrent chemical out/adjust transactions on the same lot, combined with a slow push provider, can hold locks/connections long enough to exhaust the 30-connection pool and stall unrelated requests system-wide.",
+      effort: "S/M",
+      recommendation: "Move create_notification's push dispatch to after db.commit() (or a background task/queue), and add an explicit timeout to webpush().",
+      tradeoff: "Push delivery becomes eventually consistent with the DB write — acceptable since it is already best-effort by design.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Systemic N+1 query pattern — selectinload/joinedload used nowhere in 54 services",
+      files: "chemical_txn_service.py (list_transactions: one db.get() per row for lot/chemical/sample), chemical_report_service.py, sample_service.py",
+      why: "All relation fetching is per-row db.get() inside loops instead of batched IN(...) queries.",
+      impact: "A paginated transaction-history page (limit=50) issues 100–150+ extra round trips instead of 2–3 batched queries, multiplying under concurrent report generation and pool pressure.",
+      effort: "M",
+      recommendation: "Batch-fetch related lots/chemicals/samples with a single IN(...) query before building the response list.",
+      tradeoff: "Slightly more complex serialization code for a large latency/throughput win.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Random UUIDv4 primary keys on high-insert, append-only tables",
+      files: "audit_log.py (gen_random_uuid()), ChemicalTransaction.id, DocumentAccessLog.id",
+      why: "Non-time-ordered UUIDv4 PKs cause unbounded B-tree insert patterns, worsening index bloat and buffer-cache hit rate as append-only tables grow.",
+      impact: "After a few years of continuous inserts, index size and vacuum overhead grow disproportionately versus a sequential or time-ordered key.",
+      effort: "L",
+      recommendation: "For new append-only tables, prefer BIGINT identity or UUIDv7-style time-ordered keys; not worth migrating existing PKs retroactively.",
+      tradeoff: "UUIDv7 leaks creation-time ordering, usually acceptable for internal audit tables.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "Sequential code generation scales linearly with yearly row volume (cross-referenced with Architecture)",
+      files: "sample_common.py _next_code, document_common.py",
+      why: "Each generation does a COUNT(*) over all same-year rows matching a LIKE prefix, correct under concurrency but O(n) per call.",
+      impact: "As yearly volume grows into the thousands, each creation does a larger scan, and contention adds latency at peak intake times.",
+      effort: "M",
+      recommendation: "Replace with a sequences table or Postgres SEQUENCE for O(1) allocation.",
+      tradeoff: "Adds a small dedicated table/sequence to maintain.",
+      timing: "later",
+    },
+    {
+      sev: "Positive",
+      issue: "Chemical stock and document-approval flows correctly use SELECT ... FOR UPDATE — no negative-stock race found",
+      files: "chemical_txn_service.py (lock=True), document_version_service.py (lock=True on document and version), sample_common.py (get_sample_or_404 lock=True)",
+      why: "Row locks are held from read through the single commit, closing the classic double-withdrawal / lost-update race, backed further by CHECK (qty_base >= 0).",
+      impact: "Two concurrent out transactions on the same lot serialize correctly today.",
+      effort: "—",
+      recommendation: "Keep this pattern; make lock=True a required convention (lint/checklist) for any new state-transition service.",
+      tradeoff: "None.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "Low",
+      issue: "Single-commit-per-transaction convention is respected but unenforced",
+      files: "document_version_service.py, sample_flow_service.py, chemical_txn_service.py, nc_service.py, research_service.py",
+      why: "No function today calls db.commit() more than once, but nothing structural stops a future refactor from reintroducing partial-commit risk.",
+      impact: "As the codebase grows past 54 services, a future contributor could silently reintroduce partial commits with nothing to catch it.",
+      effort: "S",
+      recommendation: "Add a thin @transactional decorator or a test fixture that fails if db.commit() runs more than once per request.",
+      tradeoff: "Minor refactor of call sites for a structural guarantee.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "Two migrations are deliberately non-reversible (documented), rest are meaningfully reversible",
+      files: "1718870400013_m14_cleanup_forms.py, 1718870400014_m15_fix_att_check.py (downgrade() is a bare pass)",
+      why: "Almost every migration's downgrade() does real work; these two intentionally do not, both explicitly commented as such.",
+      impact: "The same 'no rollback for merges' pattern should be watched for future real-data merges, not just demo-data ones.",
+      effort: "S",
+      recommendation: "For any future data-merging migration touching real rows, snapshot merged-away rows into an archive table before deleting.",
+      tradeoff: "Extra migration complexity for a rarely-exercised rollback path.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "Medium",
+      issue: "Connection pool (30 total) is untuned against blocking-I/O-holding-connections found elsewhere",
+      files: "app/db/database.py (pool_size=10, max_overflow=20), app/config.py",
+      why: "Session-per-request and pool config are otherwise correct, but combined with the webpush-inside-transaction and N+1 findings above, the effective safe concurrency ceiling is lower than 30.",
+      impact: "A burst of concurrent report requests plus a slow push endpoint causes requests to queue for a connection and intermittently fail during peak intake hours.",
+      effort: "S",
+      recommendation: "Fix the two root causes above first, then load-test to confirm 30 connections is adequate for the real concurrency target.",
+      tradeoff: "None — this is confirmation work, not a code change.",
+      timing: "now",
+    },
+  ],
+
+  security: [
+    {
+      sev: "Critical",
+      issue: "No production guard against the default/weak JWT secret",
+      files: "app/config.py (jwt_secret default), docker-compose.yml (JWT_SECRET)",
+      why: "OWASP A02/A07 — HS256 is symmetric, so anyone who knows the signing secret can forge valid admin JWTs.",
+      impact: "The only compose file boots with ENVIRONMENT=development and a hardcoded weak secret; if deployed as-is, full auth bypass is possible for anyone who obtains that git-tracked value.",
+      effort: "S",
+      recommendation: "Add a startup assertion that refuses to boot in production with the default secret or one under a minimum entropy threshold; ship a distinct hardened prod profile.",
+      tradeoff: "Slightly stricter startup may break quick demo/staging spins reusing the same compose file.",
+      timing: "now",
+    },
+    {
+      sev: "Critical",
+      issue: "Default DB/Redis/MinIO credentials with host ports published",
+      files: "docker-compose.yml (postgres/redis/minio services)",
+      why: "OWASP A05 — infrastructure credentials (lims/lims, minioadmin/minioadmin) are public knowledge and ports are published to the host network.",
+      impact: "Anyone reaching the host network can connect directly to Postgres/Redis/MinIO and read/modify all PII, HR salary, and chemical data, bypassing the API and its RBAC entirely.",
+      effort: "M",
+      recommendation: "Remove host port publishing for these services in a production profile (internal network only) and require strong generated credentials via secrets management.",
+      tradeoff: "Removes convenient direct DB/MinIO access for debugging from the host — use SSH tunneling instead.",
+      timing: "now",
+    },
+    {
+      sev: "Critical",
+      issue: "Same-origin inline file serving enables stored XSS",
+      files: "app/routers/attachments.py (download_attachment, disposition=inline), lims-frontend/nginx.conf",
+      why: "OWASP A03 — nginx proxies MinIO same-origin; combined with the missing MIME allowlist below, an uploaded HTML/SVG file is served inline from the app's own origin.",
+      impact: "An attacker uploads an HTML/SVG payload as a document attachment and shares an inline link; opened by a colleague or admin, the payload executes in the LIMS origin with authenticated same-origin API access.",
+      effort: "M",
+      recommendation: "Force Content-Disposition: attachment for any non-safelisted content type; add a CSP as defense-in-depth.",
+      tradeoff: "Inline preview UX requires an explicit safe-type allowlist rather than blanket inline support.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "No MIME/extension validation on the generic attachment upload path",
+      files: "app/services/attachment_service.py (create_attachment)",
+      why: "OWASP A04/A03 — only file size is checked; content-type is trusted verbatim from the client, unlike the sample-specific upload path which has an allowlist.",
+      impact: "Used for document/equipment/calibration/hr_profile/publication/form/chemical owner types — any authenticated user can upload arbitrary file types to any of these records.",
+      effort: "S",
+      recommendation: "Reuse the existing _ALLOWED_MIME pattern from sample_attachment_service.py as a shared whitelist across all attachment upload paths.",
+      tradeoff: "Slightly reduces flexibility for legitimate uncommon file types.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Sample detail read path has no department read-scope check (IDOR)",
+      files: "sample_service.py (get_sample_detail), app/routers/samples.py (get_sample)",
+      why: "OWASP A01 — every write path in the same service enforces department match via assert_write_scope, but the read path only checks role != office.",
+      impact: "A staff member of Department A can view full detail (status, custodian, assignment history, customer) of any sample belonging to Department B just by obtaining its UUID, violating the documented department-scoping rule.",
+      effort: "S",
+      recommendation: "Add a read-scope check to get_sample_detail mirroring the pattern already used for writes.",
+      tradeoff: "None significant — closes a gap the codebase's own convention already implies should exist.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Wildcard CORS methods/headers combined with credentials=True",
+      files: "app/main.py (CORSMiddleware)",
+      why: "OWASP A05 — safe today only because allow_origins is an explicit env-driven allowlist; zero margin for a CORS_ORIGINS misconfiguration.",
+      impact: "A future typo or overly broad entry in CORS_ORIGINS would let any page on that origin make authenticated cross-site requests using a victim's session.",
+      effort: "S",
+      recommendation: "Restrict allow_methods/allow_headers to the actual set the API needs; treat CORS_ORIGINS as a reviewed, minimal, environment-specific list.",
+      tradeoff: "Requires maintaining an explicit method/header list as the API evolves.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "No security-headers middleware anywhere",
+      files: "app/main.py (entire middleware stack)",
+      why: "OWASP A05 — no HSTS, CSP, X-Content-Type-Options, or X-Frame-Options, amplifying the blast radius of the stored-XSS finding above.",
+      impact: "Any HTML response lacks baseline browser-side hardening for a 5-year TLS/clickjacking/MIME-sniffing exposure window.",
+      effort: "S",
+      recommendation: "Add a small middleware setting HSTS, Content-Security-Policy, X-Content-Type-Options: nosniff, and frame-ancestors/X-Frame-Options: DENY.",
+      tradeoff: "A strict CSP may require frontend adjustments before it can be enforced tightly.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "No IP-based or global rate limiting anywhere",
+      files: "auth_service.py (_check_lockout is per-account only)",
+      why: "OWASP A07 — the only throttle is a per-account Redis lockout; there is no IP-based or global limiter on /auth/login, /auth/refresh, or expensive export endpoints.",
+      impact: "An attacker can run a distributed low-and-slow credential-stuffing attack across many accounts/IPs without ever tripping a limit.",
+      effort: "M",
+      recommendation: "Add IP-based rate limiting (e.g. a Redis token-bucket) at minimum on login, refresh, and heavy export endpoints.",
+      tradeoff: "Needs careful tuning to avoid locking out legitimate users behind shared/NAT IPs.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "/docs and /redoc are reachable because the deployment compose sets ENVIRONMENT=development",
+      files: "app/main.py (docs gated on is_production), docker-compose.yml",
+      why: "OWASP A05 — the gate is correctly written but only as good as the environment variable actually set at deploy time, and the real compose file sets development.",
+      impact: "Any external visitor can browse the full route/schema surface, materially aiding reconnaissance for IDOR and other attacks.",
+      effort: "S",
+      recommendation: "Set ENVIRONMENT=production in the actual deployment config, and add a deploy-time check that fails the build if docs are reachable in a prod-tagged deployment.",
+      tradeoff: "Loses convenient interactive docs in the deployed environment — keep a separate internal-only docs deployment if needed.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "'leader' role has unscoped, organization-wide salary/contract read access",
+      files: "hr_common.py (can_read_salary, can_read_contract, can_read_pii)",
+      why: "Business-logic authorization — access is granted by role alone with no department check, while a separate is_dept_lead flag elsewhere shows department-level granularity is a known concept.",
+      impact: "If 'leader' is ever assigned to a department-level supervisor in a future RBAC change, that person immediately gains unrestricted salary/contract PII access for the whole organization.",
+      effort: "S",
+      recommendation: "Document the intended scope of 'leader' explicitly, and add the same department-scoping check used elsewhere if it can ever mean a department head.",
+      tradeoff: "If 'leader' is genuinely always top-level, this only needs a guarding comment/test, not a code change.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "Low",
+      issue: "Password change does not revoke already-issued access tokens for other sessions",
+      files: "app/core/deps.py (get_current_user), auth_service.py (change_own_password)",
+      why: "OWASP A07 — refresh tokens are correctly revoked on password change, but access-token JTI is never checked against password_changed_at.",
+      impact: "If a user changes their password because a device was stolen, the stolen access token stays usable until its natural TTL expiry (up to 30 minutes).",
+      effort: "S",
+      recommendation: "On password change, deny-list the jti of all other currently-known active sessions.",
+      tradeoff: "Requires tracking issued jtis per user, not just refresh tokens.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "Object-key filename sanitization is blocklist-based, not allowlist",
+      files: "app/services/storage_service.py (build_object_key)",
+      why: "OWASP A03 — only slashes are stripped from file_name before it is embedded in the S3 object key; no handling of traversal sequences or null bytes.",
+      impact: "Not currently exploitable due to the UUID-prefix namespace, but a future refactor trusting file_name more directly would inherit an unsafe sanitizer.",
+      effort: "S",
+      recommendation: "Replace the blocklist with an allowlist regex and cap filename length, independent of the current UUID-prefix mitigation.",
+      tradeoff: "Non-ASCII original filenames would need transliteration or metadata-only storage.",
+      timing: "accept-as-debt",
+    },
+  ],
+
+  api: [
+    {
+      sev: "Critical",
+      issue: "No idempotency-key support anywhere; a retried timed-out request guarantees duplicates",
+      files: "sample_common.py, document_common.py, nc_common.py, risk_common.py, equipment_common.py, sample_flow_service.py — all sequential-code-based creation flows",
+      why: "Codes are generated by COUNT(*)+1 with retry-on-conflict, deduplicated by uniqueness, not by client intent.",
+      impact: "A timed-out POST retried by a client (or a double-click) creates a second full test request, or a second chemical stock transaction that silently corrupts inventory quantities.",
+      effort: "M",
+      recommendation: "Add an Idempotency-Key header convention on all create endpoints; cache (key, endpoint, response) for ~24h and short-circuit retries with the cached response.",
+      tradeoff: "Adds a table and lookup on every create call — worth it given the financial/audit-integrity data at stake.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "response_model is used zero times across all ~39 routers",
+      files: "app/routers/*.py (0 occurrences); services return hand-built dicts",
+      why: "There is no compile/CI-time contract between what a service returns and what the API promises.",
+      impact: "A service refactor can silently drop or rename a response field with nothing catching it, and any client gets 'any' for every response body.",
+      effort: "L",
+      recommendation: "Introduce response schemas incrementally, starting with the highest-traffic resources (samples, documents, chemical lots).",
+      tradeoff: "Real effort against an already-large surface, but doable module-by-module.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "Docs disabled in production with no alternative published contract",
+      files: "app/main.py (docs_url=None in production); contract docs exist only as hand-written markdown in a sibling repo",
+      why: "Combined with the response_model gap, the only 'contract' is prose that can drift from the implementation with no CI check tying them together.",
+      impact: "A third-party integrator, or a new engineer, has zero introspectable, trustworthy documentation of the live production API.",
+      effort: "S",
+      recommendation: "Serve /docs behind an internal-only network path or auth-gated route in production instead of disabling it outright.",
+      tradeoff: "Slight extra introspection surface — mitigate with auth/network restriction rather than full disablement.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Reporting endpoints bypass the shared response-envelope helper",
+      files: "app/routers/reporting.py",
+      why: "Every other paginated list returns meta:{page,limit,total,hasNext} via a shared paginated() helper; reporting endpoints hand-roll their own meta shape.",
+      impact: "A generic client-side envelope parser built against the rest of the API breaks or misparses meta on /dashboard and /reports/*.",
+      effort: "S",
+      recommendation: "Extend core/responses.py with a report() helper that documents this intentionally-different meta shape, or fold it into the existing convention.",
+      tradeoff: "Minimal — naming/consistency fix, not a behavior change.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "No versioning or deprecation mechanism beyond a single hardcoded /api/v1 prefix",
+      files: "app/main.py (settings.api_prefix)",
+      why: "There is no per-router version prefix or deprecation/sunset header convention to evolve any endpoint's contract independently.",
+      impact: "A breaking change to any resource mid-lifecycle forces either a hard break for the current frontend or a full v2 duplication of the router tree.",
+      effort: "L",
+      recommendation: "Given today's single-consumer reality, adopt additive-only-change discipline instead of building versioning infrastructure now.",
+      tradeoff: "Deferring is cheap now but expensive to retrofit later if a real v2 need arises abruptly.",
+      timing: "accept-as-debt",
+    },
+    {
+      sev: "Low",
+      issue: "DELETE endpoints inconsistently return 200+body vs 204",
+      files: "departments.py, documents.py (200, body) vs. assignments.py, hr_profiles.py, lab_access.py, research.py (204, no body)",
+      why: "8 of 10 delete endpoints correctly use 204; these two are outliers.",
+      impact: "A client that treats 204 as no-body throws a JSON-decode error specifically on delete-department and delete-document.",
+      effort: "S",
+      recommendation: "Standardize on 204 across the board, or document the 200-with-body cases as intentional soft-delete responses.",
+      tradeoff: "None significant.",
+      timing: "now",
+    },
+    {
+      sev: "Low",
+      issue: "Pagination cap is enforced at runtime but not declared in the API contract",
+      files: "app/core/responses.py (normalize_pagination, hard 100 cap); routers declare Query(default=20, ge=1) with no le=100",
+      why: "The centralized pagination cap is genuinely good — there is no unbounded-list vulnerability — but it is invisible in the OpenAPI schema.",
+      impact: "A consumer relying on the published schema has no way to know limit silently clamps to 100; large requests are quietly truncated with no error.",
+      effort: "S",
+      recommendation: "Add le=100 to the Query(...) declarations so the contract matches runtime behavior.",
+      tradeoff: "None — pure schema-accuracy fix.",
+      timing: "now",
+    },
+    {
+      sev: "Low",
+      issue: "Ad hoc, per-router date-range parameter naming",
+      files: "chemical_lots.py (date_from/date_to), reporting.py (from/to alias), test_requests.py (received_from/received_to), samples.py (deadline_from/deadline_to)",
+      why: "Four different naming conventions exist for the same recurring date-range concept, invented independently per router.",
+      impact: "A shared frontend query-builder must special-case each router instead of using one convention.",
+      effort: "M",
+      recommendation: "Standardize on generic from/to aliases project-wide, reserving domain-prefixed names only where a resource has multiple distinct date fields.",
+      tradeoff: "Requires frontend coordination since query param names are an already-in-use wire contract.",
+      timing: "accept-as-debt",
+    },
+  ],
+
+  reliability: [
+    {
+      sev: "Critical",
+      issue: "Near-zero test coverage on the largest, most business-critical services",
+      files: "research_service.py (1,678 lines), chemical_service.py (850), document_version_service.py (779), sample_service.py (724), hr_service.py (692) — all untested before this session",
+      why: "These carry the most state-machine, financial, and regulatory logic — chain of custody, chemical stock atomicity, salary math, ISO17025 document versioning.",
+      impact: "A refactor of the sample state machine ships a subtle transition bug that lets a sample skip a required approval step, discovered only during an external audit.",
+      effort: "L",
+      recommendation: "Prioritize coverage in this order: chemical transaction atomicity, sample state machine, document versioning, HR salary calculations, using a real Postgres test DB as already established this session.",
+      tradeoff: "Significant time investment that competes directly with feature velocity.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "No CI/CD pipeline anywhere in the repository",
+      files: "repo root — no .github/, .gitlab-ci.yml, or any pipeline config",
+      why: "With zero pipeline, nothing prevents a broken migration, syntax error, or regressed test from reaching main and then production via manual deploy.",
+      impact: "A merged change that breaks alembic upgrade head fails the container on boot in production, with no pre-merge gate having caught it.",
+      effort: "M",
+      recommendation: "Minimum viable pipeline: lint, pytest, an alembic upgrade --sql dry-run against a throwaway Postgres container, and a Docker build, all on PR to main.",
+      tradeoff: "Requires CI runner infra and initial setup time; low ongoing cost after that.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Migrations run automatically and unconditionally in entrypoint.sh on every container start",
+      files: "entrypoint.sh (alembic upgrade head unconditional before exec)",
+      why: "If ever scaled to N replicas, or during a rolling deploy where old and new containers briefly coexist, every instance runs the migration concurrently against the same database.",
+      impact: "Two replicas starting simultaneously during a rolling deploy can race on the same migration and crash one or both containers on boot.",
+      effort: "S",
+      recommendation: "Move migration execution to a separate one-shot init step run once before rollout, rather than inside every container's entrypoint.",
+      tradeoff: "A separate migration step adds a moving part to the deploy pipeline but removes a real race condition.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Scheduler jobs have no misfire/catch-up handling and no run-history monitoring",
+      files: "app/scheduler.py (8 CronTrigger jobs, e.g. sample-due-soon at hour=7)",
+      why: "Each job catches its own exceptions (good — one job failing cannot crash the scheduler), but if the container is down at exactly its trigger time, that run simply never fires and nothing records the skip.",
+      impact: "A deploy landing during the 07:00–08:15 window silently skips a day of ISO17025 due-date reminders (overdue samples, chemical expiry, calibration due) with no alert — a real compliance-audit gap.",
+      effort: "M",
+      recommendation: "Persist last-successful-run timestamps per job and expose them on the readiness endpoint or a metrics gauge; add misfire_grace_time to the triggers.",
+      tradeoff: "Adds bookkeeping complexity to currently-simple fire-and-forget cron logic.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "No documented testing strategy or CI gate to keep new tests from being abandoned",
+      files: "README.md (535 lines, no test-strategy or coverage-target section)",
+      why: "Without a documented pyramid and no CI enforcing it, the test files added this session are easily treated as an isolated experiment rather than a habit.",
+      impact: "Six months from now, new features continue shipping with zero tests because nothing forces the issue.",
+      effort: "S",
+      recommendation: "Add a short Testing section to the README defining scope (service-layer tests required for new/changed business logic) and wire CI to run pytest with a ratcheting coverage floor.",
+      tradeoff: "A coverage gate can slow initial PRs until the codebase catches up; ratchet rather than set a hard floor immediately.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "No metrics or tracing stack at all",
+      files: "requirements.txt (no prometheus/opentelemetry/statsd); no /metrics endpoint anywhere",
+      why: "Five years in production with 8 cron jobs and 39 routers with zero quantitative visibility means outages are diagnosed by grepping logs after the fact.",
+      impact: "A slow DB query degrading p95 latency across all endpoints goes unnoticed until users complain — no dashboard or alert threshold catches it early.",
+      effort: "M",
+      recommendation: "Add a near-zero-code HTTP metrics instrumentator plus a custom gauge for scheduler job success/last-run-timestamp.",
+      tradeoff: "Extra dependency and a Grafana/Prometheus stack to operate, nontrivial for a small team.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "External dependency calls (Redis, MinIO, WebPush) have no consistent retry/circuit-breaker",
+      files: "app/core/redis_client.py (no retry/backoff, single pool), storage_service.py (no retry on ClientError)",
+      why: "push_service.py and the report cache already show the right degrade-gracefully pattern, but it is not applied to Redis usage in auth or MinIO attachment paths.",
+      impact: "A brief Redis restart causes login attempts to throw unhandled connection errors instead of degrading gracefully.",
+      effort: "M",
+      recommendation: "Set explicit socket timeouts on the Redis pool and add a small retry-with-backoff wrapper around MinIO/Redis calls in the auth-critical path.",
+      tradeoff: "Retries add latency to the failure path and need careful timeout tuning.",
+      timing: "later",
+    },
+    {
+      sev: "Medium",
+      issue: "Correlation ID is manual/opt-in rather than auto-attached to every log record",
+      files: "app/middleware/correlation_id.py (stored only in request.state), app/core/logging_config.py (no filter reads it), ~5 call sites out of hundreds pass it via extra=",
+      why: "The whole point of a correlation ID is to reconstruct one request's full log trail; without a contextvar + logging filter it only appears where a developer remembered to pass it.",
+      impact: "Investigating an incident from a user-reported correlation ID misses most of the relevant log lines from services that did not pass it explicitly.",
+      effort: "S",
+      recommendation: "Add a ContextVar set by the middleware and a logging.Filter that injects it into every record automatically.",
+      tradeoff: "None significant — a small, safe refactor.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "/health/ready swallows the actual check failure",
+      files: "app/routers/health.py",
+      why: "DB and Redis are correctly probed, but a bare except Exception: pass on each check discards the real error.",
+      impact: "On-call sees {\"db\": false} with zero exception detail and must hunt through logs to find the root cause.",
+      effort: "S",
+      recommendation: "Log the exception at warning level inside each check and include a truncated error string in the response for internal callers; add a MinIO connectivity check too.",
+      tradeoff: "Slightly larger readiness response; ensure no secrets leak into the error string.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Dockerfile runs as root, single-stage, no resource limits declared anywhere",
+      files: "Dockerfile (no USER directive), docker-compose.yml (no mem_limit/cpus on any service)",
+      why: "Running as root increases the blast radius of any RCE-class dependency vulnerability over a 5-year lifetime; unlimited resources let one runaway request starve the host.",
+      impact: "A memory-hungry export endpoint OOMs the container and, with no memory limit, can take down co-located services on the same host.",
+      effort: "S",
+      recommendation: "Add a non-root USER directive and set mem_limit/cpus per service.",
+      tradeoff: "Non-root may require adjusting file permissions for runtime-written paths — trivial to test.",
+      timing: "now",
+    },
+    {
+      sev: "Low",
+      issue: "In-process scheduler duplicated per replica, mitigated only by per-job Redis locks",
+      files: "app/scheduler.py, sample_cron_service.py (Redis SET NX EX lock)",
+      why: "The lock pattern correctly prevents double-execution, but every replica still registers and fires the trigger, wasting a DB connection attempt each time.",
+      impact: "With 3 replicas, cron overhead triples for no benefit, and a lock TTL shorter than a slow job's runtime could allow two replicas to run concurrently.",
+      effort: "M",
+      recommendation: "Move scheduling to a single dedicated worker replica via an environment flag, keeping the lock as defense-in-depth.",
+      tradeoff: "Requires operational discipline to ensure exactly one replica has the flag set.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "No tracked technical-debt markers anywhere in the codebase",
+      files: "entire app/ tree — zero TODO/FIXME/HACK/XXX matches",
+      why: "This is not evidence of a debt-free codebase — it means deferred decisions live only in developers' heads or in embedded OQ# spec references rather than a searchable backlog.",
+      impact: "A deliberate shortcut is forgotten and never revisited because there is no debt marker linking it to a decision meant to be revisited.",
+      effort: "S",
+      recommendation: "Adopt a lightweight TODO(owner, YYYY-QQ): convention for anything intentionally deferred, and convert existing OQ# markers into tracked backlog items.",
+      tradeoff: "None significant — pure hygiene improvement.",
+      timing: "accept-as-debt",
+    },
+  ],
+
+  performance: [
+    {
+      sev: "Critical",
+      issue: "Async middleware performs a blocking synchronous DB write on nearly every GET request",
+      files: "app/middleware/access_stat.py (dispatch), app/services/access_stat_service.py",
+      why: "The middleware's dispatch is async and runs directly on the event loop, but calls a synchronous psycopg2 insert+commit inline for every whitelisted request — covering nearly all main list/dashboard/report endpoints.",
+      impact: "Every matching request blocks the entire event loop for one DB round-trip, serializing all concurrent requests behind it — a harder bottleneck than the sync-endpoint threadpool ceiling, since it starves the loop dispatching every request.",
+      effort: "M",
+      recommendation: "Run this write via a threadpool call, or fire-and-forget it to a background task so it never blocks response delivery.",
+      tradeoff: "Slight risk of losing a page-view row on a process crash between response and write — acceptable given it is already best-effort.",
+      timing: "now",
+    },
+    {
+      sev: "Critical",
+      issue: "DB connection pool (30 total) is undersized against real request paths that hold connections open",
+      files: "app/config.py (db_pool_size=10, db_max_overflow=20), app/db/database.py",
+      why: "The pool was sized for a ~40-user target assuming short-lived queries, but several real request paths hold a connection across N+1 loops or blocking external calls.",
+      impact: "A handful of concurrent exports or notification-heavy actions can each pin a connection for seconds to minutes; with only 30 slots, 3–5 simultaneous such requests exhaust the pool for everyone else.",
+      effort: "M",
+      recommendation: "Fix the N+1 and blocking-call findings first — they are the actual root cause of connection-hold time — then re-evaluate pool sizing with a lower pool_timeout so exhaustion fails fast.",
+      tradeoff: "A larger pool alone doesn't fix the root cause and just delays the same problem at higher user counts.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "No worker/thread tuning — the concurrency ceiling is accidental, not designed",
+      files: "Dockerfile (uvicorn CMD, no --workers), entrypoint.sh",
+      why: "A single uvicorn process with no explicit thread-pool sizing means the default threadpool ceiling happens to roughly match the '~40 users' comment in the codebase by coincidence, not design.",
+      impact: "Around 40 concurrent in-flight requests exhaust the threadpool and start queuing; a single process also means one crashed worker takes the whole API down with zero redundancy.",
+      effort: "S",
+      recommendation: "Run via a multi-worker process manager with an explicit worker count, or at minimum explicitly size and document the threadpool ceiling as a deliberate SLA number.",
+      tradeoff: "More workers multiplies DB connections needed and memory footprint per process.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Severe N+1 pattern in bulk XLSX exports, partially masked by row caps",
+      files: "chemical_report_service.py (per-row db.get() for lot/chemical/sample/user), form_service.py (_serialize_submission, 4 db.get() per row)",
+      why: "Both exports cap at 10,000 rows, but each row triggers 3–5 extra point queries, so one export can issue 30,000–50,000 sequential DB round-trips while holding a pool connection the entire time.",
+      impact: "A full 10k-row export can realistically take minutes and pin one of only 30 pool connections for that duration; two concurrent large exports can noticeably starve the rest of the app.",
+      effort: "M",
+      recommendation: "Batch-load lots/chemicals/samples/users with a single WHERE id IN (...) query per entity type before the row loop, turning O(n) queries into O(1) per entity type.",
+      tradeoff: "Slightly more complex service code in exchange for a large win.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Same N+1 pattern hits the interactive transaction-list hot path, not just exports",
+      files: "chemical_txn_service.py (list_transactions)",
+      why: "The per-row db.get() pattern appears on every page load of the chemical transaction log, which is a far higher-frequency path than bulk export.",
+      impact: "A paginated list of 20–50 rows still issues 60–200 extra queries per request; at modest concurrency this multiplies DB round-trips past what the pool can sustain smoothly.",
+      effort: "M",
+      recommendation: "Apply the same batch-load fix here first, since it is higher-frequency than the export paths.",
+      tradeoff: "None significant — a pure win.",
+      timing: "now",
+    },
+    {
+      sev: "High",
+      issue: "Synchronous webpush() calls execute inside the request path with no timeout",
+      files: "push_service.py (loop over subscriptions calling webpush()), notification_service.py (create_notification, ~14 call sites)",
+      why: "pywebpush uses requests under the hood with no explicit timeout, so a slow or unresponsive push endpoint can hang for the OS default TCP timeout while the caller's DB transaction is still open.",
+      impact: "A user with 2–3 devices and one stalled push endpoint can add multiple seconds — worst case tens of seconds — to whatever action triggered the notification, while holding a DB connection the whole time.",
+      effort: "S",
+      recommendation: "Pass an explicit short timeout to webpush(), and move the send off the request path entirely into a background task.",
+      tradeoff: "Notifications become slightly less immediate if deferred to background processing.",
+      timing: "now",
+    },
+    {
+      sev: "Medium",
+      issue: "Upload size limit is enforced after the file is fully read, not via an upfront Content-Length check",
+      files: "app/routers/attachments.py (file.read()), app/services/attachment_service.py (size check happens after read)",
+      why: "There is no upfront Content-Length check before reading, so an oversized upload is fully read/spooled to disk before being rejected.",
+      impact: "A client uploading a very large file occupies a thread and disk I/O for the full transfer time before the app finally responds 'too large.'",
+      effort: "S",
+      recommendation: "Check the Content-Length header against max_upload_size_bytes before calling file.read().",
+      tradeoff: "Content-Length can be absent or spoofed for chunked transfer, so this is a fast-path optimization, not a complete guarantee.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "Reference data (departments, catalogs) hits the DB on every request except RBAC permissions",
+      files: "app/core/rbac.py (only permission rows are Redis-cached), app/core/deps.py (unconditional Department lookup every request)",
+      why: "RBAC caching is well-implemented, but every authenticated request still does extra PK lookups solely to compute a flag some endpoints never use, and other rarely-changing reference tables have zero caching.",
+      impact: "Individually cheap, but at higher concurrency this is 2–3x more pool checkouts than necessary and adds up under burst load.",
+      effort: "S",
+      recommendation: "Only fetch Department when an endpoint actually needs the derived flag, and consider a short Redis TTL cache for departments/catalog lookups similar to the RBAC pattern.",
+      tradeoff: "Adds a staleness window, acceptable given RBAC already accepts the same trade-off.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "Scheduler duplicated per replica wastes DB connection churn (cross-referenced with Reliability)",
+      files: "app/scheduler.py, sample_cron_service.py",
+      why: "Correctness is preserved via the Redis lock, but every replica still opens a session and attempts the lock on every trigger.",
+      impact: "With N replicas, cron connection churn multiplies for no benefit.",
+      effort: "M",
+      recommendation: "Move scheduling to a single dedicated worker replica rather than relying solely on the lock for efficiency, not just correctness.",
+      tradeoff: "Requires an operational flag to designate exactly one scheduling replica.",
+      timing: "later",
+    },
+    {
+      sev: "Low",
+      issue: "The dashboard's read-through cache is a one-off pattern, not generalized",
+      files: "app/services/report_common.py (60s Redis TTL, scope-aware key)",
+      why: "This is a well-scoped, deliberate pattern, but it is the only cache in the entire read path outside RBAC — every other list/detail/aggregate endpoint queries Postgres directly every time.",
+      impact: "Fine at current scale, but as user count grows, read load scales linearly with users with no mitigation beyond the dashboard.",
+      effort: "L",
+      recommendation: "Extract the cache-key/TTL pattern into a reusable helper and apply it selectively to other expensive, infrequently-changing aggregates as usage grows.",
+      tradeoff: "Every cached endpoint needs careful scope-aware key design to avoid the same data-leakage risk this pattern already guards against.",
+      timing: "accept-as-debt",
+    },
+  ],
+};
+
+function sevSort(a, b) {
+  const order = { Critical: 0, High: 1, Medium: 2, Low: 3, Positive: 4 };
+  return order[a.sev] - order[b.sev];
+}
+
+function tallyFor(list) {
+  const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+  list.forEach((f) => { if (counts[f.sev] !== undefined) counts[f.sev]++; });
+  return counts;
+}
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach((k) => node.setAttribute(k, attrs[k]));
+  (children || []).forEach((c) => {
+    if (c == null) return;
+    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  });
+  return node;
+}
+
+function renderScores() {
+  const bar = document.getElementById("scorebar");
+  SCORES.forEach((s) => {
+    const tile = el("div", { class: "score-tile" }, [
+      el("div", { class: "label" }, [s.label]),
+      el("div", { class: "value" }, [s.value.toFixed(1), el("small", {}, ["/10"])]),
+      el("div", { class: "bar" }, [el("span", { style: `width:${s.value * 10}%` })]),
+      el("div", { class: "note" }, [s.note]),
+    ]);
+    bar.appendChild(tile);
+  });
+}
+
+function renderRanked(containerId, items, effortField) {
+  const list = document.getElementById(containerId);
+  items.forEach((item, i) => {
+    const meta = el("div", { class: "meta" });
+    (item.tags || []).forEach((t) => meta.appendChild(el("span", { class: "tag" }, [t])));
+    if (item.effort) meta.appendChild(el("span", { class: "tag" }, ["Effort: " + item.effort]));
+    const card = el("div", { class: "rank-card" }, [
+      el("div", { class: "num" }, [String(i + 1).padStart(2, "0")]),
+      el("div", {}, [
+        el("h3", {}, [item.title]),
+        el("p", {}, [item.why]),
+        meta,
+      ]),
+    ]);
+    list.appendChild(el("li", {}, [card]));
+  });
+}
+
+function renderRoadmap() {
+  const wrap = document.getElementById("roadmap-list");
+  ROADMAP.forEach((phase) => {
+    const head = el("div", { class: "phase-head" }, [
+      el("h3", {}, [phase.name]),
+      el("span", { class: "when" }, [phase.when]),
+    ]);
+    const ul = el("ul", {}, phase.items.map((it) => el("li", {}, [it])));
+    const effortRow = el("div", { class: "tagrow" }, [el("span", { class: "tag" }, ["Effort: " + phase.effort])]);
+    wrap.appendChild(el("div", { class: "phase" }, [head, ul, effortRow]));
+  });
+}
+
+function timingClass(t) {
+  if (t === "now") return "timing-now";
+  if (t === "later") return "timing-later";
+  return "timing-debt";
+}
+
+function renderFinding(f) {
+  const details = el("details", { class: "finding", "data-sev": f.sev });
+  details.appendChild(
+    el("summary", {}, [
+      el("span", { class: "caret" }, ["▸"]),
+      el("span", { class: "issue-text" }, [f.issue]),
+      el("span", { class: "sev-tag" }, [f.sev]),
+    ])
+  );
+
+  const grid = el("dl", { class: "finding-grid" }, [
+    el("div", {}, [el("dt", {}, ["Why it matters"]), el("dd", {}, [f.why])]),
+    el("div", {}, [el("dt", {}, ["Production impact"]), el("dd", {}, [f.impact])]),
+    el("div", {}, [el("dt", {}, ["Recommendation"]), el("dd", {}, [f.recommendation])]),
+    el("div", {}, [el("dt", {}, ["Trade-off"]), el("dd", {}, [f.tradeoff])]),
+  ]);
+
+  const tagrow = el("div", { class: "tagrow" }, [
+    el("span", { class: "tag" }, ["Effort: " + f.effort]),
+    el("span", { class: "tag " + timingClass(f.timing) }, ["Timing: " + f.timing]),
+  ]);
+
+  const body = el("div", { class: "finding-body" }, [
+    el("div", { class: "finding-files" }, [f.files]),
+    grid,
+    tagrow,
+  ]);
+  details.appendChild(body);
+  return details;
+}
+
+function renderPillar(pillarId) {
+  const findings = PILLARS[pillarId].slice().sort(sevSort);
+  const tallyHost = document.querySelector(`.tally[data-pillar="${pillarId}"]`);
+  const counts = tallyFor(findings);
+  const chipDefs = [
+    ["crit", "Critical", counts.Critical],
+    ["high", "High", counts.High],
+    ["med", "Medium", counts.Medium],
+    ["low", "Low", counts.Low],
+  ];
+  chipDefs.forEach(([cls, label, n]) => {
+    if (n > 0) tallyHost.appendChild(el("span", { class: "chip " + cls }, [el("b", {}, [String(n)]), " " + label]));
+  });
+
+  const host = document.querySelector(`.findings[data-pillar="${pillarId}"]`);
+  findings.forEach((f, i) => host.appendChild(renderFinding(f, i === 0)));
+}
+
+function renderNav() {
+  const nav = document.getElementById("rail-nav");
+  const groups = [
+    { label: "Summary", links: [["risks", "Top 5 Risks"], ["roi", "Top 5 ROI"], ["roadmap", "Roadmap"]] },
+    {
+      label: "Findings by pillar",
+      links: [
+        ["architecture", "Architecture & Design", PILLARS.architecture.length],
+        ["data", "Data & Concurrency", PILLARS.data.length],
+        ["security", "Security", PILLARS.security.length],
+        ["api", "API Design", PILLARS.api.length],
+        ["reliability", "Reliability & Ops", PILLARS.reliability.length],
+        ["performance", "Performance & Scale", PILLARS.performance.length],
+      ],
+    },
+  ];
+  groups.forEach((g) => {
+    nav.appendChild(el("div", { class: "rail-group-label" }, [g.label]));
+    g.links.forEach(([id, label, count]) => {
+      const link = el("a", { class: "rail-link", href: "#" + id }, [
+        el("span", {}, [label]),
+        count ? el("span", { class: "n" }, [String(count)]) : null,
+      ]);
+      nav.appendChild(link);
+    });
+  });
+}
+
+renderScores();
+renderRanked("risks-list", RISKS);
+renderRanked("roi-list", ROI, true);
+renderRoadmap();
+Object.keys(PILLARS).forEach(renderPillar);
+renderNav();
+</script>

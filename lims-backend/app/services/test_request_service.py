@@ -10,10 +10,13 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_active_or_404
+from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found, validation_error
+from app.core.exceptions import AppException, validation_error
 from app.models.customer import Customer
 from app.models.sample import Sample
+from app.models.sample_assignment import SampleAssignment
 from app.models.test_request import TestRequest
 from app.services import audit_service, sample_common
 
@@ -51,14 +54,7 @@ def _serialize_list_item(db: Session, req: TestRequest) -> dict:
 
 
 def _get_or_404(db: Session, request_id: uuid.UUID) -> TestRequest:
-    req = db.execute(
-        select(TestRequest).where(
-            TestRequest.id == request_id, TestRequest.deleted_at.is_(None)
-        )
-    ).scalar_one_or_none()
-    if req is None:
-        raise not_found("Không tìm thấy phiếu yêu cầu")
-    return req
+    return get_active_or_404(db, TestRequest, request_id, "Không tìm thấy phiếu yêu cầu")
 
 
 def list_requests(
@@ -70,6 +66,7 @@ def list_requests(
     received_from: Optional[datetime],
     received_to: Optional[datetime],
     status_filter: Optional[str],
+    assigned_to: Optional[uuid.UUID] = None,
     page: int,
     limit: int,
 ) -> tuple[list[dict], int]:
@@ -87,6 +84,15 @@ def list_requests(
         conditions.append(TestRequest.received_at >= received_from)
     if received_to:
         conditions.append(TestRequest.received_at <= received_to)
+    if assigned_to:
+        # KTV chỉ thấy phiếu có ít nhất 1 mẫu được phân công cho chính mình.
+        assigned_request_ids = (
+            select(Sample.request_id)
+            .join(SampleAssignment, SampleAssignment.sample_id == Sample.id)
+            .where(SampleAssignment.assigned_to == assigned_to)
+            .distinct()
+        )
+        conditions.append(TestRequest.id.in_(assigned_request_ids))
 
     total = db.execute(
         select(func.count()).select_from(TestRequest).where(*conditions)
@@ -176,7 +182,7 @@ def create_request(
             )
         ).scalar_one_or_none()
         if c is None:
-            raise AppException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng", 404)
+            raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
 
     recv_by = received_by or user.id
 
@@ -202,7 +208,7 @@ def create_request(
             db.rollback()
     else:
         raise AppException(
-            "INTERNAL_ERROR", "Không sinh được mã phiếu, vui lòng thử lại", 500
+            ErrorCode.INTERNAL_ERROR, "Không sinh được mã phiếu, vui lòng thử lại", 500
         )
 
     audit_service.log_action(
@@ -242,7 +248,7 @@ def update_request(
                 )
             ).scalar_one_or_none()
             if c is None:
-                raise AppException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng", 404)
+                raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
         req.customer_id = cid
         diff["customer_id"] = str(cid) if cid else None
     if "sender_name" in changes and changes["sender_name"] is not None:

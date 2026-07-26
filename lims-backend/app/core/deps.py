@@ -13,6 +13,7 @@ from jose import ExpiredSignatureError, JWTError
 from sqlalchemy.orm import Session
 
 from app.core import security
+from app.core.error_codes import ErrorCode
 from app.core.exceptions import AppException, forbidden, unauthorized
 from app.core.rbac import find_permission
 from app.db.database import get_db
@@ -50,25 +51,34 @@ def get_current_user(
     try:
         payload = security.decode_access_token(token)
     except ExpiredSignatureError:
-        raise AppException("TOKEN_EXPIRED", "Access token đã hết hạn", 401)
+        raise AppException(ErrorCode.TOKEN_EXPIRED, "Access token đã hết hạn", 401)
     except JWTError:
-        raise AppException("TOKEN_INVALID", "Access token không hợp lệ", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Access token không hợp lệ", 401)
 
     jti = payload.get("jti", "")
     if not jti or security.is_jti_denied(jti):
-        raise AppException("TOKEN_INVALID", "Phiên đã bị thu hồi", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Phiên đã bị thu hồi", 401)
 
     sub = payload.get("sub")
     try:
         user_id = uuid.UUID(sub)
     except (TypeError, ValueError):
-        raise AppException("TOKEN_INVALID", "Token không hợp lệ", 401)
+        raise AppException(ErrorCode.TOKEN_INVALID, "Token không hợp lệ", 401)
 
     user = db.get(User, user_id)
     if user is None:
         raise unauthorized("Người dùng không tồn tại")
     if user.status == "disabled":
-        raise AppException("ACCOUNT_DISABLED", "Tài khoản đã bị vô hiệu hóa", 403)
+        raise AppException(ErrorCode.ACCOUNT_DISABLED, "Tài khoản đã bị vô hiệu hóa", 403)
+
+    # Thu hồi access token cấp TRƯỚC lần đổi mật khẩu gần nhất (PRODUCTION_READINESS_REVIEW
+    # H1): access token stateless nên trước đây vẫn sống tới hết TTL (≤30p) sau khi user
+    # đổi mật khẩu (vd sau khi bị mất thiết bị). So iat với password_changed_at (DB, đã cập
+    # nhật trong change_own_password) → token cũ bị 401, phiên hiện tại tự refresh lấy token mới.
+    if user.password_changed_at is not None:
+        iat = int(payload.get("iat", 0))
+        if iat and iat < int(user.password_changed_at.timestamp()):
+            raise AppException(ErrorCode.TOKEN_INVALID, "Phiên đã bị thu hồi do đổi mật khẩu", 401)
 
     # is_dept_lead xác thực lại từ DB (claim có thể cũ; bảo mật ưu tiên DB cho thao tác lead)
     is_lead = False

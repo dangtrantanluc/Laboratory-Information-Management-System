@@ -5,11 +5,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, require_roles
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
 from app.schemas.user import (
+    ApproveUserRequest,
     CreateUserRequest,
+    RejectUserRequest,
     ResetPasswordRequest,
     UpdateUserRequest,
 )
@@ -25,10 +28,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 @router.get("")
 def list_users(
     request: Request,
@@ -37,7 +36,7 @@ def list_users(
     department_id: Optional[uuid.UUID] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(admin_only),
     db: Session = Depends(get_db),
 ):
@@ -71,7 +70,7 @@ def create_user(
         password=body.password,
         is_dept_lead=body.is_dept_lead,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -101,7 +100,7 @@ def update_user(
         user_id=user_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -120,7 +119,7 @@ def enable_user(
             user_id=user_id,
             enable=True,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -139,7 +138,7 @@ def disable_user(
             user_id=user_id,
             enable=False,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
 
@@ -159,6 +158,54 @@ def reset_password(
             user_id=user_id,
             new_password=body.new_password,
             correlation_id=_cid(request),
-            ip=_ip(request),
+            ip=client_ip(request),
         )
     )
+
+
+# ═══════════════════ m30: duyệt tài khoản tự đăng ký (chỉ admin) ═══════════════════
+
+
+@router.post("/{user_id}/approve")
+def approve_registration(
+    user_id: uuid.UUID,
+    body: ApproveUserRequest,
+    request: Request,
+    user: CurrentUser = Depends(admin_only),
+    db: Session = Depends(get_db),
+):
+    """Duyệt tài khoản đang chờ: gán vai trò + phòng ban thật rồi kích hoạt.
+
+    Vai trò do Quản trị viên chọn ở đây, KHÔNG phải do người đăng ký khai.
+    """
+    data = user_service.approve_registration(
+        db,
+        actor_id=user.id,
+        user_id=user_id,
+        role=body.role,
+        department_id=body.department_id,
+        is_dept_lead=body.is_dept_lead,
+        correlation_id=_cid(request),
+        ip=client_ip(request),
+    )
+    return ok(data)
+
+
+@router.post("/{user_id}/reject")
+def reject_registration(
+    user_id: uuid.UUID,
+    body: RejectUserRequest,
+    request: Request,
+    user: CurrentUser = Depends(admin_only),
+    db: Session = Depends(get_db),
+):
+    """Từ chối yêu cầu mở tài khoản (chuyển 'disabled', gửi mail báo lý do)."""
+    data = user_service.reject_registration(
+        db,
+        actor_id=user.id,
+        user_id=user_id,
+        reason=body.reason,
+        correlation_id=_cid(request),
+        ip=client_ip(request),
+    )
+    return ok(data)

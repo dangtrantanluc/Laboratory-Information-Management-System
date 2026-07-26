@@ -3,6 +3,7 @@
 create_notification dùng chung cho cron M1/M2/M4/M5 (interface ổn định).
 Đọc/đánh dấu STRICT SELF (user_id == current user) — chống IDOR.
 """
+import logging
 import uuid
 from typing import Optional
 
@@ -10,6 +11,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.notification import Notification
+
+logger = logging.getLogger("lims.notification")
 
 
 def create_notification(
@@ -33,6 +36,26 @@ def create_notification(
     )
     db.add(notif)
     db.flush()
+
+    try:
+        from app.services import push_service
+
+        # send_push chỉ lên lịch gửi trên thread nền (session DB riêng) — trả về ngay,
+        # KHÔNG chờ mạng và KHÔNG giữ transaction/lock hiện tại của caller (vd
+        # chemical_txn_service/document_version_service đang with_for_update()).
+        push_service.send_push(
+            user_id=user_id,
+            payload={
+                "title": title,
+                "body": body or "",
+                "ref_type": ref_type,
+                "ref_id": str(ref_id) if ref_id else None,
+                "notification_id": str(notif.id),
+            },
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Push send skipped", exc_info=True)
+
     return notif
 
 
@@ -86,6 +109,22 @@ def mark_read(
         return None
     if notif.read_at is None:
         notif.read_at = func.now()
+    db.flush()
+    return notif
+
+
+def mark_unread(
+    db: Session, *, user_id: uuid.UUID, notification_id: uuid.UUID
+) -> Optional[Notification]:
+    """Bỏ đánh dấu đã đọc (read_at = NULL) — STRICT SELF. None nếu không thuộc user (→ 404)."""
+    notif = db.execute(
+        select(Notification).where(
+            Notification.id == notification_id, Notification.user_id == user_id
+        )
+    ).scalar_one_or_none()
+    if notif is None:
+        return None
+    notif.read_at = None
     db.flush()
     return notif
 

@@ -81,7 +81,7 @@ export function NonconformityDetail() {
       </div>
 
       {nc.warning && (
-        <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-[#b45309]">
+        <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
           ⚠ {nc.warning}
         </div>
       )}
@@ -332,8 +332,8 @@ function OpenCapaModal({ nc, onClose, onDone }: { nc: NcDetail; onClose: () => v
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Nguyên nhân gốc (§8.7.2)" required className="sm:col-span-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Nguyên nhân gốc (§8.7.2)" required className="md:col-span-2">
           <Textarea value={rootCause} onChange={(e) => setRootCause(e.target.value)} rows={3} placeholder="Vì sao xảy ra không phù hợp…" />
         </Field>
         <Field label="Loại CAPA">
@@ -348,7 +348,7 @@ function OpenCapaModal({ nc, onClose, onDone }: { nc: NcDetail; onClose: () => v
         <Field label="Hạn xử lý">
           <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </Field>
-        <Field label="Người phụ trách CAPA" required className="sm:col-span-2">
+        <Field label="Người phụ trách CAPA" required className="md:col-span-2">
           <Select value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
             <option value="">— Chọn người phụ trách —</option>
             {(users?.data ?? []).map((u) => (

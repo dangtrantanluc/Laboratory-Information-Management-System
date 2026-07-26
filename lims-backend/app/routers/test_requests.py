@@ -1,6 +1,6 @@
 """Router test_requests (M1) — phiếu yêu cầu thử nghiệm + mẫu/đính kèm nested (FR-018/001/003).
 
-Kế toán cấm toàn bộ (FORBIDDEN_ACCOUNTANT). Phạm vi phòng cho ghi.
+Văn phòng cấm toàn bộ (FORBIDDEN_OFFICE). Phạm vi phòng cho ghi.
 """
 import uuid
 from datetime import datetime
@@ -9,6 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.request_meta import client_ip
+from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
 from app.core.responses import normalize_pagination, ok, paginated
 from app.db.database import get_db
@@ -31,10 +33,6 @@ def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
 
 
-def _ip(request: Request) -> Optional[str]:
-    return request.client.host if request.client else None
-
-
 @router.get("")
 def list_requests(
     request: Request,
@@ -45,12 +43,14 @@ def list_requests(
     received_to: Optional[datetime] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
+    # KTV chỉ được xem phiếu có mẫu gán cho chính mình — bỏ qua department_id do client gửi.
+    forced_assigned_to = user.id if user.role == "staff" else None
     items, total = test_request_service.list_requests(
         db,
         q=q,
@@ -59,6 +59,7 @@ def list_requests(
         received_from=received_from,
         received_to=received_to,
         status_filter=status_filter,
+        assigned_to=forced_assigned_to,
         page=page,
         limit=limit,
     )
@@ -72,7 +73,7 @@ def create_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = test_request_service.create_request(
         db,
         user=user,
@@ -83,7 +84,7 @@ def create_request(
         received_at=body.received_at,
         note=body.note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -94,7 +95,7 @@ def get_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(test_request_service.get_request_detail(db, request_id))
 
 
@@ -106,7 +107,7 @@ def update_request(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     changes = body.model_dump(exclude_unset=True)
     data = test_request_service.update_request(
         db,
@@ -114,7 +115,7 @@ def update_request(
         request_id=request_id,
         changes=changes,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -124,11 +125,11 @@ def update_request(
 def list_request_samples(
     request_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     page, limit = normalize_pagination(page, limit)
     items, total = sample_service.list_request_samples(
         db, request_id=request_id, page=page, limit=limit
@@ -144,7 +145,7 @@ def add_sample(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     data = sample_service.add_sample(
         db,
         user=user,
@@ -154,7 +155,7 @@ def add_sample(
         condition_status=body.condition_status,
         condition_note=body.condition_note,
         correlation_id=_cid(request),
-        ip=_ip(request),
+        ip=client_ip(request),
     )
     return ok(data)
 
@@ -166,30 +167,31 @@ def list_request_attachments(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
+    sample_common.deny_office(user)
     return ok(
         sample_attachment_service.list_request_attachments(db, request_id=request_id)
     )
 
 
 @router.post("/{request_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_request_attachment(
+def upload_request_attachment(
     request_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    sample_common.deny_accountant(user)
-    content = await file.read()
-    data = sample_attachment_service.upload_request_attachment(
-        db,
-        user=user,
-        request_id=request_id,
-        file_name=file.filename or "file",
-        content=content,
-        mime=file.content_type,
-        correlation_id=_cid(request),
-        ip=_ip(request),
-    )
-    return ok(data)
+    with upload_slot():
+        sample_common.deny_office(user)
+        content = file.file.read()
+        data = sample_attachment_service.upload_request_attachment(
+            db,
+            user=user,
+            request_id=request_id,
+            file_name=file.filename or "file",
+            content=content,
+            mime=file.content_type,
+            correlation_id=_cid(request),
+            ip=client_ip(request),
+        )
+        return ok(data)

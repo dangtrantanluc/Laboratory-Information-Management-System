@@ -202,7 +202,7 @@ curl -X POST http://localhost:8060/api/v1/auth/login \
 |------|-------|-----------------|
 | `admin` | Quản trị viên | Toàn hệ thống: users, phòng ban, mọi nghiệp vụ |
 | `leader` | Ban lãnh đạo | Xem toàn hệ thống, duyệt, xem audit log |
-| `accountant` | Kế toán | Chi phí hóa chất + lương/HĐ + báo cáo tài chính; **KHÔNG truy cập mẫu/kết quả** (cách ly nghiệp vụ) |
+| `office` | Văn phòng | Chi phí hóa chất + lương/HĐ + báo cáo tài chính; **KHÔNG truy cập mẫu/kết quả** (cách ly nghiệp vụ) |
 | `staff` | Nhân sự / KTV | Nghiệp vụ lab **theo phòng ban**; trưởng nhóm (`is_dept_lead`) được phân công / duyệt / chốt mẫu |
 
 - Phạm vi (`scope`) mỗi quyền ∈ `{all, department, own}`, seed sẵn theo RBAC matrix.

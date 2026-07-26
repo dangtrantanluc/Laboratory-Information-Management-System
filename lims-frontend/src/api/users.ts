@@ -1,5 +1,5 @@
 import { apiDelete, apiGetPaged, apiPatch, apiPost } from '@/lib/api';
-import type { Department, RoleMeta, UserListItem } from '@/types';
+import type { Department, Role, RoleMeta, UserListItem } from '@/types';
 
 export interface UserFilters {
   q?: string;
@@ -70,4 +70,22 @@ export function updateDepartment(id: string, body: DepartmentBody) {
 }
 export function deleteDepartment(id: string) {
   return apiDelete(`/departments/${id}`);
+}
+
+/* ═══════════════ m30: duyệt tài khoản tự đăng ký (chỉ admin) ═══════════════ */
+
+export interface ApproveUserBody {
+  role: Role;
+  department_id?: string | null;
+  is_dept_lead?: boolean;
+}
+
+/** Duyệt tài khoản đang chờ: gán vai trò + phòng ban thật rồi kích hoạt. */
+export async function approveUser(id: string, body: ApproveUserBody): Promise<void> {
+  await apiPost(`/users/${id}/approve`, body);
+}
+
+/** Từ chối yêu cầu mở tài khoản (chuyển 'disabled', gửi mail báo lý do). */
+export async function rejectUser(id: string, reason: string): Promise<void> {
+  await apiPost(`/users/${id}/reject`, { reason });
 }

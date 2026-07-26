@@ -19,7 +19,7 @@ def list_notifications(
     unread: Optional[bool] = Query(default=None),
     type_filter: Optional[str] = Query(default=None, alias="type", max_length=50),
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -79,6 +79,21 @@ def mark_read(
     )
     if notif is None:
         # IDOR-safe: thuộc user khác → 404 (không lộ tồn tại)
+        raise not_found("Không tìm thấy thông báo")
+    db.commit()
+    return ok({"id": notif.id, "read_at": notif.read_at})
+
+
+@router.patch("/{notification_id}/unread")
+def mark_unread(
+    notification_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    notif = notification_service.mark_unread(
+        db, user_id=user.id, notification_id=notification_id
+    )
+    if notif is None:
         raise not_found("Không tìm thấy thông báo")
     db.commit()
     return ok({"id": notif.id, "read_at": notif.read_at})

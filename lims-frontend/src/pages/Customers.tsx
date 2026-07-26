@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
+import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { canManageCustomers } from '@/lib/rbac';
 import { CUSTOMER_TYPE_LABELS, type Customer } from '@/types';
@@ -20,20 +21,23 @@ export function Customers() {
   const { user } = useAuth();
   const toast = useToast();
   const [q, setQ] = useState('');
+  // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
+  const dq = useDebounced(q);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, loading, reload } = useAsync(
-    () => customersApi.listCustomers({ q: q || undefined, limit: 100 }),
-    [q],
+    () => customersApi.listCustomers({ q: dq || undefined, limit: 100 }),
+    [dq],
   );
 
   const canManage = canManageCustomers(user);
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Tên', sortValue: (c) => c.name, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
-    { key: 'contact', header: 'Liên hệ', render: (c) => c.contact ?? '—' },
+    { key: 'contact', priority: 1, header: 'Liên hệ', render: (c) => c.contact ?? '—' },
     {
       key: 'type',
+      priority: 1,
       header: 'Loại',
       render: (c) => <Badge tone="neutral">{CUSTOMER_TYPE_LABELS[c.type] ?? c.type}</Badge>,
     },

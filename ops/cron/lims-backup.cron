@@ -1,0 +1,9 @@
+# Sao lưu LIMS hằng ngày lúc 02:00.
+# Cài: sudo cp ops/cron/lims-backup.cron /etc/cron.d/lims-backup
+#
+# LIMS_BACKUP_REMOTE là BẮT BUỘC ở production: backup nằm cùng host với dữ liệu
+# gốc thì hỏng ổ đĩa là mất cả hai.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 2 * * * root LIMS_DIR=/opt/lims LIMS_BACKUP_REMOTE=user@backup-host:/lims /usr/local/bin/lims-backup >> /var/log/lims-backup.log 2>&1
