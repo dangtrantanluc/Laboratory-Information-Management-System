@@ -8,6 +8,8 @@ import re
 import uuid
 from typing import Optional
 
+from functools import lru_cache
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
@@ -27,7 +29,16 @@ _BOTO_CONFIG = Config(
 )
 
 
+@lru_cache(maxsize=4)
 def _client(endpoint: Optional[str] = None):
+    """Client boto3 dùng lại giữa các lần gọi.
+
+    Trước đây tạo mới mỗi lần: botocore phải nạp JSON service model của S3 (~50ms).
+    presigned_get_url() được gọi trong serializer nên chi phí đó nhân theo số dòng.
+    Client boto3 an toàn thread (khác Session), nên cache được.
+
+    maxsize=4 đủ cho 2 endpoint đang dùng (nội bộ + public) và chừa chỗ.
+    """
     return boto3.client(
         "s3",
         endpoint_url=endpoint or settings.minio_endpoint,
