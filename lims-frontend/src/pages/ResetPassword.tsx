@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Leaf, Sprout, KeyRound, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Field, Input } from '@/components/ui/Field';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { Field } from '@/components/ui/Field';
 import { describeError } from '@/lib/errors';
 import * as authApi from '@/api/auth';
 
@@ -94,8 +95,7 @@ export function ResetPassword() {
 
             <div className="flex flex-col gap-4">
               <Field label="Mật khẩu mới" required hint="Tối thiểu 8 ký tự, gồm cả chữ và số">
-                <Input
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -104,8 +104,7 @@ export function ResetPassword() {
               </Field>
 
               <Field label="Xác nhận mật khẩu mới" required>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   autoComplete="new-password"

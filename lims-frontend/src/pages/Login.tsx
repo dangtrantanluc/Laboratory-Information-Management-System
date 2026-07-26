@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Leaf, Sprout, Microscope, LogIn } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Field, Input } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { describeError } from '@/lib/errors';
@@ -77,8 +78,7 @@ export function Login() {
               />
             </Field>
             <Field label="Mật khẩu" required>
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
