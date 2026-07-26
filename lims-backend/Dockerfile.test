@@ -1,0 +1,35 @@
+# Image chạy test — KHÔNG dùng cho production.
+#
+# Vì sao cần file riêng: Dockerfile production cố ý chỉ cài requirements.txt,
+# nên container prod không có pytest/ruff. Trước đây hai gói đó được `pip install`
+# bằng tay vào container đang chạy, nghĩa là mỗi lần `docker compose up --build`
+# là mất sạch và không ai chạy được test nữa.
+#
+# Đó chính là loại rào cản khiến 0/41 router có test (M-04). Sửa rào cản trước,
+# rồi mới viết được test.
+#
+# Không dùng multi-stage trong Dockerfile chính vì Docker mặc định build stage
+# CUỐI CÙNG — thêm stage `dev` vào đó sẽ âm thầm đưa dev deps vào image prod.
+
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 curl fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
+# requirements-dev.txt đã `-r requirements.txt` nên cài một lần là đủ.
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install -r requirements-dev.txt
+
+COPY . .
+
+# Chạy dưới root: test cần ghi được (ruff --fix, báo cáo coverage, __pycache__).
+# Chấp nhận được vì image này không bao giờ chạy ở production.
+
+CMD ["python", "-m", "pytest", "app/tests", "-q"]
