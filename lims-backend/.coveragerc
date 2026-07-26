@@ -1,0 +1,25 @@
+# Cấu hình đo vùng phủ (T2.3).
+#
+# LOẠI chính thư mục test khỏi phép đo: file test luôn ~100% (chúng tự chạy),
+# nên gộp vào sẽ làm con số phồng lên và mất ý nghĩa. Thêm 500 dòng test là
+# coverage "tăng" mà không kiểm thêm dòng code sản phẩm nào.
+#
+# Cũng loại alembic: migration chạy một lần lúc deploy, không phải code chạy
+# thường xuyên, và đã được kiểm bằng chính việc dựng schema trong conftest.
+
+[run]
+source = app
+omit =
+    app/tests/*
+    app/tests/**/*
+    */alembic/*
+    app/main.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
+precision = 1
+skip_covered = False
