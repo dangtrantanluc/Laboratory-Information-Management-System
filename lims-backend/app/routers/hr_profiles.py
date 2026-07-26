@@ -252,9 +252,9 @@ def competence_summary(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services import research_service
+    from app.services.research import competence_service
 
-    return ok(research_service.competence_summary(db, user=user, target_user_id=user_id))
+    return ok(competence_service.competence_summary(db, user=user, target_user_id=user_id))
 
 
 # ===================== #12 PATCH competence =====================

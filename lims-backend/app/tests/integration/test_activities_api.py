@@ -6,7 +6,8 @@ rộng lưu/đọc chỉ mục + type conference; teaching lưu số tiết.
 import uuid
 
 from app.core.deps import CurrentUser
-from app.services import activity_service, research_service
+from app.services import activity_service
+from app.services.research import project_service, publication_service
 
 _ADMIN_ID = uuid.UUID("00000000-0000-0000-0000-0000000000a1")
 
@@ -56,7 +57,7 @@ def test_certificate_crud(db):
 
 
 def test_publication_conference_and_indexing(db):
-    out = research_service.create_publication(
+    out = publication_service.create_publication(
         db, user=_admin(),
         payload={"type": "conference", "title": "Báo cáo hội nghị X", "year": 2025,
                  "journal": "Kỷ yếu CESD 2025", "pub_scope": None,
@@ -69,7 +70,7 @@ def test_publication_conference_and_indexing(db):
 
 
 def test_publication_international_indexing_persists(db):
-    out = research_service.create_publication(
+    out = publication_service.create_publication(
         db, user=_admin(),
         payload={"type": "paper", "title": "Paper Q1", "year": 2025, "journal": "Catena",
                  "category": "isi_q1", "pub_scope": "international", "is_scie": True, "is_scopus": True,
@@ -81,7 +82,7 @@ def test_publication_international_indexing_persists(db):
 
 
 def test_project_budget_and_transfer(db):
-    out = research_service.create_project(
+    out = project_service.create_project(
         db, user=_admin(),
         payload={"title": "Đề tài than sinh học", "level": "institution", "lead_user_id": _ADMIN_ID,
                  "budget_amount": "100000000", "is_transferred": True, "transfer_product": "Quy trình",

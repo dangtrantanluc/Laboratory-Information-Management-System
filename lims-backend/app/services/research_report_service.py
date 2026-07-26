@@ -1,6 +1,6 @@
 """Research report service M4 (#37b) — xuất Excel báo cáo thành tích §6.2 (FR-HR-018).
 
-KHÔNG chứa lương (chỉ đếm thành tích). Reuse research_service.achievement_stats để giữ
+KHÔNG chứa lương (chỉ đếm thành tích). Reuse stats_service.achievement_stats để giữ
 1 nguồn số liệu (scope staff own + office 403 đã enforce ở router). Audit
 RESEARCH_REPORT_EXPORT (đếm lượt tải — R15).
 """
@@ -12,7 +12,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
-from app.services import audit_service, research_service
+from app.services import audit_service
+from app.services.research import stats_service
 
 
 def export_stats_xlsx(
@@ -29,7 +30,7 @@ def export_stats_xlsx(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> bytes:
-    stats = research_service.achievement_stats(
+    stats = stats_service.achievement_stats(
         db,
         user=user,
         group_by=group_by,

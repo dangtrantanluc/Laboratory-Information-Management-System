@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
 from app.models.hr import LabRegistration
-from app.services import research_service
+from app.services.research import registration_service
 
 _ADMIN_ID = uuid.UUID("00000000-0000-0000-0000-0000000000a1")
 
@@ -43,7 +43,7 @@ def test_concurrent_decide_only_one_wins(engine):
         s = Session(bind=engine)
         try:
             barrier.wait(timeout=5)  # đồng bộ 2 thread cùng lao vào
-            research_service.decide_registration(
+            registration_service.decide_registration(
                 s, user=_admin(), reg_id=reg_id, decision=decision, reason="r",
                 correlation_id=None, ip=None,
             )
