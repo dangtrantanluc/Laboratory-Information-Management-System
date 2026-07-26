@@ -13,6 +13,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
@@ -67,10 +68,7 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
 
 
 def _get_profile_or_404(db: Session, user_id: uuid.UUID) -> HrProfile:
-    p = db.get(HrProfile, user_id)
-    if p is None:
-        raise AppException(ErrorCode.PROFILE_NOT_FOUND, "Hồ sơ nhân sự không tồn tại", 404)
-    return p
+    return get_or_404(db, HrProfile, user_id, "Hồ sơ nhân sự không tồn tại", code=ErrorCode.PROFILE_NOT_FOUND)
 
 
 def _recompute_next(p: HrProfile) -> None:

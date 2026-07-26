@@ -5,21 +5,14 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_active_or_404
 from app.core.error_codes import ErrorCode
-from app.core.exceptions import not_found
 from app.models.customer import Customer
 from app.services import audit_service
 
 
 def _get_or_404(db: Session, customer_id: uuid.UUID) -> Customer:
-    customer = db.execute(
-        select(Customer).where(
-            Customer.id == customer_id, Customer.deleted_at.is_(None)
-        )
-    ).scalar_one_or_none()
-    if customer is None:
-        raise not_found("Không tìm thấy khách hàng")
-    return customer
+    return get_active_or_404(db, Customer, customer_id, "Không tìm thấy khách hàng")
 
 
 def _serialize(customer: Customer) -> dict:

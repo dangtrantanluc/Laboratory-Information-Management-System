@@ -9,9 +9,10 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found, validation_error
+from app.core.exceptions import AppException, validation_error
 from app.models.sample import Sample
 from app.models.sample_assignment import SampleAssignment
 from app.models.sample_result import SampleResult
@@ -19,17 +20,11 @@ from app.services import audit_service, sample_common
 
 
 def _get_assignment_or_404(db: Session, assignment_id: uuid.UUID) -> SampleAssignment:
-    a = db.get(SampleAssignment, assignment_id)
-    if a is None:
-        raise not_found("Không tìm thấy phân công")
-    return a
+    return get_or_404(db, SampleAssignment, assignment_id, "Không tìm thấy phân công")
 
 
 def _get_result_or_404(db: Session, result_id: uuid.UUID) -> SampleResult:
-    r = db.get(SampleResult, result_id)
-    if r is None:
-        raise not_found("Không tìm thấy kết quả")
-    return r
+    return get_or_404(db, SampleResult, result_id, "Không tìm thấy kết quả")
 
 
 def _current_result(db: Session, assignment_id: uuid.UUID) -> Optional[SampleResult]:

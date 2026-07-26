@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
@@ -121,10 +122,7 @@ def create_mentorship(
 
 
 def _get_mentorship_or_404(db: Session, mid: uuid.UUID) -> StudentMentorship:
-    m = db.get(StudentMentorship, mid)
-    if m is None:
-        raise AppException(ErrorCode.MENTORSHIP_NOT_FOUND, "Bản ghi hướng dẫn không tồn tại", 404)
-    return m
+    return get_or_404(db, StudentMentorship, mid, "Bản ghi hướng dẫn không tồn tại", code=ErrorCode.MENTORSHIP_NOT_FOUND)
 
 
 def update_mentorship(

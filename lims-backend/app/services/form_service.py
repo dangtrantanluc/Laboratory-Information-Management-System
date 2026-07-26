@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.concurrency import export_slot
 from app.core.deps import CurrentUser
@@ -549,10 +550,7 @@ def create_submission(
 
 # ===== Duyệt minh chứng (M21) =====
 def _get_submission_or_404(db: Session, submission_id: uuid.UUID) -> FormSubmission:
-    sub = db.get(FormSubmission, submission_id)
-    if sub is None:
-        raise not_found("Không tìm thấy minh chứng")
-    return sub
+    return get_or_404(db, FormSubmission, submission_id, "Không tìm thấy minh chứng")
 
 
 def approve_submission(

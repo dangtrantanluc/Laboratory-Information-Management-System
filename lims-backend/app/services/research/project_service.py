@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
@@ -202,10 +203,7 @@ def create_project(
 
 
 def _get_project_or_404(db: Session, project_id: uuid.UUID) -> ResearchProject:
-    p = db.get(ResearchProject, project_id)
-    if p is None:
-        raise AppException(ErrorCode.PROJECT_NOT_FOUND, "Đề tài không tồn tại", 404)
-    return p
+    return get_or_404(db, ResearchProject, project_id, "Đề tài không tồn tại", code=ErrorCode.PROJECT_NOT_FOUND)
 
 
 def _assert_project_scope(db: Session, user: CurrentUser, p: ResearchProject) -> None:

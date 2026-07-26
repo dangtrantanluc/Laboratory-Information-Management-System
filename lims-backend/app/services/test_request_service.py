@@ -10,9 +10,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_active_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found, validation_error
+from app.core.exceptions import AppException, validation_error
 from app.models.customer import Customer
 from app.models.sample import Sample
 from app.models.sample_assignment import SampleAssignment
@@ -53,14 +54,7 @@ def _serialize_list_item(db: Session, req: TestRequest) -> dict:
 
 
 def _get_or_404(db: Session, request_id: uuid.UUID) -> TestRequest:
-    req = db.execute(
-        select(TestRequest).where(
-            TestRequest.id == request_id, TestRequest.deleted_at.is_(None)
-        )
-    ).scalar_one_or_none()
-    if req is None:
-        raise not_found("Không tìm thấy phiếu yêu cầu")
-    return req
+    return get_active_or_404(db, TestRequest, request_id, "Không tìm thấy phiếu yêu cầu")
 
 
 def list_requests(

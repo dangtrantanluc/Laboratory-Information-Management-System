@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
@@ -261,10 +262,7 @@ def create_publication(
 
 
 def _get_pub_or_404(db: Session, pub_id: uuid.UUID) -> Publication:
-    p = db.get(Publication, pub_id)
-    if p is None:
-        raise AppException(ErrorCode.PUBLICATION_NOT_FOUND, "Bài báo/sáng chế không tồn tại", 404)
-    return p
+    return get_or_404(db, Publication, pub_id, "Bài báo/sáng chế không tồn tại", code=ErrorCode.PUBLICATION_NOT_FOUND)
 
 
 def _assert_pub_scope(db: Session, user: CurrentUser, p: Publication) -> None:

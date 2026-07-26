@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
@@ -60,17 +61,11 @@ _ACTION_LABELS = {
 
 # ===== Truy cập & ràng buộc nghiệp vụ =====
 def _get_template_or_404(db: Session, template_id: uuid.UUID) -> FormTemplate:
-    tpl = db.get(FormTemplate, template_id)
-    if tpl is None:
-        raise not_found("Không tìm thấy biểu mẫu")
-    return tpl
+    return get_or_404(db, FormTemplate, template_id, "Không tìm thấy biểu mẫu")
 
 
 def _get_submission_or_404(db: Session, submission_id: uuid.UUID) -> FormSubmission:
-    sub = db.get(FormSubmission, submission_id)
-    if sub is None:
-        raise not_found("Không tìm thấy minh chứng")
-    return sub
+    return get_or_404(db, FormSubmission, submission_id, "Không tìm thấy minh chứng")
 
 
 def _check_submission_scope(user: CurrentUser, sub: FormSubmission) -> None:

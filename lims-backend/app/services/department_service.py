@@ -8,18 +8,16 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
-from app.core.exceptions import AppException, conflict, not_found, unprocessable
+from app.core.exceptions import AppException, conflict, unprocessable
 from app.models.department import Department
 from app.models.user import User
 from app.services import audit_service
 
 
 def _get_dept_or_404(db: Session, dept_id: uuid.UUID) -> Department:
-    dept = db.get(Department, dept_id)
-    if dept is None:
-        raise not_found("Không tìm thấy phòng ban")
-    return dept
+    return get_or_404(db, Department, dept_id, "Không tìm thấy phòng ban")
 
 
 def _code_exists(db: Session, code: str, exclude_id: Optional[uuid.UUID] = None) -> bool:

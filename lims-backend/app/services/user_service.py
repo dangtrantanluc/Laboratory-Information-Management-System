@@ -12,11 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core import security
+from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import (
     AppException,
     conflict,
-    not_found,
     unprocessable,
 )
 from app.models.department import Department
@@ -26,10 +26,7 @@ from app.services import audit_service, avatar_service, email_service
 
 
 def _get_user_or_404(db: Session, user_id: uuid.UUID) -> User:
-    user = db.get(User, user_id)
-    if user is None:
-        raise not_found("Không tìm thấy người dùng")
-    return user
+    return get_or_404(db, User, user_id, "Không tìm thấy người dùng")
 
 
 def _email_exists(db: Session, email: str, exclude_id: Optional[uuid.UUID] = None) -> bool:
