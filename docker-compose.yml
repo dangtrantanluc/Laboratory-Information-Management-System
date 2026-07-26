@@ -79,6 +79,11 @@ services:
       VAPID_CLAIMS_EMAIL: admin@lims.local
       # ── m30: tự đăng ký / quên mật khẩu / avatar ──
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:3060}
+      # ── R2.2: concurrency ──
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-12}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-5}
       # Bỏ trống SMTP_HOST ⇒ chế độ dev: link xác thực ghi ra log container.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

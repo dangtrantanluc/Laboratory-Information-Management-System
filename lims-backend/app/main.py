@@ -74,6 +74,20 @@ async def lifespan(_app: FastAPI):
         "LIMS Backend starting",
         extra={"environment": settings.environment, "apiPrefix": settings.api_prefix},
     )
+
+    # Threadpool AnyIO mặc định 40 thread, nhưng pool DB chỉ có pool_size+max_overflow
+    # connection. 40 thread tranh 20 connection ⇒ 20 thread chờ tới khi pool_timeout
+    # rồi ném lỗi. Đặt bằng nhau để hàng đợi nằm ở tầng HTTP (có timeout rõ ràng)
+    # thay vì tầng DB (ARCHITECTURE_AUDIT.md F-03).
+    try:
+        import anyio.to_thread
+
+        limit = settings.db_pool_size + settings.db_max_overflow
+        anyio.to_thread.current_default_thread_limiter().total_tokens = limit
+        logger.info("Threadpool limiter aligned with DB pool", extra={"threads": limit})
+    except Exception as exc:  # noqa: BLE001 — không được chặn khởi động vì việc chỉnh tuning
+        logger.warning("Cannot set threadpool limiter", extra={"error": str(exc)})
+
     try:
         from app.services import storage_service
 
