@@ -338,14 +338,14 @@ def revoke_my_other_sessions(
 
 
 @router.post("/me/avatar")
-async def upload_my_avatar(
+def upload_my_avatar(
     request: Request,
     file: UploadFile = File(...),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Tải ảnh đại diện lên MinIO. DB chỉ lưu object key; trả về presigned URL."""
-    content = await file.read()
+    content = file.file.read()
     data = avatar_service.upload_avatar(
         db,
         user_id=user.id,

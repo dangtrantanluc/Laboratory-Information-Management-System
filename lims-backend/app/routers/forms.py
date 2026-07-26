@@ -99,7 +99,7 @@ def update_template(
     "/templates/{template_id}/file",
     dependencies=[Depends(rate_limit("form-file-upload", limit=30, window_seconds=60))],
 )
-async def upload_template_file(
+def upload_template_file(
     template_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -109,7 +109,7 @@ async def upload_template_file(
     db: Session = Depends(get_db),
 ):
     """Tải lên / thay tệp biểu mẫu. Bản cũ chuyển thành lịch sử, không mất."""
-    content = await file.read()
+    content = file.file.read()
     data = form_file_service.replace_file(
         db, user=user, owner_type=form_file_service.OWNER_TEMPLATE, owner_id=template_id,
         file_name=file.filename or "file", content=content, mime=file.content_type,
@@ -275,7 +275,7 @@ def reject_submission(
     "/submissions/{submission_id}/file",
     dependencies=[Depends(rate_limit("form-file-upload", limit=30, window_seconds=60))],
 )
-async def upload_submission_file(
+def upload_submission_file(
     submission_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -285,7 +285,7 @@ async def upload_submission_file(
     db: Session = Depends(get_db),
 ):
     """Tải lên / thay tệp minh chứng. Đã duyệt thì khóa; bị từ chối thì quay lại chờ duyệt."""
-    content = await file.read()
+    content = file.file.read()
     data = form_file_service.replace_file(
         db, user=user, owner_type=form_file_service.OWNER_SUBMISSION,
         owner_id=submission_id, file_name=file.filename or "file", content=content,

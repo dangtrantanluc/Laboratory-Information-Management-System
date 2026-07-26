@@ -296,7 +296,7 @@ def delete_competence(
 
 # ===================== #14 POST competence attachment =====================
 @router.post("/competences/{competence_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_competence_attachment(
+def upload_competence_attachment(
     competence_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -311,7 +311,7 @@ async def upload_competence_attachment(
         raise AppException(
             "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
         )
-    content = await file.read()
+    content = file.file.read()
     # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
     data = attachment_service.create_attachment(
         db,

@@ -295,7 +295,7 @@ def list_msds(
 
 
 @router.post("/chemicals/{chemical_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_msds(
+def upload_msds(
     chemical_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -309,7 +309,7 @@ async def upload_msds(
         raise AppException(
             "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG/XLSX)", 422
         )
-    content = await file.read()
+    content = file.file.read()
     data = attachment_service.create_attachment(
         db,
         user=user,

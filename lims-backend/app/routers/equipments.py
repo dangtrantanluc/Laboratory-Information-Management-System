@@ -141,7 +141,7 @@ def update_equipment(
 
 # ===== #6 POST /equipments/:id/attachments (multipart) =====
 @router.post("/{equipment_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def add_attachment(
+def add_attachment(
     equipment_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -149,7 +149,7 @@ async def add_attachment(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
+    content = file.file.read()
     data = equipment_service.add_attachment(
         db,
         user=user,
@@ -204,7 +204,7 @@ def list_calibrations(
 
 # ===== #9 POST /equipments/:id/calibrations (multipart, CỐT LÕI) =====
 @router.post("/{equipment_id}/calibrations", status_code=status.HTTP_201_CREATED)
-async def create_calibration(
+def create_calibration(
     equipment_id: uuid.UUID,
     request: Request,
     calibrated_at: date = Form(...),
@@ -218,7 +218,7 @@ async def create_calibration(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    cert_content = await cert.read() if cert is not None else None
+    cert_content = cert.file.read() if cert is not None else None
     data = calibration_service.create_calibration(
         db,
         user=user,

@@ -307,7 +307,7 @@ def replace_authors(
 
 
 @router.post("/publications/{pub_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_publication_attachment(
+def upload_publication_attachment(
     pub_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -321,7 +321,7 @@ async def upload_publication_attachment(
         raise AppException(
             "INVALID_FILE_TYPE", "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
         )
-    content = await file.read()
+    content = file.file.read()
     data = attachment_service.create_attachment(
         db,
         user=user,

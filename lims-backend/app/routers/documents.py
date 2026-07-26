@@ -155,7 +155,7 @@ def list_documents(
 
 # ===== 4. Create document + first version (multipart) =====
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_document(
+def create_document(
     request: Request,
     title: str = Form(...),
     type: str = Form(...),
@@ -166,7 +166,7 @@ async def create_document(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
+    content = file.file.read()
     data = document_service.create_document(
         db,
         user=user,
@@ -296,7 +296,7 @@ def list_versions(
 
 # ===== 9. Create new version (multipart) =====
 @router.post("/{document_id}/versions", status_code=status.HTTP_201_CREATED)
-async def create_version(
+def create_version(
     document_id: uuid.UUID,
     request: Request,
     change_note: Optional[str] = Form(default=None),
@@ -304,7 +304,7 @@ async def create_version(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
+    content = file.file.read()
     data = dvs.create_version(
         db,
         user=user,
@@ -359,7 +359,7 @@ def update_version(
 
 # ===== 11b. Update version file (multipart, thay file draft) =====
 @router.put("/{document_id}/versions/{version_id}/file")
-async def replace_version_file(
+def replace_version_file(
     document_id: uuid.UUID,
     version_id: uuid.UUID,
     request: Request,
@@ -368,7 +368,7 @@ async def replace_version_file(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
+    content = file.file.read()
     data = dvs.update_version(
         db,
         user=user,

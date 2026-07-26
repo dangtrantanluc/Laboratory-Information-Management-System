@@ -86,7 +86,7 @@ def get_coa(
 
 
 @router.post("/lots/{lot_id}/coa", status_code=status.HTTP_201_CREATED)
-async def upload_coa(
+def upload_coa(
     lot_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -94,7 +94,7 @@ async def upload_coa(
     db: Session = Depends(get_db),
 ):
     """Upload/ghi đè chứng chỉ phân tích (CoA) cho lô hóa chất."""
-    content = await file.read()
+    content = file.file.read()
     data = chemical_service.upload_coa(
         db,
         user=user,

@@ -102,7 +102,7 @@ def list_result_attachments(
 
 
 @router.post("/{result_id}/attachments", status_code=status.HTTP_201_CREATED)
-async def upload_result_attachment(
+def upload_result_attachment(
     result_id: uuid.UUID,
     request: Request,
     file: UploadFile = File(...),
@@ -110,7 +110,7 @@ async def upload_result_attachment(
     db: Session = Depends(get_db),
 ):
     sample_common.deny_office(user)
-    content = await file.read()
+    content = file.file.read()
     data = sample_attachment_service.upload_result_attachment(
         db,
         user=user,

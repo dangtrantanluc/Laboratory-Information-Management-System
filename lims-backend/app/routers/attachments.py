@@ -22,7 +22,7 @@ def _ip(request: Request) -> Optional[str]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def upload_attachment(
+def upload_attachment(
     request: Request,
     owner_type: str = Form(...),
     owner_id: uuid.UUID = Form(...),
@@ -31,7 +31,7 @@ async def upload_attachment(
     db: Session = Depends(get_db),
 ):
     """Upload generic — M1/M2 dùng để gắn file. owner tồn tại enforce ở module owner."""
-    content = await file.read()
+    content = file.file.read()
     data = attachment_service.create_attachment(
         db,
         user=user,
