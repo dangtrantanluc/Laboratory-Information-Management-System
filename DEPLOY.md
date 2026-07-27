@@ -238,6 +238,8 @@ docker compose -f docker-compose.prod.yml -f docker-compose.cloudflare.yml logs 
 
 Thứ tự khởi động do compose ép: postgres/redis/minio `healthy` → `migrate` chạy `alembic upgrade head` **một lần** dưới advisory lock (`lims-backend/entrypoint.sh`) → `lims-api` (`SKIP_MIGRATIONS=true`, nên không container nào migrate lần hai).
 
+> **`migrate` exit 1 mà log không hề có dòng alembic nào** — đọc lỗi ở đầu log, gần chắc là chốt an toàn của `app/config.py` (`Refusing to start with ENVIRONMENT=production …`). Chốt đó kiểm **toàn bộ** secret (JWT, MinIO, SEED_ADMIN_PASSWORD, DATABASE_URL) ngay khi import config, kể cả với service không dùng đến chúng. Mọi service khai `ENVIRONMENT=production` phải nhận **đủ cả 4 nhóm** biến đó, nếu không nó rơi về mặc định dev và chốt nổ. `migrate` fail sẽ chặn luôn `lims-api` qua `condition: service_completed_successfully`; muốn mở lại service ngay trong lúc chữa thì `up -d --no-deps lims-api` (an toàn vì API có `SKIP_MIGRATIONS=true`) — nhưng chỉ làm vậy khi `select version_num from alembic_version` đã bằng HEAD, tức không có migration nào đang chờ.
+
 Xác nhận không lộ cổng nào ra host — overlay cloudflare dùng `ports: !reset []` để gỡ `3060:80` mà `docker-compose.prod.yml` publish:
 
 ```bash

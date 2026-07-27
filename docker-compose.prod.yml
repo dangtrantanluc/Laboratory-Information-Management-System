@@ -136,6 +136,13 @@ services:
       # cùng một nguyên nhân.
       ENVIRONMENT: ${ENVIRONMENT:-production}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.prod}
+      # Chốt an toàn của config.py kiểm TOÀN BỘ secret, kể cả MinIO — dù service
+      # này không hề gọi S3. Bật ENVIRONMENT=production mà không truyền hai biến
+      # dưới đây thì chúng rơi về mặc định `minioadmin`, chốt nổ, migrate exit 1
+      # và lims-api bị chặn bởi `condition: service_completed_successfully`.
+      # Phải khai cùng nguồn biến với lims-api để hai service không lệch nhau.
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env.prod}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env.prod}
     command: ["true"]
 
   lims-api:
