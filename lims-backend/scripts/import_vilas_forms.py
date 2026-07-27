@@ -173,20 +173,28 @@ def main() -> int:
             existing = db.execute(
                 select(FormTemplate.id).where(FormTemplate.code == info["code"])
             ).scalar_one_or_none()
-            if existing is not None:
-                # Ghi lại TÊN file, không chỉ đếm: trùng mã nghĩa là file này KHÔNG
-                # vào hệ thống, và người dùng cần biết cụ thể file nào để tự quyết
-                # định (bản trùng thật, hay hai biểu mẫu khác nhau vô tình cùng mã).
+            # PHÂN BIỆT HAI TÌNH HUỐNG TRÙNG MÃ — chúng cần cách xử lý ngược nhau:
+            #
+            #   1. Mã đã có trong DB từ lần chạy TRƯỚC → bỏ qua, giữ tính idempotent.
+            #   2. Mã vừa dùng trong CHÍNH mẻ này (có trong `taken`) → đây là file
+            #      KHÁC vô tình sinh cùng mã, phải cấp mã mới chứ không được bỏ.
+            #
+            # Dữ liệu thật có nhiều bộ như vậy: BM 7.8.01 ứng với ba tài liệu khác
+            # nhau (Phieu ket qua thu nghiem / Test Report / _Form Phieu ket qua).
+            # Gộp hai tình huống làm một sẽ âm thầm đánh rơi 13 biểu mẫu.
+            if existing is not None and info["code"] not in taken:
                 skipped_files.append(f"{info['code']}  ←  {f.relative_to(root)}")
                 continue
 
+            # Cấp mã TRƯỚC khi in, để dry-run cho ra đúng mã mà lần chạy thật sẽ
+            # dùng. Nếu không, dry-run báo "BM 7.8.01" ba lần rồi lần chạy thật lại
+            # ra 7.8.01 / 7.8.01-2 / 7.8.01-3 — người đọc mất tin vào bản xem trước.
+            info["code"] = unique_code(db, info["code"], taken)
+
             if args.dry_run:
                 print(f"    + {info['code']:28s} [{info['iso_clause']:>5s}] {info['title'][:52]}")
-                taken.add(info["code"])
                 created += 1
                 continue
-
-            info["code"] = unique_code(db, info["code"], taken)
             try:
                 tpl = form_service.create_template(
                     db, user=user, code=info["code"], title=info["title"],
