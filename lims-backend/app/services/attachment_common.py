@@ -33,6 +33,11 @@ BASE_ALLOWED_MIME = {
 GENERIC_ALLOWED_MIME = BASE_ALLOWED_MIME | {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
     "application/msword",  # .doc
+    # Kho biểu mẫu VILAS có tài liệu trình bày (vd "Sơ đồ Viện.pptx" — sơ đồ tổ chức
+    # thuộc điều khoản 5). Chỉ mở cho nhóm GENERIC (biểu mẫu/minh chứng), KHÔNG mở ở
+    # BASE để các module khác giữ nguyên phạm vi hẹp.
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+    "application/vnd.ms-powerpoint",  # .ppt
 }
 
 

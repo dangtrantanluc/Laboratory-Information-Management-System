@@ -33,6 +33,7 @@ from sqlalchemy import select  # noqa: E402
 from app.core.deps import CurrentUser  # noqa: E402
 from app.db.database import SessionLocal  # noqa: E402
 from app.models.form import FormTemplate  # noqa: E402
+from app.models.attachment import Attachment  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.services import form_file_service, form_service  # noqa: E402
 
@@ -53,7 +54,15 @@ EXT_MIME = {
     ".png": "image/png",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".xls": "application/vnd.ms-excel",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt": "application/vnd.ms-powerpoint",
 }
+
+# Dấu nguồn ghi vào form_templates.note — ĐƯỜNG DẪN TƯƠNG ĐỐI của file gốc.
+# Đây mới là DANH TÍNH thật của biểu mẫu; mã (BM x.yy) KHÔNG dùng làm khóa idempotent
+# được vì nhiều file khác nhau suy ra cùng mã (BM 7.8.01 → 3 file) và một file có thể
+# đổi mã giữa các phiên bản script → chạy lại sinh trùng.
+SRC_MARK = "VILAS-SRC:"
 
 # Mã biểu mẫu dạng "BM HC.TĐTTNB.01.RIBE" — bắt tới trước phần mô tả.
 RE_CODE = re.compile(r"^(BM\s+[A-Za-zÀ-ỹĐđ0-9.]+(?:\.[A-Za-zÀ-ỹĐđ0-9]+)*)", re.U)
@@ -147,6 +156,30 @@ def main() -> int:
     taken: set = set()
     seq: dict = {}
 
+    # (a) Đã nạp bằng BẢN MỚI → nhận diện chính xác theo đường dẫn nguồn.
+    by_src: dict = {}
+    for tid, note in db.execute(
+        select(FormTemplate.id, FormTemplate.note).where(FormTemplate.note.like(f"{SRC_MARK}%"))
+    ).all():
+        by_src[note[len(SRC_MARK):]] = tid
+
+    # (b) Đã nạp bằng BẢN CŨ (note rỗng) → dò theo tên tệp + điều khoản. Có 3 cặp tên
+    # tệp trùng nhau trong CÙNG điều khoản, nên mỗi bản ghi cũ chỉ được khớp MỘT lần
+    # (used_legacy) — nếu không, file thứ hai sẽ bị coi là đã có và lại bị đánh rơi.
+    legacy: dict = {}
+    for tid, clause, fname in db.execute(
+        select(FormTemplate.id, FormTemplate.iso_clause, Attachment.file_name)
+        .join(Attachment, (Attachment.owner_id == FormTemplate.id))
+        .where(
+            Attachment.owner_type == form_file_service.OWNER_TEMPLATE,
+            Attachment.deleted_at.is_(None),
+            FormTemplate.note.is_(None),
+        )
+    ).all():
+        legacy.setdefault((fname, clause), []).append(tid)
+    used_legacy: set = set()
+    backfilled = 0
+
     for folder in sorted(p for p in root.iterdir() if p.is_dir()):
         m = re.match(r"^(\d)\.", folder.name)
         folder_clause = FOLDER_CLAUSE.get(m.group(1)) if m else None
@@ -170,25 +203,26 @@ def main() -> int:
                 seq[info["iso_clause"]] = n
                 info["code"] = f"BM {info['iso_clause']}.{n:02d}"
 
-            existing = db.execute(
-                select(FormTemplate.id).where(FormTemplate.code == info["code"])
-            ).scalar_one_or_none()
-            # PHÂN BIỆT HAI TÌNH HUỐNG TRÙNG MÃ — chúng cần cách xử lý ngược nhau:
-            #
-            #   1. Mã đã có trong DB từ lần chạy TRƯỚC → bỏ qua, giữ tính idempotent.
-            #   2. Mã vừa dùng trong CHÍNH mẻ này (có trong `taken`) → đây là file
-            #      KHÁC vô tình sinh cùng mã, phải cấp mã mới chứ không được bỏ.
-            #
-            # Dữ liệu thật có nhiều bộ như vậy: BM 7.8.01 ứng với ba tài liệu khác
-            # nhau (Phieu ket qua thu nghiem / Test Report / _Form Phieu ket qua).
-            # Gộp hai tình huống làm một sẽ âm thầm đánh rơi 13 biểu mẫu.
-            if existing is not None and info["code"] not in taken:
-                skipped_files.append(f"{info['code']}  ←  {f.relative_to(root)}")
+            rel = str(f.relative_to(root))
+
+            # 1) Đã nạp bằng bản mới (khớp đường dẫn) → bỏ qua, idempotent CHÍNH XÁC.
+            if rel in by_src:
+                skipped_files.append(f"{info['code']}  ←  {rel}")
                 continue
 
-            # Cấp mã TRƯỚC khi in, để dry-run cho ra đúng mã mà lần chạy thật sẽ
-            # dùng. Nếu không, dry-run báo "BM 7.8.01" ba lần rồi lần chạy thật lại
-            # ra 7.8.01 / 7.8.01-2 / 7.8.01-3 — người đọc mất tin vào bản xem trước.
+            # 2) Đã nạp bằng bản cũ → KHÔNG tạo trùng, chỉ gắn dấu nguồn để lần sau
+            #    nhận diện đúng. Mỗi bản ghi cũ chỉ khớp một lần.
+            cands = [t for t in legacy.get((f.name, info["iso_clause"]), []) if t not in used_legacy]
+            if cands:
+                used_legacy.add(cands[0])
+                if not args.dry_run:
+                    tpl_old = db.get(FormTemplate, cands[0])
+                    if tpl_old is not None:
+                        tpl_old.note = f"{SRC_MARK}{rel}"
+                        db.commit()
+                backfilled += 1
+                continue
+
             info["code"] = unique_code(db, info["code"], taken)
 
             if args.dry_run:
@@ -199,7 +233,7 @@ def main() -> int:
                 tpl = form_service.create_template(
                     db, user=user, code=info["code"], title=info["title"],
                     iso_clause=info["iso_clause"], category="BM", year=info["year"],
-                    note=None, correlation_id="import-vilas", ip=None,
+                    note=f"{SRC_MARK}{rel}", correlation_id="import-vilas", ip=None,
                 )
                 form_file_service.replace_file(
                     db, user=user, owner_type=form_file_service.OWNER_TEMPLATE,
@@ -217,9 +251,10 @@ def main() -> int:
     print(f"\n═══ {'DRY-RUN — chưa ghi gì' if args.dry_run else 'Kết quả'} ═══")
     print(f"  tạo mới     : {created}")
     print(f"  đã có, bỏ   : {len(skipped_files)}")
+    print(f"  gắn dấu nguồn cho bản ghi cũ: {backfilled}")
     print(f"  lỗi         : {failed}")
     if skipped_files:
-        print("  ── bỏ qua vì trùng mã (file KHÔNG được nạp) ──")
+        print("  ── đã nạp trước đó, bỏ qua (khớp đường dẫn nguồn) ──")
         for sk in skipped_files:
             print(f"      {sk}")
     if unsupported:
