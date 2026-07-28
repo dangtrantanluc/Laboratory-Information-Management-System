@@ -69,6 +69,9 @@ def _refresh_scheduler_gauges() -> None:
                     ts = datetime.fromisoformat(last_run).timestamp()
                     _SCHED_LAST_RUN.labels(job_id).set(ts)
                 except ValueError:
+                    # last_run sai định dạng thì BỎ QUA metric của job này thay vì
+                    # làm hỏng cả /metrics. Không log: hàm này chạy mỗi lần
+                    # Prometheus scrape (15s), log ở đây sẽ ngập file log.
                     pass
             status = info.get("status")
             if status is not None:
