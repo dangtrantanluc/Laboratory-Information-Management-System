@@ -45,7 +45,37 @@ def _files_of(db: Session, owner_type: str, owner_id: uuid.UUID) -> list[dict]:
     ]
 
 
-def _serialize_template(db: Session, t: FormTemplate) -> dict:
+def _files_of_many(db: Session, owner_type: str, owner_ids: list) -> dict:
+    """Tệp của NHIỀU chủ sở hữu trong MỘT truy vấn.
+
+    `_files_of` gọi theo từng dòng trong danh sách là N+1: đo được /forms/templates
+    tăng tuyến tính 26 ms (limit=10) → 71 ms (50) → 129 ms (100), tức ~1,15 ms mỗi
+    dòng thêm vào.
+    """
+    if not owner_ids:
+        return {}
+    rows = db.execute(
+        select(Attachment)
+        .where(
+            Attachment.owner_type == owner_type,
+            Attachment.owner_id.in_(owner_ids),
+            Attachment.deleted_at.is_(None),
+        )
+        .order_by(Attachment.uploaded_at.desc())
+    ).scalars().all()
+
+    out: dict = {}
+    for a in rows:
+        out.setdefault(a.owner_id, []).append(
+            {"id": a.id, "file_name": a.file_name, "mime": a.mime, "size": a.size,
+             "uploaded_at": a.uploaded_at}
+        )
+    return out
+
+
+def _serialize_template(db: Session, t: FormTemplate, files: Optional[list] = None) -> dict:
+    """`files=None` → tự truy vấn (dùng cho 1 bản ghi). Danh sách phải truyền vào
+    từ `_files_of_many` để tránh N+1."""
     return {
         "id": t.id,
         "code": t.code,
@@ -55,7 +85,7 @@ def _serialize_template(db: Session, t: FormTemplate) -> dict:
         "year": t.year,
         "is_active": t.is_active,
         "note": t.note,
-        "files": _files_of(db, "form_template", t.id),
+        "files": _files_of(db, "form_template", t.id) if files is None else files,
         "created_at": t.created_at,
     }
 
@@ -91,7 +121,10 @@ def list_templates(
         .offset((page - 1) * limit)
         .limit(limit)
     ).scalars().all()
-    return [_serialize_template(db, t) for t in rows], total
+    files_by_owner = _files_of_many(db, "form_template", [t.id for t in rows])
+    return [
+        _serialize_template(db, t, files_by_owner.get(t.id, [])) for t in rows
+    ], total
 
 
 def create_template(

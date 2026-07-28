@@ -143,8 +143,8 @@ SMTP_FROM_NAME=LIMS Viện CNSH & Môi trường
 
 # Hiệu năng — xem ghi chú bên dưới
 UVICORN_WORKERS=4
-DB_POOL_SIZE=8
-DB_MAX_OVERFLOW=12
+DB_POOL_SIZE=12
+DB_MAX_OVERFLOW=28
 DB_POOL_TIMEOUT=5
 ACCESS_TOKEN_TTL_MINUTES=10
 
@@ -162,13 +162,19 @@ ACCESS_TOKEN_TTL_MINUTES=10
 
 ### Về `DB_POOL_SIZE`
 
-Giá trị mặc định 8/12 tính cho `max_connections=100`. Đo tải thực tế ở **60
-người đồng thời** cho thấy pool cạn (159 lỗi `QueuePool`) — xem
+`main.py` căn threadpool AnyIO bằng **đúng** `DB_POOL_SIZE + DB_MAX_OVERFLOW`,
+nên hai biến này quyết định năng lực đồng thời của cả hệ thống:
+
+```
+Năng lực = UVICORN_WORKERS × (DB_POOL_SIZE + DB_MAX_OVERFLOW)
+         = 4 × 40 = 160 request đồng thời
+```
+
+160 kết nối < `max_connections=200` nên an toàn. Mức cũ (4 × 20 = **80**) đã cạn
+pool trong đo tải ở 60 người dùng đồng thời — xem
 [docs/go-live-verification.md](docs/go-live-verification.md) §4.
 
-- **Pilot dưới 20 người:** giữ nguyên 8/12, không chạm tới ngưỡng đó.
-- **Trên 30 người:** nâng lên `DB_POOL_SIZE=12` / `DB_MAX_OVERFLOW=28` và
-  bảo đảm Postgres `max_connections ≥ 200`.
+Chỉ hạ xuống nếu Postgres của bạn có `max_connections` thấp hơn 200.
 
 ### Kiểm cấu hình trước khi chạy
 

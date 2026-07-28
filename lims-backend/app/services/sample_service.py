@@ -48,6 +48,27 @@ def _assignment_stats(db: Session, sample_id: uuid.UUID) -> tuple[int, int]:
     return total, approved
 
 
+def _assignment_stats_many(db: Session, sample_ids: list) -> dict:
+    """(tổng, đã duyệt) cho NHIỀU mẫu trong MỘT truy vấn.
+
+    `_assignment_stats` gọi theo từng dòng là 2 truy vấn đếm mỗi dòng — ở limit=100
+    thành 200 truy vấn. Khác với `db.get`, truy vấn tổng hợp KHÔNG được identity map
+    của SQLAlchemy phục vụ, nên lặp lại là thật sự xuống database mỗi lần.
+    """
+    if not sample_ids:
+        return {}
+    rows = db.execute(
+        select(
+            SampleAssignment.sample_id,
+            func.count().label("total"),
+            func.count(1).filter(SampleAssignment.status == "approved").label("approved"),
+        )
+        .where(SampleAssignment.sample_id.in_(sample_ids))
+        .group_by(SampleAssignment.sample_id)
+    ).all()
+    return {r.sample_id: (r.total, r.approved) for r in rows}
+
+
 # ===== Add sample to request =====
 def add_sample(
     db: Session,
@@ -210,10 +231,20 @@ def list_samples(
         .limit(limit)
     ).scalars().all()
 
+    # Gom lô TRƯỚC vòng lặp — xem _assignment_stats_many về lý do.
+    stats_by_sample = _assignment_stats_many(db, [s.id for s in rows])
+    req_ids = {s.request_id for s in rows if s.request_id}
+    reqs_by_id = {
+        r.id: r
+        for r in db.execute(
+            select(TestRequest).where(TestRequest.id.in_(req_ids))
+        ).scalars()
+    } if req_ids else {}
+
     items = []
     for s in rows:
-        total_a, approved_a = _assignment_stats(db, s.id)
-        req = db.get(TestRequest, s.request_id)
+        total_a, approved_a = stats_by_sample.get(s.id, (0, 0))
+        req = reqs_by_id.get(s.request_id)
         items.append(
             {
                 "id": s.id,
