@@ -130,15 +130,18 @@ def get_scheduler_status() -> dict:
 
 # (job_id, label, cron kwargs, tên module service, tên hàm service) — import lazy trong
 # closure để tránh vòng import lúc load module + giữ nguyên hành vi cũ.
+# Giờ chạy CỐ Ý nằm trước 07:00: người dùng bắt đầu đăng nhập từ khoảng đó, và cron
+# quét toàn bảng sẽ tranh pool DB với họ. Trước đây 8/9 job dồn vào 07:00–08:15,
+# riêng CRON-1 và CRON-3 trùng đúng 07:00.
 _JOBS = [
     ("sample-overdue", "CRON-2 overdue", {"hour": 0, "minute": 30}, "sample_cron_service", "run_overdue"),
-    ("sample-due-soon", "CRON-1 due-soon", {"hour": 7, "minute": 0}, "sample_cron_service", "run_due_soon"),
-    ("chem-expiry", "CRON-6 chem-expiry", {"hour": 7, "minute": 30}, "chemical_cron_service", "run_chem_expiry"),
-    ("hr-salary-raise", "CRON-3 salary-raise", {"hour": 7, "minute": 0}, "hr_cron_service", "run_salary_raise_due"),
-    ("hr-contract-expiry", "CRON-4 contract-expiry", {"hour": 7, "minute": 15}, "hr_cron_service", "run_contract_expiry"),
-    ("equipment-calibration-due", "CRON-5 calibration-due", {"hour": 7, "minute": 45}, "equipment_cron_service", "run_calibration_due"),
-    ("capa-due", "CRON-7 capa-due", {"hour": 8, "minute": 0}, "nc_cron_service", "run_capa_due"),
-    ("risk-review-due", "CRON-8 risk-review-due", {"hour": 8, "minute": 15}, "risk_cron_service", "run_risk_review_due"),
+    ("sample-due-soon", "CRON-1 due-soon", {"hour": 5, "minute": 0}, "sample_cron_service", "run_due_soon"),
+    ("chem-expiry", "CRON-6 chem-expiry", {"hour": 5, "minute": 45}, "chemical_cron_service", "run_chem_expiry"),
+    ("hr-salary-raise", "CRON-3 salary-raise", {"hour": 5, "minute": 15}, "hr_cron_service", "run_salary_raise_due"),
+    ("hr-contract-expiry", "CRON-4 contract-expiry", {"hour": 5, "minute": 30}, "hr_cron_service", "run_contract_expiry"),
+    ("equipment-calibration-due", "CRON-5 calibration-due", {"hour": 6, "minute": 0}, "equipment_cron_service", "run_calibration_due"),
+    ("capa-due", "CRON-7 capa-due", {"hour": 6, "minute": 15}, "nc_cron_service", "run_capa_due"),
+    ("risk-review-due", "CRON-8 risk-review-due", {"hour": 6, "minute": 30}, "risk_cron_service", "run_risk_review_due"),
     # R9.6 — 3h sáng, ngoài giờ làm việc: xoá theo lô vẫn tạo tải I/O trên Postgres.
     ("data-cleanup", "CRON-9 data-cleanup", {"hour": 3, "minute": 0}, "cleanup_cron_service", "run_cleanup"),
 ]

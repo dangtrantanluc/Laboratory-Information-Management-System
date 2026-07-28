@@ -11,6 +11,7 @@ import time
 
 import pytest
 
+from app.config import settings
 from app.core import concurrency
 from app.core.concurrency import export_slot, upload_slot
 from app.core.exceptions import AppException
@@ -24,11 +25,26 @@ def _drain(sem: threading.BoundedSemaphore) -> int:
     return n
 
 
-def test_upload_slot_has_six_permits():
-    """Đúng 6 slot upload — khớp phép tính 6 × 20MB = 120MB trong REMEDIATION_PLAN R1.2."""
+def test_upload_slot_permits_fit_container_memory():
+    """Số slot phải khớp phép tính RAM cho TOÀN CỤM, không phải một worker.
+
+    Semaphore là per-process. Với UVICORN_WORKERS=4, trần RAM thực tế là
+    4 × slot × max_upload_size. Con số cũ (6) cho 480MB chứ không phải 120MB như
+    comment cũ ghi, cộng baseline ~750MB lúc tải cao là vượt mem_limit 1g.
+
+    Khẳng định theo PHÉP TÍNH chứ không theo con số cứng, để lần sau đổi
+    max_upload_size hay số worker thì test tự bắt.
+    """
     taken = _drain(concurrency._upload_sem)
     try:
-        assert taken == 6
+        workers = 4  # UVICORN_WORKERS mặc định trong Dockerfile
+        total_mb = workers * taken * (settings.max_upload_size_bytes / 1024 / 1024)
+        assert total_mb <= 300, (
+            f"{workers} worker × {taken} slot × "
+            f"{settings.max_upload_size_bytes // 1024 // 1024}MB = {total_mb:.0f}MB "
+            "— vượt ngân sách RAM cho upload trong mem_limit 1g"
+        )
+        assert taken >= 2, "quá ít slot thì upload xếp hàng vô ích"
     finally:
         for _ in range(taken):
             concurrency._upload_sem.release()
