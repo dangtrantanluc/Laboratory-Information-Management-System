@@ -65,6 +65,45 @@ class TestCustomerCrud:
 
 
 @requires_db
+class TestCustomerContactFields:
+    """m32 — 5 trường để tự điền phiếu BM 7.1.01.
+
+    _serialize và update_customer từng liệt kê trường bằng tay ở HAI nơi khác nhau;
+    thêm cột mà quên một nơi thì PATCH trả 200 nhưng không lưu gì — hỏng âm thầm,
+    không ai phát hiện. Hai test dưới khoá đúng hành vi đó.
+    """
+
+    FIELDS = {
+        "address": "123 Nguyễn Văn Cừ, Q.5, TP.HCM",
+        "tax_code": "0301234567",
+        "contact_person": "Chị Lan",
+        "phone": "0908123456",
+        "email": "lan@anphat.vn",
+    }
+
+    def test_create_persists_and_returns_contact_fields(self, client, as_role):
+        as_role("admin")
+        res = _create(client, name="Công ty An Phát", **self.FIELDS)
+        assert res.status_code == 201, res.text
+
+        cid = res.json()["data"]["id"]
+        body = client.get(f"{_BASE}/{cid}").json()["data"]
+        for field, value in self.FIELDS.items():
+            assert body[field] == value, f"{field} không được trả về sau khi tạo"
+
+    def test_patch_persists_contact_fields(self, client, as_role):
+        as_role("admin")
+        cid = _create(client, name="Công ty Sửa Sau").json()["data"]["id"]
+
+        res = client.patch(f"{_BASE}/{cid}", json=self.FIELDS)
+        assert res.status_code == 200, res.text
+        # Đọc LẠI từ DB — response của PATCH có thể đúng trong khi lưu vẫn trượt.
+        body = client.get(f"{_BASE}/{cid}").json()["data"]
+        for field, value in self.FIELDS.items():
+            assert body[field] == value, f"PATCH không lưu {field}"
+
+
+@requires_db
 class TestCustomerRbac:
     """require_roles ở router quy định ai đọc/ghi được."""
 

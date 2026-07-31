@@ -9,6 +9,9 @@ DispatchStatus = Literal["sent", "received", "in_progress", "done", "returned"]
 
 
 class CreateIntakeRequest(BaseModel):
+    # m33 — chọn khách từ sổ (tùy chọn). Các trường bên dưới vẫn là bản chụp của
+    # phiếu: FE tự điền sẵn từ khách đã chọn nhưng người dùng được sửa đè.
+    customer_id: Optional[uuid.UUID] = None
     customer_name: str = Field(min_length=1, max_length=255)
     contact: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
@@ -27,6 +30,7 @@ class CreateIntakeRequest(BaseModel):
 
 
 class UpdateIntakeRequest(BaseModel):
+    customer_id: Optional[uuid.UUID] = None
     customer_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     contact: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None

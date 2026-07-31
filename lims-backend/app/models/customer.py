@@ -23,6 +23,13 @@ class Customer(Base):
         String(16), nullable=False, server_default=text("'external'")
     )
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # m32 — thông tin để tự điền phiếu nhận mẫu BM 7.1.01; độ dài khớp
+    # sample_intakes.<cùng tên> vì hai bên chép qua lại.
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tax_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    contact_person: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
