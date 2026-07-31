@@ -27,8 +27,8 @@ const ROOT = process.cwd();
 const GRANDFATHERED = new Map([
   // research_service.py: 1.736 dòng → tách thành research/* (T1.1 xong)
   // chemical_service.py:   850 dòng → tách thành chemical/* (T1.2 xong)
-  ['lims-frontend/src/types/index.ts', 1964], // T4.3 thay bằng bản sinh từ OpenAPI
-  ['lims-frontend/src/pages/SampleFlow.tsx', 1298], // T5.1 tách theo tab
+  ['lims-frontend/src/types/index.ts', 1949], // T4.3 thay bằng bản sinh từ OpenAPI; m33 tách ./customer
+  ['lims-frontend/src/pages/SampleFlow.tsx', 1208], // T5.1 tách theo tab; m33 tách IntakeCreateModal
   ['lims-frontend/src/pages/SampleDetail.tsx', 948], // T5.1 tách theo panel
 ]);
 
