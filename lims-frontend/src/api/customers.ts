@@ -18,6 +18,11 @@ export interface CustomerBody {
   contact?: string | null;
   type?: string;
   note?: string | null;
+  address?: string | null;
+  tax_code?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 export function createCustomer(body: CustomerBody) {
   return apiPost<Customer>('/customers', body);

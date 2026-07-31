@@ -34,7 +34,8 @@ export function Customers() {
   const canManage = canManageCustomers(user);
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Tên', sortValue: (c) => c.name, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
-    { key: 'contact', priority: 1, header: 'Liên hệ', render: (c) => c.contact ?? '—' },
+    { key: 'contact_person', priority: 1, header: 'Người liên hệ', render: (c) => c.contact_person ?? '—' },
+    { key: 'phone', priority: 1, header: 'Điện thoại', render: (c) => c.phone ?? c.contact ?? '—' },
     {
       key: 'type',
       priority: 1,
@@ -100,17 +101,37 @@ function CustomerModal({
   onDone: () => void;
 }) {
   const toast = useToast();
-  const [name, setName] = useState(customer?.name ?? '');
-  const [contact, setContact] = useState(customer?.contact ?? '');
-  const [type, setType] = useState(customer?.type ?? 'company');
-  const [note, setNote] = useState(customer?.note ?? '');
+  const [f, setF] = useState({
+    name: customer?.name ?? '',
+    contact: customer?.contact ?? '',
+    // 'external' = mặc định của backend (schemas/customer.py) và của DB (server_default).
+    type: customer?.type ?? 'external',
+    address: customer?.address ?? '',
+    tax_code: customer?.tax_code ?? '',
+    contact_person: customer?.contact_person ?? '',
+    phone: customer?.phone ?? '',
+    email: customer?.email ?? '',
+    note: customer?.note ?? '',
+  });
   const [submitting, setSubmitting] = useState(false);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
+    setF((p) => ({ ...p, [k]: e.target.value }));
 
   async function submit() {
-    if (!name.trim()) return toast.error('Nhập tên khách hàng');
+    if (!f.name.trim()) return toast.error('Nhập tên khách hàng');
     setSubmitting(true);
     try {
-      const body = { name: name.trim(), contact: contact || null, type, note: note || null };
+      const body = {
+        name: f.name.trim(),
+        contact: f.contact || null,
+        type: f.type,
+        address: f.address || null,
+        tax_code: f.tax_code || null,
+        contact_person: f.contact_person || null,
+        phone: f.phone || null,
+        email: f.email || null,
+        note: f.note || null,
+      };
       if (customer) await customersApi.updateCustomer(customer.id, body);
       else await customersApi.createCustomer(body);
       onDone();
@@ -126,6 +147,8 @@ function CustomerModal({
       open
       onClose={onClose}
       title={customer ? 'Sửa khách hàng' : 'Thêm khách hàng'}
+      description="Thông tin ở đây sẽ tự điền vào phiếu nhận mẫu (BM 7.1.01) khi chọn khách này."
+      size="lg"
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
@@ -138,23 +161,41 @@ function CustomerModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Tên" required>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        <Field label="Tên khách hàng / đơn vị" required>
+          <Input value={f.name} onChange={set('name')} />
         </Field>
-        <Field label="Liên hệ (SĐT/email)">
-          <Input value={contact} onChange={(e) => setContact(e.target.value)} />
+        <Field label="Địa chỉ">
+          <Input value={f.address} onChange={set('address')} />
         </Field>
-        <Field label="Loại">
-          <Select value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="company">Công ty</option>
-            <option value="organization">Tổ chức</option>
-            <option value="individual">Cá nhân</option>
-            <option value="internal">Nội bộ</option>
-            <option value="external">Bên ngoài</option>
-          </Select>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <Field label="Mã số thuế">
+            <Input value={f.tax_code} onChange={set('tax_code')} />
+          </Field>
+          <Field label="Người liên hệ">
+            <Input value={f.contact_person} onChange={set('contact_person')} />
+          </Field>
+          <Field label="Điện thoại">
+            <Input value={f.phone} onChange={set('phone')} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Field label="Email">
+            <Input value={f.email} onChange={set('email')} />
+          </Field>
+          <Field label="Loại">
+            <Select value={f.type} onChange={set('type')}>
+              <option value="external">Bên ngoài</option>
+              <option value="organization">Tổ chức / Công ty</option>
+              <option value="individual">Cá nhân</option>
+              <option value="internal">Nội bộ</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label="Liên hệ khác" hint="Ô cũ, giữ lại cho dữ liệu trước đây">
+          <Input value={f.contact} onChange={set('contact')} />
         </Field>
         <Field label="Ghi chú">
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
+          <Textarea value={f.note} onChange={set('note')} />
         </Field>
       </div>
     </Modal>

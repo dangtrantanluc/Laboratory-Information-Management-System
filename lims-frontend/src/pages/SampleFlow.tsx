@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { CustomerPicker } from '@/components/ui/CustomerPicker';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -16,12 +17,13 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import { EmptyState } from '@/components/ui/States';
-import { canManageIntake, canUpdateDispatch } from '@/lib/rbac';
+import { canManageCustomers, canManageIntake, canUpdateDispatch } from '@/lib/rbac';
 import {
   DISPATCH_STATUS_LABELS,
   INFO_REQUEST_STATUS_LABELS,
   INTAKE_STATUS_LABELS,
   TEST_MATRIX_LABELS,
+  type Customer,
   type CustomerInfoRequest,
   type IntakeStatus,
   type TestMatrix,
@@ -31,6 +33,7 @@ import {
   type SampleIntake,
 } from '@/types';
 import * as flowApi from '@/api/sampleFlow';
+import * as customersApi from '@/api/customers';
 import * as quoApi from '@/api/quotation';
 import * as usersApi from '@/api/users';
 import { printIntake, printDispatch } from '@/lib/samplePdf';
@@ -216,19 +219,61 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
 
 function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; onDone: (intake: SampleIntake) => void }) {
   const toast = useToast();
+  const { user } = useAuth();
   const [f, setF] = useState({
     customer_name: '', address: '', tax_code: '', contact_person: '', phone: '', email: '',
     due_date: '', result_language: '', return_method: '', fee_note: '', description: '',
   });
+  // m33 — khách trong sổ; null = vãng lai. Các ô trên là BẢN CHỤP của phiếu, sửa
+  // đè không ghi ngược vào sổ (phiếu đã in phải giữ nguyên thông tin lúc nhận mẫu).
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  /** Chọn khách trong sổ → tự điền 6 ô của BM 7.1.01. */
+  function pickCustomer(c: Customer) {
+    setCustomerId(c.id);
+    setF((p) => ({
+      ...p,
+      customer_name: c.name,
+      address: c.address ?? '',
+      tax_code: c.tax_code ?? '',
+      contact_person: c.contact_person ?? '',
+      phone: c.phone ?? '',
+      email: c.email ?? '',
+    }));
+  }
+
+  /** Lưu những gì đã gõ trên phiếu thành khách mới trong sổ rồi liên kết luôn. */
+  async function createCustomerFromForm() {
+    if (!f.customer_name.trim()) return;
+    setSavingCustomer(true);
+    try {
+      const c = await customersApi.createCustomer({
+        name: f.customer_name.trim(),
+        address: f.address || null,
+        tax_code: f.tax_code || null,
+        contact_person: f.contact_person || null,
+        phone: f.phone || null,
+        email: f.email || null,
+      });
+      setCustomerId(c.id);
+      toast.success(`Đã thêm “${c.name}” vào sổ khách hàng`);
+    } catch (err) {
+      toast.error(describeError(err).title);
+    } finally {
+      setSavingCustomer(false);
+    }
+  }
 
   async function submit() {
     if (!f.customer_name.trim()) return toast.error('Nhập tên khách hàng');
     setSubmitting(true);
     try {
       const it = await flowApi.createIntake({
+        customer_id: customerId,
         customer_name: f.customer_name.trim(),
         address: f.address || null,
         tax_code: f.tax_code || null,
@@ -262,8 +307,27 @@ function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; onDone: (
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label="Tên khách hàng / đơn vị" required>
-          <Input value={f.customer_name} onChange={set('customer_name')} />
+        <Field
+          label="Tên khách hàng / đơn vị"
+          required
+          hint="Chọn khách có sẵn trong sổ để tự điền địa chỉ, MST, người liên hệ, ĐT, mail."
+        >
+          <CustomerPicker
+            autoFocus
+            name={f.customer_name}
+            customerId={customerId}
+            onNameChange={(v) => {
+              // Gõ tay ⇒ không còn là khách đã chọn nữa.
+              setCustomerId(null);
+              setF((p) => ({ ...p, customer_name: v }));
+            }}
+            onPick={pickCustomer}
+            // Chỉ hiện nút thêm sổ cho người CÓ quyền: canManageIntake rộng hơn
+            // canManageCustomers (lab_manager có intake:manage sẽ dính 403).
+            onCreateNew={
+              canManageCustomers(user) && !savingCustomer ? createCustomerFromForm : undefined
+            }
+          />
         </Field>
         <Field label="Địa chỉ">
           <Input value={f.address} onChange={set('address')} />

@@ -252,6 +252,8 @@ export interface SampleDispatch {
 export interface SampleIntake {
   id: string;
   code: string;
+  /** m33 — liên kết sổ khách hàng; null = khách vãng lai HOẶC đang bị che PII (m26). */
+  customer_id?: string | null;
   customer_name: string;
   contact: string | null;
   description: string | null;
@@ -407,11 +409,13 @@ export interface CustomerInfoRequest {
 }
 
 // ── Customers (M7) ──────────────────────────────────────────────
-export type CustomerType = 'company' | 'individual' | 'internal' | 'external' | 'organization';
+// Phải khớp CHECK constraint ck_customer_type ở DB và Literal CustomerType ở
+// schemas/customer.py. 'company' từng có ở đây nhưng KHÔNG có ở hai nơi kia →
+// mọi lần lưu đều 422; đã bỏ.
+export type CustomerType = 'individual' | 'internal' | 'external' | 'organization';
 
 export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
-  company: 'Công ty',
-  organization: 'Tổ chức',
+  organization: 'Tổ chức / Công ty',
   individual: 'Cá nhân',
   internal: 'Nội bộ',
   external: 'Bên ngoài',
@@ -423,6 +427,12 @@ export interface Customer {
   contact: string | null;
   type: string;
   note?: string | null;
+  /** m32 — dùng để tự điền phiếu nhận mẫu BM 7.1.01 khi chọn khách từ sổ. */
+  address?: string | null;
+  tax_code?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
   created_at?: string;
 }
 
