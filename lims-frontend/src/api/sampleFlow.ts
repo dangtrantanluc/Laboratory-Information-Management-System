@@ -22,6 +22,8 @@ export function getIntake(id: string) {
   return apiGet<SampleIntake>(`/intakes/${id}`);
 }
 export interface IntakeBody {
+  /** m33 — id khách trong sổ; null = khách vãng lai (các ô dưới vẫn là bản chụp). */
+  customer_id?: string | null;
   customer_name: string;
   contact?: string | null;
   description?: string | null;

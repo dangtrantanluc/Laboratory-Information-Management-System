@@ -13,6 +13,12 @@ class CreateCustomerRequest(BaseModel):
     contact: Optional[str] = Field(default=None, max_length=255)
     type: CustomerType = "external"
     note: Optional[str] = None
+    # m32 — tự điền phiếu nhận mẫu BM 7.1.01
+    address: Optional[str] = Field(default=None, max_length=500)
+    tax_code: Optional[str] = Field(default=None, max_length=50)
+    contact_person: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=50)
+    email: Optional[str] = Field(default=None, max_length=255)
 
 
 class UpdateCustomerRequest(BaseModel):
@@ -20,5 +26,10 @@ class UpdateCustomerRequest(BaseModel):
     contact: Optional[str] = Field(default=None, max_length=255)
     type: Optional[CustomerType] = None
     note: Optional[str] = None
+    address: Optional[str] = Field(default=None, max_length=500)
+    tax_code: Optional[str] = Field(default=None, max_length=50)
+    contact_person: Optional[str] = Field(default=None, max_length=255)
+    phone: Optional[str] = Field(default=None, max_length=50)
+    email: Optional[str] = Field(default=None, max_length=255)
 
     model_config = {"extra": "forbid"}

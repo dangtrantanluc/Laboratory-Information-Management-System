@@ -54,6 +54,12 @@ class SampleIntake(Base):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     code: Mapped[str] = mapped_column(String(32), nullable=False)
+    # m33 — liên kết master data (nullable: khách vãng lai không cần vào sổ).
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("customers.id", ondelete="SET NULL"), nullable=True
+    )
+    # BẢN CHỤP tại thời điểm nhận mẫu — cố ý KHÔNG đọc ngược từ customers, để phiếu
+    # đã in không đổi theo khi khách cập nhật thông tin về sau (hồ sơ VILAS).
     customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)  # mô tả mẫu

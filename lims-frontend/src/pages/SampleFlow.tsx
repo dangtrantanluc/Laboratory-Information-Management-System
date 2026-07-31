@@ -37,6 +37,7 @@ import { printIntake, printDispatch } from '@/lib/samplePdf';
 import {
   IntakeWorkflow, IntakeStatusBadge, PaymentBadge,
 } from '@/components/sampleFlow/IntakeWorkflow';
+import { IntakeCreateModal } from '@/components/sampleFlow/IntakeCreateModal';
 
 const DISPATCH_TONE: Record<DispatchStatus, BadgeTone> = {
   sent: 'neutral',
@@ -214,97 +215,6 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
   );
 }
 
-function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; onDone: (intake: SampleIntake) => void }) {
-  const toast = useToast();
-  const [f, setF] = useState({
-    customer_name: '', address: '', tax_code: '', contact_person: '', phone: '', email: '',
-    due_date: '', result_language: '', return_method: '', fee_note: '', description: '',
-  });
-  const [file, setFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((p) => ({ ...p, [k]: e.target.value }));
-
-  async function submit() {
-    if (!f.customer_name.trim()) return toast.error('Nhập tên khách hàng');
-    setSubmitting(true);
-    try {
-      const it = await flowApi.createIntake({
-        customer_name: f.customer_name.trim(),
-        address: f.address || null,
-        tax_code: f.tax_code || null,
-        contact_person: f.contact_person || null,
-        phone: f.phone || null,
-        email: f.email || null,
-        due_date: f.due_date || null,
-        result_language: f.result_language || null,
-        return_method: f.return_method || null,
-        fee_note: f.fee_note || null,
-        description: f.description || null,
-      });
-      if (file) await flowApi.uploadIntakeFile('sample_intake', it.id, file);
-      toast.success(`Đã tạo phiếu ${it.code} — phân chỉ tiêu để chuyển lab`);
-      onDone(it);
-    } catch (err) {
-      toast.error(describeError(err).title);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Modal
-      open onClose={onClose} title="Nhận mẫu mới (BM 7.1.01)" size="lg"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>Hủy</Button>
-          <Button onClick={submit} loading={submitting}>Lưu phiếu</Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Field label="Tên khách hàng / đơn vị" required>
-          <Input value={f.customer_name} onChange={set('customer_name')} />
-        </Field>
-        <Field label="Địa chỉ">
-          <Input value={f.address} onChange={set('address')} />
-        </Field>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <Field label="Mã số thuế"><Input value={f.tax_code} onChange={set('tax_code')} /></Field>
-          <Field label="Người liên hệ"><Input value={f.contact_person} onChange={set('contact_person')} /></Field>
-          <Field label="Điện thoại"><Input value={f.phone} onChange={set('phone')} /></Field>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Mail"><Input value={f.email} onChange={set('email')} /></Field>
-          <Field label="Ngày hẹn trả kết quả"><Input value={f.due_date} onChange={set('due_date')} placeholder="dd/mm/yyyy" /></Field>
-        </div>
-        <Field label="Mô tả mẫu">
-          <Textarea value={f.description} onChange={set('description')} />
-        </Field>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <Field label="Phiếu kết quả">
-            <Select value={f.result_language} onChange={set('result_language')}>
-              <option value="">—</option>
-              <option value="vi">Tiếng Việt</option>
-              <option value="en">Tiếng Anh</option>
-            </Select>
-          </Field>
-          <Field label="Trả kết quả">
-            <Select value={f.return_method} onChange={set('return_method')}>
-              <option value="">—</option>
-              <option value="direct">Trả trực tiếp</option>
-              <option value="mail">Thư</option>
-              <option value="email">E-mail</option>
-            </Select>
-          </Field>
-          <Field label="Lệ phí / ứng trước"><Input value={f.fee_note} onChange={set('fee_note')} /></Field>
-        </div>
-        <Field label="Phiếu nhận mẫu đã điền (BM 7.1.01)">
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </Field>
-      </div>
-    </Modal>
-  );
-}
 
 function IntakeDetailModal({
   intakeId, canManage, onClose, onChanged,

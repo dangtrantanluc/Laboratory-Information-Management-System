@@ -27,6 +27,11 @@ MASKED_ROLES = ("staff", "lab_manager")
 APPROVER_ROLES = ("reception", "admin")
 # Các field PII bị ẩn.
 PII_FIELDS = ("customer_name", "contact", "address", "tax_code", "contact_person", "phone", "email")
+# m33 — khoá ngoại tới master data: KHÔNG che thì khối lab lấy id gọi GET /customers/{id}
+# (staff và lab_manager đều nằm trong read_roles của router customers) là đọc lại được
+# đúng những field vừa che ở trên. Xoá hẳn khỏi payload thay vì gắn placeholder vì đây
+# là UUID, không phải chuỗi hiển thị.
+PII_ID_FIELDS = ("customer_id",)
 
 MASK_PLACEHOLDER = "••• Đã ẩn •••"
 
@@ -80,6 +85,9 @@ def mask_intake(db: Session, user: CurrentUser, data: dict) -> dict:
     for f in PII_FIELDS:
         if f in data:
             data[f] = MASK_PLACEHOLDER if data[f] else None
+    for f in PII_ID_FIELDS:
+        if f in data:
+            data[f] = None
     data["customer_info_masked"] = True
     pending = _pending_request(db, intake_id, user.department_id) if intake_id else None
     data["customer_info_request_status"] = "pending" if pending else None

@@ -15,15 +15,27 @@ def _get_or_404(db: Session, customer_id: uuid.UUID) -> Customer:
     return get_active_or_404(db, Customer, customer_id, "Không tìm thấy khách hàng")
 
 
+# Trường người dùng được sửa qua PATCH /customers/{id}. Dùng chung cho _serialize
+# và update_customer để thêm cột mới chỉ phải sửa MỘT chỗ — trước đây hai nơi liệt
+# kê tay riêng, quên nơi nào thì hỏng âm thầm (PATCH trả 200 mà không lưu gì).
+EDITABLE_FIELDS = (
+    "name",
+    "contact",
+    "type",
+    "note",
+    "address",
+    "tax_code",
+    "contact_person",
+    "phone",
+    "email",
+)
+
+
 def _serialize(customer: Customer) -> dict:
-    return {
-        "id": customer.id,
-        "name": customer.name,
-        "contact": customer.contact,
-        "type": customer.type,
-        "note": customer.note,
-        "created_at": customer.created_at,
-    }
+    data = {f: getattr(customer, f) for f in EDITABLE_FIELDS}
+    data["id"] = customer.id
+    data["created_at"] = customer.created_at
+    return data
 
 
 def list_customers(
@@ -61,18 +73,15 @@ def create_customer(
     db: Session,
     *,
     actor_id: uuid.UUID,
-    name: str,
-    contact: Optional[str],
-    type: str,
-    note: Optional[str],
+    fields: dict,
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
+    """fields: đã qua CreateCustomerRequest nên các khoá là tập con của EDITABLE_FIELDS."""
+    values = {f: fields.get(f) for f in EDITABLE_FIELDS if f in fields}
+    values["name"] = str(values.get("name", "")).strip()
     customer = Customer(
-        name=name.strip(),
-        contact=contact,
-        type=type,
-        note=note,
+        **values,
         created_by=actor_id,
         updated_by=actor_id,
     )
@@ -104,7 +113,7 @@ def update_customer(
 ) -> dict:
     customer = _get_or_404(db, customer_id)
     diff: dict = {}
-    for field in ("name", "contact", "type", "note"):
+    for field in EDITABLE_FIELDS:
         if field in changes and changes[field] is not None:
             value = changes[field]
             if field == "name":

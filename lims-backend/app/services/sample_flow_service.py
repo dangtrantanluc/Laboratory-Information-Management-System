@@ -14,6 +14,7 @@ from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.attachment import Attachment
+from app.models.customer import Customer
 from app.models.department import Department
 from app.models.sample_flow import (
     INTAKE_NEXT, INTAKE_STATUS_LABELS, VALID_PAYMENT_STATUS,
@@ -29,6 +30,20 @@ def _forbidden(msg: str = "Bạn không có quyền thực hiện thao tác này
 
 def _privileged(user: CurrentUser) -> bool:
     return user.role in ("admin", "leader", "qms", "reception")
+
+
+def _assert_customer_exists(db: Session, customer_id: Optional[uuid.UUID]) -> None:
+    """m33 — chặn trước khi đổ **fields vào model, nếu không Postgres ném lỗi FK thô.
+
+    Logic khớp test_request_service.create_request (khách đã xoá mềm = không tồn tại).
+    """
+    if customer_id is None:
+        return
+    exists = db.execute(
+        select(Customer.id).where(Customer.id == customer_id, Customer.deleted_at.is_(None))
+    ).scalar_one_or_none()
+    if exists is None:
+        raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
 
 
 def _next_intake_code(db: Session) -> str:
@@ -103,6 +118,7 @@ def _serialize_intake(
     data = {
         "id": it.id,
         "code": it.code,
+        "customer_id": it.customer_id,
         "customer_name": it.customer_name,
         "contact": it.contact,
         "description": it.description,
@@ -188,6 +204,7 @@ def create_intake(
 ) -> dict:
     fields = dict(fields)
     fields["customer_name"] = str(fields.get("customer_name", "")).strip()
+    _assert_customer_exists(db, fields.get("customer_id"))
     it = SampleIntake(
         code=_next_intake_code(db),
         status="received",
@@ -215,6 +232,8 @@ def update_intake(
     it = db.get(SampleIntake, intake_id)
     if it is None:
         raise not_found("Không tìm thấy phiếu nhận mẫu")
+    if "customer_id" in changes:
+        _assert_customer_exists(db, changes["customer_id"])
     for k, v in changes.items():
         setattr(it, k, v)
     it.updated_by = user.id

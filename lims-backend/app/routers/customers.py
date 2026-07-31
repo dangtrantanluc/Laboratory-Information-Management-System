@@ -48,10 +48,7 @@ def create_customer(
     data = customer_service.create_customer(
         db,
         actor_id=user.id,
-        name=body.name,
-        contact=body.contact,
-        type=body.type,
-        note=body.note,
+        fields=body.model_dump(),
         correlation_id=_cid(request),
         ip=client_ip(request),
     )

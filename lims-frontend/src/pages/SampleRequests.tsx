@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { CustomerPicker } from '@/components/ui/CustomerPicker';
 import { RequestStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -17,7 +18,6 @@ import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
 import { canCreateSample } from '@/lib/rbac';
 import * as samplesApi from '@/api/samples';
-import * as customersApi from '@/api/customers';
 import type { TestRequestListItem } from '@/types';
 
 export function SampleRequests() {
@@ -128,10 +128,12 @@ function CreateRequestModal({
 }) {
   const toast = useToast();
   const [senderName, setSenderName] = useState('');
-  const [customerId, setCustomerId] = useState('');
+  // m33 — thay <Select> nạp sẵn 100 khách bằng ô tra cứu: dropdown cũ cắt cứng ở
+  // khách thứ 100 và không báo gì, khách thứ 101 trở đi đơn giản là không chọn được.
+  const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { data: customers } = useAsync(() => customersApi.listCustomers({ limit: 100 }), []);
 
   async function submit() {
     if (!senderName.trim()) {
@@ -142,7 +144,7 @@ function CreateRequestModal({
     try {
       const r = await samplesApi.createRequest({
         sender_name: senderName.trim(),
-        customer_id: customerId || null,
+        customer_id: customerId,
         note: note || null,
       });
       onCreated(r.id);
@@ -172,18 +174,24 @@ function CreateRequestModal({
       }
     >
       <div className="flex flex-col gap-4">
+        <Field label="Khách hàng" hint="Có thể bỏ trống nếu khách nội bộ chưa có trong sổ">
+          <CustomerPicker
+            name={customerName}
+            customerId={customerId}
+            onNameChange={(v) => {
+              setCustomerId(null);
+              setCustomerName(v);
+            }}
+            onPick={(c) => {
+              setCustomerId(c.id);
+              setCustomerName(c.name);
+              // Người gửi thường là người liên hệ của khách — điền sẵn, vẫn sửa được.
+              if (!senderName.trim() && c.contact_person) setSenderName(c.contact_person);
+            }}
+          />
+        </Field>
         <Field label="Tên người gửi mẫu" required>
           <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Nguyễn Văn A" />
-        </Field>
-        <Field label="Khách hàng" hint="Có thể bỏ trống nếu khách nội bộ chưa tạo">
-          <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">— Không chọn —</option>
-            {(customers?.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
         </Field>
         <Field label="Ghi chú">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú chung của phiếu" />

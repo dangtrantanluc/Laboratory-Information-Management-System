@@ -252,6 +252,8 @@ export interface SampleDispatch {
 export interface SampleIntake {
   id: string;
   code: string;
+  /** m33 — liên kết sổ khách hàng; null = khách vãng lai HOẶC đang bị che PII (m26). */
+  customer_id?: string | null;
   customer_name: string;
   contact: string | null;
   description: string | null;
@@ -406,25 +408,8 @@ export interface CustomerInfoRequest {
   created_at: string;
 }
 
-// ── Customers (M7) ──────────────────────────────────────────────
-export type CustomerType = 'company' | 'individual' | 'internal' | 'external' | 'organization';
-
-export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
-  company: 'Công ty',
-  organization: 'Tổ chức',
-  individual: 'Cá nhân',
-  internal: 'Nội bộ',
-  external: 'Bên ngoài',
-};
-
-export interface Customer {
-  id: string;
-  name: string;
-  contact: string | null;
-  type: string;
-  note?: string | null;
-  created_at?: string;
-}
+// ── Customers (M7) — tách sang ./customer, re-export để giữ '@/types' ─────
+export * from './customer';
 
 // ── Notifications (M7) ──────────────────────────────────────────
 export interface Notification {
