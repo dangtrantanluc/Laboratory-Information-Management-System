@@ -6,4 +6,11 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# PHẢI SỬA HAI GIÁ TRỊ DƯỚI ĐÂY TRƯỚC KHI CÀI:
+#   LIMS_DIR          — thư mục deploy THẬT (kiểm bằng:
+#                       docker inspect lims-api --format \
+#                       '{{index .Config.Labels "com.docker.compose.project.working_dir"}}')
+#                       Sai đường dẫn ⇒ script exit 1 mỗi đêm, KHÔNG có backup nào.
+#   LIMS_BACKUP_REMOTE — đích off-site thật. 'user@backup-host' là placeholder; để
+#                       nguyên thì rsync thất bại và script báo lỗi dù dump cục bộ đã xong.
 0 2 * * * root LIMS_DIR=/opt/lims LIMS_BACKUP_REMOTE=user@backup-host:/lims /usr/local/bin/lims-backup >> /var/log/lims-backup.log 2>&1

@@ -5,6 +5,36 @@ số điện thoại là runbook vô dụng lúc 2 giờ sáng.
 
 ---
 
+## ⚠️ ĐỌC TRƯỚC — luôn dùng `limsc`, đừng gõ `docker compose` trần
+
+```bash
+alias limsc='docker compose -f /opt/lims/docker-compose.prod.yml \
+                            -f /opt/lims/docker-compose.cloudflare.yml \
+                            --env-file /opt/lims/.env.prod'
+```
+*(Đổi `/opt/lims` thành thư mục deploy thật. Kiểm bằng:
+`docker inspect lims-api --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'`)*
+
+**Vì sao bắt buộc — đây là sự cố đã xảy ra thật, không phải cảnh báo lý thuyết.**
+Chạy `docker compose -f docker-compose.prod.yml ...` mà **thiếu** overlay Cloudflare thì
+Docker vẫn nhận ra đúng project `lims` và **dựng lại** service theo hồ sơ nó đọc được:
+
+- `cloudflared` **không nằm trong** `docker-compose.prod.yml` ⇒ **không được tạo** ⇒
+  tunnel mất ⇒ **hệ thống offline với người dùng thật**.
+- `lims-web` lấy lại `ports: "3060:80"` ⇒ mở cổng ra host.
+- Nếu lỡ dùng `docker-compose.yml` (hồ sơ DEV): Redis **mất `--requirepass`**, Postgres và
+  Redis publish cổng ra host — hạ cấp bảo mật im lặng, dữ liệu vẫn nguyên nên không ai nhận ra.
+
+Toàn bộ lệnh trong runbook này đã đổi sang `limsc`. Nếu bạn thấy `docker compose` trần ở
+đâu đó, đó là lỗi — sửa đi.
+
+**Kiểm nhanh sau MỌI thao tác dựng lại container:**
+```bash
+limsc ps        # phải đủ 6 container, cột PORTS KHÔNG có 0.0.0.0:*
+```
+
+---
+
 ## 0. Liên hệ
 
 | Vai trò | Tên | Điện thoại | Email |
@@ -31,8 +61,8 @@ số điện thoại là runbook vô dụng lúc 2 giờ sáng.
 
 ```bash
 cd /opt/lims
-docker compose -f docker-compose.prod.yml ps          # service nào unhealthy?
-docker compose -f docker-compose.prod.yml logs --tail=100 lims-api
+limsc ps          # service nào unhealthy?
+limsc logs --tail=100 lims-api
 curl -fsS http://localhost:3060/api/v1/health/ready    # DB + Redis + MinIO
 df -h /                                                # đĩa còn bao nhiêu
 docker stats --no-stream
@@ -48,22 +78,22 @@ Redis, MinIO) — dùng nó để biết thành phần nào hỏng.
 **Dấu hiệu:** mọi request 500, log có `OperationalError`, `/health/ready` đỏ.
 
 ```bash
-docker compose -f docker-compose.prod.yml ps postgres
-docker compose -f docker-compose.prod.yml logs --tail=200 postgres
+limsc ps postgres
+limsc logs --tail=200 postgres
 df -h /                      # đĩa đầy là nguyên nhân phổ biến nhất
-docker compose -f docker-compose.prod.yml restart postgres
+limsc restart postgres
 ```
 
 **Nếu dữ liệu hỏng — khôi phục:**
 
 ```bash
-docker compose -f docker-compose.prod.yml stop lims-api
+limsc stop lims-api
 ls -lt /var/backups/lims/db-*.dump | head        # chọn bản gần nhất
-docker compose -f docker-compose.prod.yml exec -T postgres \
+limsc exec -T postgres \
   pg_restore -U lims -d lims --clean --if-exists < /var/backups/lims/db-<TS>.dump
-docker compose -f docker-compose.prod.yml exec postgres \
+limsc exec postgres \
   psql -U lims -d lims -c "SELECT version_num FROM alembic_version;"
-docker compose -f docker-compose.prod.yml start lims-api
+limsc start lims-api
 ```
 
 ⚠ `--clean` **xoá dữ liệu hiện có**. Chỉ chạy khi đã chắc dữ liệu hiện tại hỏng,
@@ -83,9 +113,9 @@ và chụp lại `pg_dump` trước đó nếu còn đọc được.
 | Leader-lock scheduler | Replica tự khởi động cron (per-job lock vẫn bảo vệ) |
 
 ```bash
-docker compose -f docker-compose.prod.yml restart redis
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
-docker compose -f docker-compose.prod.yml exec redis ls -la /data/appendonlydir
+limsc restart redis
+limsc exec redis redis-cli -a "$REDIS_PASSWORD" ping
+limsc exec redis ls -la /data/appendonlydir
 ```
 
 Có AOF (R3.2) nên jti denylist sống sót qua restart. **Nếu `/data/appendonlydir`
@@ -104,8 +134,8 @@ Upload lỗi 500; ảnh đại diện tự rơi về chữ cái đầu (`avatar_
 presigned URL đã phát vẫn dùng được tới khi hết hạn 15 phút.
 
 ```bash
-docker compose -f docker-compose.prod.yml restart minio
-docker compose -f docker-compose.prod.yml exec minio ls -la /data
+limsc restart minio
+limsc exec minio ls -la /data
 # Khôi phục file từ backup:
 docker run --rm -v $(docker compose config --format json \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["volumes"]["lims_miniodata"]["name"])'):/data \
@@ -146,14 +176,14 @@ WHERE user_id = '<uuid>' ORDER BY at DESC LIMIT 100;
 cd /opt/lims
 git log --oneline -10
 git checkout <commit-tốt>
-docker compose -f docker-compose.prod.yml up -d --build
+limsc up -d --build
 ```
 
 ⚠ **Rollback code KHÔNG tự rollback migration.** Nếu bản lỗi đã chạy migration
 mới, phải hạ migration trước:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec lims-api alembic downgrade -1
+limsc exec lims-api alembic downgrade -1
 ```
 
 Kiểm `downgrade()` của migration đó có thật sự đảo ngược được không — vài
@@ -194,7 +224,7 @@ quá 90 ngày và `auth_tokens` quá 7 ngày lúc 3h sáng.
 | Access token trong `localStorage` | XSS lấy được token | R8.1 — **dừng có chủ đích**, xem §10 |
 | Không có queue nền | Xuất Excel/PDF chạy trong request | R9.1 chưa triển khai |
 | Không có PgBouncer | Giới hạn số worker theo `max_connections` | R9.2 chưa triển khai |
-| nginx tin `CF-Connecting-IP` vô điều kiện | Ai gọi thẳng nginx có thể giả IP | R3.1 — cần giới hạn theo dải IP Cloudflare |
+| nginx tin `CF-Connecting-IP` vô điều kiện | **Không khai thác được với triển khai hiện tại** — tunnel là đường vào duy nhất và biên Cloudflare luôn ghi đè header này. Chỉ hở nếu chạy compose thiếu overlay (xem cảnh báo đầu runbook) | ⚠️ **KHÔNG** dùng `set_real_ip_from` với dải IP công khai của Cloudflare: với tunnel, `$remote_addr` là IP container `cloudflared` (172.x), dải đó không bao giờ khớp → `X-Real-IP` rơi về IP container → hỏng nhật ký IP. Xem `docs/SECURITY_AUDIT.md` S-09 |
 | RPO 24 giờ | Mất tối đa một ngày làm việc | Cần WAL archiving |
 
 ## 10. Vì sao R8.1 (token in-memory) bị dừng
