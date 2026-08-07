@@ -58,6 +58,27 @@ class TestUserRbac:
         as_role("admin")
         assert client.get(_BASE).status_code == 200
 
+    def test_office_can_list_users(self, client, as_role):
+        """Office cần liệt kê tài khoản để gắn hồ sơ nhân sự 1-1 (M4.1)."""
+        as_role("office")
+        assert client.get(_BASE).status_code == 200
+
+    def test_office_cannot_write_users(self, client, as_role, seeded_user):
+        """Mở ĐỌC cho office không được kéo theo quyền GHI."""
+        target = seeded_user(role="staff")
+        as_role("office")
+
+        assert client.post(f"{_BASE}/{target.id}/disable").status_code == 403
+        assert client.post(f"{_BASE}/{target.id}/reset-password", json={}).status_code == 403
+        assert client.patch(f"{_BASE}/{target.id}", json={"full_name": "X"}).status_code == 403
+        assert (
+            client.post(
+                _BASE,
+                json={"email": "x@lims.test", "full_name": "X", "role": "staff"},
+            ).status_code
+            == 403
+        )
+
     def test_staff_cannot_disable_anyone(self, client, as_role, seeded_user):
         target = seeded_user(role="staff")
         as_role("staff")

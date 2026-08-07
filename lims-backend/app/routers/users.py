@@ -1,4 +1,10 @@
-"""Router users (M7.3) — CRUD + enable/disable + reset-password. CHỈ admin."""
+"""Router users (M7.3) — CRUD + enable/disable + reset-password. CHỈ admin.
+
+NGOẠI LỆ: GET /users mở thêm cho `office`. Modal "Thêm hồ sơ nhân sự" (M4.1) cần
+liệt kê tài khoản để gắn 1-1, mà tạo hồ sơ = admin + office (hr_common.
+assert_can_manage_profile). Trước đây list chỉ admin nên office mở modal ra thấy
+dropdown rỗng. Mọi thao tác GHI trên user vẫn chỉ admin.
+"""
 import uuid
 from typing import Optional
 
@@ -22,6 +28,8 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 # Mọi endpoint user chỉ admin (RBAC matrix: quản trị user chỉ admin)
 admin_only = require_roles("admin")
+# Chỉ dùng cho GET /users — xem docstring module
+can_list_users = require_roles("admin", "office")
 
 
 def _cid(request: Request) -> Optional[str]:
@@ -37,7 +45,7 @@ def list_users(
     status_filter: Optional[str] = Query(default=None, alias="status"),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(admin_only),
+    user: CurrentUser = Depends(can_list_users),
     db: Session = Depends(get_db),
 ):
     page, limit = normalize_pagination(page, limit)
