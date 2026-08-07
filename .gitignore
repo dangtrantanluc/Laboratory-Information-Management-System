@@ -1,7 +1,13 @@
+# Secret — CHẶN THEO MẪU RỘNG, không liệt kê từng tên.
+# Trước đây chỉ có dòng ".env.prod" (khớp CHÍNH XÁC), nên bản sao lưu do
+# scripts/init-env-prod.sh sinh ra (.env.prod.bak.<ngày>) KHÔNG bị ignore và nằm sẵn
+# trong cây làm việc — `git add -A` là đẩy JWT_SECRET, CLOUDFLARE_TUNNEL_TOKEN và toàn
+# bộ mật khẩu hạ tầng lên một repo công khai. gitleaks trong CI chỉ phát hiện SAU khi
+# đã push, nên phải chặn từ .gitignore + pre-commit hook.
 .env
-.env.prod
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Dump database — chứa dữ liệu thật, không bao giờ commit
 *.dump

@@ -150,9 +150,21 @@ export function canApproveDocuments(user: CurrentUser | null): boolean {
   if (user.role === 'lab_manager') return true;
   return user.role === 'staff' && user.is_dept_lead;
 }
-/** Xem thống kê truy cập tài liệu (R15): admin/leader/staff (staff scope own — BE enforce). */
+/**
+ * Xem thống kê truy cập tài liệu TOÀN HỆ THỐNG (R15): chỉ admin/leader.
+ *
+ * Bản cũ trả `!!user && role !== 'office'` — 6 vai trò — trong khi nav.ts chỉ hiện menu
+ * cho 'admin' và backend cũng chỉ chặn 'office'. Nghĩa là staff/qms/lab_manager/reception
+ * gõ thẳng /documents/stats là đọc được ai đã xem/tải tài liệu kiểm soát nào.
+ *
+ * Chốt ở admin/leader để khớp `canExportDocumentStats` (xuất Excel vốn đã admin/leader —
+ * không thể chặt hơn đường xem) và `document_service.aggregate_access_stats` ở backend.
+ *
+ * Thống kê THEO TỪNG TÀI LIỆU vẫn theo phạm vi phòng ban ở backend (_assert_stats_scope),
+ * trưởng phòng lab vẫn xem được tài liệu phòng mình — hàm này chỉ nói về bản tổng hợp.
+ */
 export function canViewDocumentStats(user: CurrentUser | null): boolean {
-  return !!user && user.role !== 'office';
+  return user?.role === 'admin' || user?.role === 'leader';
 }
 /** Xuất Excel thống kê truy cập: admin/leader. */
 export function canExportDocumentStats(user: CurrentUser | null): boolean {
@@ -337,7 +349,10 @@ export function canManageQuotations(user: CurrentUser | null): boolean {
 }
 /** Xem báo giá: mọi vai trò đã đăng nhập. */
 export function canViewQuotations(user: CurrentUser | null): boolean {
-  return !!user;
+  // Khớp nav.ts (menu "Báo giá" chỉ hiện cho 4 vai trò này) và require_roles ở
+  // backend routers/quotations.py. Trước đây trả `!!user` nên menu ẩn nhưng gõ thẳng
+  // /quotations vẫn vào được và API vẫn trả toàn bộ thông tin khách hàng + đơn giá.
+  return !!user && ['admin', 'leader', 'reception', 'office'].includes(user.role);
 }
 
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [

@@ -619,8 +619,22 @@ def aggregate_access_stats(
     top: int,
     sort_by: str,
 ) -> dict:
-    if user.role == "office":
-        raise dc.forbidden("Văn phòng không xem được thống kê truy cập")
+    # CHỈ admin/lãnh đạo. Trước đây hàm này chỉ chặn 'office', nên staff/qms/lab_manager/
+    # reception đều đọc được thống kê TOÀN HỆ THỐNG: ai đã xem/tải tài liệu kiểm soát nào,
+    # theo phòng ban, theo thời gian — trong khi menu chỉ hiện cho admin
+    # (docs/frontend/FRONTEND_SECURITY_AUDIT.md FE-S-06).
+    #
+    # Chọn is_privileged để KHỚP hai luật đã có trong chính module này, thay vì đặt ra
+    # luật thứ ba:
+    #   · export_access_stats_xlsx() đã yêu cầu is_privileged — xuất Excel chỉ là một
+    #     định dạng của CÙNG dữ liệu, không thể chặt hơn đường xem.
+    #   · report_common.require_audit_read (thống kê truy cập hệ thống R15) = admin/leader.
+    #
+    # Thống kê THEO TỪNG TÀI LIỆU (_assert_stats_scope) vẫn giữ nguyên phạm vi phòng ban —
+    # trưởng phòng lab vẫn xem được tài liệu phòng mình. Chỉ bản tổng hợp chéo phòng mới
+    # bị giới hạn.
+    if not dc.is_privileged(user):
+        raise dc.forbidden("Chỉ Quản trị viên và Ban lãnh đạo xem được thống kê truy cập tài liệu")
     if top < 1 or top > 100:
         raise validation_error("Tham số top phải trong khoảng 1..100")
     start, end = _resolve_range(from_, to_)

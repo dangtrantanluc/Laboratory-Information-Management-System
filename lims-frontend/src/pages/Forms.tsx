@@ -410,7 +410,9 @@ function TemplateModal({
       let tpl: FormTemplate;
       if (template) tpl = await formsApi.updateTemplate(template.id, body);
       else tpl = await formsApi.createTemplate(body);
-      if (file) await formsApi.uploadFormFile('form_template', tpl.id, file);
+      // Dùng endpoint riêng (/forms/templates/{id}/file) chứ KHÔNG phải /attachments
+      // generic: chỉ đường này mới kiểm form:manage + phạm vi phòng ban.
+      if (file) await formsApi.replaceFormFile('templates', tpl.id, file);
       onDone();
     } catch (err) {
       toast.error(describeError(err).title);
@@ -493,7 +495,8 @@ function SubmissionModal({
         year: year ? Number(year) : null,
         note: note || null,
       });
-      await formsApi.uploadFormFile('form_submission', sub.id, file);
+      // Endpoint riêng: kiểm form:submit + phòng ban + khoá tệp sau khi duyệt.
+      await formsApi.replaceFormFile('submissions', sub.id, file);
       onDone();
     } catch (err) {
       toast.error(describeError(err).title);

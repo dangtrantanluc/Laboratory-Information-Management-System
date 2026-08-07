@@ -46,6 +46,29 @@ def _assert_customer_exists(db: Session, customer_id: Optional[uuid.UUID]) -> No
         raise AppException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng", 404)
 
 
+# Field mà PATCH /intakes/{id} được phép ghi. KHÔNG có `status` — đổi trạng thái phải
+# qua POST /intakes/{id}/status để đi qua state machine INTAKE_NEXT + kiểm _privileged.
+# Cũng KHÔNG có code/department_id/received_by/created_by (bất biến hoặc do hệ thống đặt).
+_UPDATABLE_INTAKE_FIELDS = (
+    "customer_id",
+    "customer_name",
+    "contact",
+    "description",
+    "note",
+    "dispatch_note",
+    "address",
+    "tax_code",
+    "contact_person",
+    "phone",
+    "email",
+    "due_date",
+    "result_language",
+    "return_method",
+    "fee_note",
+    "other_request",
+)
+
+
 def _next_intake_code(db: Session) -> str:
     year = datetime.now(timezone.utc).year
     like = f"NM-{year}-%"
@@ -234,8 +257,14 @@ def update_intake(
         raise not_found("Không tìm thấy phiếu nhận mẫu")
     if "customer_id" in changes:
         _assert_customer_exists(db, changes["customer_id"])
-    for k, v in changes.items():
-        setattr(it, k, v)
+
+    # Danh sách TƯỜNG MINH thay cho `for k, v in changes.items(): setattr(it, k, v)`.
+    # Vòng lặp cũ ghi bất cứ khoá nào lọt qua schema — nghĩa là mỗi lần ai đó thêm
+    # trường vào UpdateIntakeRequest là nó tự động ghi được, kể cả `status`. Cách làm
+    # đúng đã có sẵn trong dự án: quotation_service.update_quotation liệt kê từng field.
+    for k in _UPDATABLE_INTAKE_FIELDS:
+        if k in changes:
+            setattr(it, k, changes[k])
     it.updated_by = user.id
     audit_service.log_action(
         db, action="INTAKE_UPDATE", resource="sample_intake", user_id=user.id,

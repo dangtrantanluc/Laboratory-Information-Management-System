@@ -140,14 +140,9 @@ export function createSubmission(body: SubmissionBody) {
   return apiPost<FormSubmission>('/forms/submissions', body);
 }
 
-/** Gắn file vào template/submission qua endpoint generic /attachments. */
-export function uploadFormFile(
-  ownerType: 'form_template' | 'form_submission',
-  ownerId: string,
-  file: File,
-) {
-  return apiUploadForm('/attachments', { owner_type: ownerType, owner_id: ownerId, file });
-}
+// uploadFormFile() ĐÃ GỠ — nó gắn tệp qua `POST /attachments` generic, đường KHÔNG
+// kiểm form:manage / form:submit, không kiểm phòng ban, không khoá tệp sau khi duyệt.
+// Dùng replaceFormFile() bên dưới (`POST /forms/{owner}/{id}/file`) cho mọi trường hợp.
 
 /** Lấy URL tải (presigned) rồi mở tab mới. */
 export async function openFormFile(fileId: string) {

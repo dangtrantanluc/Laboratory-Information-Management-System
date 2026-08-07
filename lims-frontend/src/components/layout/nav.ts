@@ -1,4 +1,12 @@
 import type { CurrentUser, Role } from '@/types';
+import {
+  canViewQuotations,
+  canViewDocumentStats,
+  canViewEquipment,
+  canViewCustomers,
+  canManageUsers,
+  canViewAudit,
+} from '@/lib/rbac';
 import type { LucideIcon } from 'lucide-react';
 import {
   Award,
@@ -40,7 +48,17 @@ export interface NavLeaf {
   to: string;
   label: string;
   icon?: LucideIcon;
-  /** Bỏ trống = mọi user đã đăng nhập. */
+  /**
+   * Vị từ quyền — DÙNG CHUNG với `RequireAccess` của route tương ứng trong App.tsx.
+   *
+   * ƯU TIÊN dùng `can` thay cho `roles`. Lý do: `roles` ở đây và hàm `canXxx` trong
+   * lib/rbac.ts là HAI danh sách vai trò viết độc lập, và chúng đã lệch nhau hai lần:
+   *   · /quotations       — menu 4 vai trò, route cho MỌI vai trò (đã vá)
+   *   · /documents/stats  — menu chỉ 'admin', route + backend cho 6 vai trò (đã vá)
+   * Trỏ cả hai về cùng một hàm thì không còn chỗ để lệch.
+   */
+  can?: (user: CurrentUser | null) => boolean;
+  /** Danh sách vai trò cứng. Chỉ dùng khi chưa có hàm `canXxx` tương ứng. */
   roles?: Role[];
   badge?: BadgeKey;
 }
@@ -86,9 +104,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/sample-flow', label: 'Nhận & Chuyển mẫu', icon: Inbox, roles: ['admin', 'leader', 'reception', ...LAB] },
       { to: '/samples', label: 'Mẫu thử nghiệm', icon: FlaskConical, roles: LAB_LEAD },
       { to: '/chemicals', label: 'Hóa chất', icon: FlaskConical, roles: [...LAB_LEAD, 'office'] },
-      { to: '/equipment', label: 'Thiết bị & Hiệu chuẩn', icon: Wrench, roles: ['admin', 'leader', 'lab_manager', 'office'] },
+      { to: '/equipment', label: 'Thiết bị & Hiệu chuẩn', icon: Wrench, can: canViewEquipment },
       { to: '/test-parameters', label: 'Chỉ tiêu thử nghiệm', icon: ListChecks },
-      { to: '/quotations', label: 'Báo giá', icon: Receipt, roles: ['admin', 'leader', 'reception', 'office'] },
+      { to: '/quotations', label: 'Báo giá', icon: Receipt, can: canViewQuotations },
     ],
   },
   {
@@ -138,29 +156,31 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/reports', label: 'Báo cáo tổng hợp', icon: BarChart3, roles: ['admin', 'leader', 'reception', 'qms', 'lab_manager', 'office'] },
       { to: '/research/stats', label: 'Thống kê thành tích', icon: TrendingUp, roles: RESEARCH_VIEW },
-      { to: '/documents/stats', label: 'Thống kê truy cập TL', icon: BarChart3, roles: ['admin'] },
+      { to: '/documents/stats', label: 'Thống kê truy cập TL', icon: BarChart3, can: canViewDocumentStats },
     ],
   },
   {
     id: 'admin',
     label: 'Quản trị',
     items: [
-      { to: '/users', label: 'Tài khoản', icon: Users, roles: ['admin'] },
-      { to: '/departments', label: 'Phòng ban', icon: Building2, roles: ['admin'] },
-      { to: '/customers', label: 'Khách hàng', icon: UserSquare2, roles: ['admin', 'leader', 'reception'] },
-      { to: '/audit', label: 'Nhật ký hệ thống', icon: ScrollText, roles: ['admin', 'leader'] },
+      { to: '/users', label: 'Tài khoản', icon: Users, can: canManageUsers },
+      { to: '/departments', label: 'Phòng ban', icon: Building2, can: canManageUsers },
+      { to: '/customers', label: 'Khách hàng', icon: UserSquare2, can: canViewCustomers },
+      { to: '/audit', label: 'Nhật ký hệ thống', icon: ScrollText, can: canViewAudit },
     ],
   },
 ];
 
 // ── Helpers lọc theo vai trò ─────────────────────────────────────
-function canSee(user: CurrentUser | null, roles?: Role[]): boolean {
-  return !roles || (!!user && roles.includes(user.role));
+/** `can` (nguồn chung với route guard) thắng `roles` (danh sách cứng, đang loại bỏ dần). */
+function canSee(user: CurrentUser | null, leaf: NavLeaf): boolean {
+  if (leaf.can) return leaf.can(user);
+  return !leaf.roles || (!!user && leaf.roles.includes(user.role));
 }
 
 /** Item con hiển thị cho user (đã lọc vai trò). */
 export function visibleLeaves(user: CurrentUser | null, items?: NavLeaf[]): NavLeaf[] {
-  return (items ?? []).filter((i) => canSee(user, i.roles));
+  return (items ?? []).filter((i) => canSee(user, i));
 }
 
 /** Nhóm còn item hợp lệ sau khi lọc vai trò (nhóm rỗng bị loại bỏ, không render khung). */

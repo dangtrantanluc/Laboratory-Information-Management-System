@@ -172,11 +172,16 @@ def _get_result(db: Session, result_id: uuid.UUID) -> SampleResult:
     return r
 
 
-def upload_result_attachment(
-    db: Session, *, user: CurrentUser, result_id: uuid.UUID, **kw
-) -> dict:
+def assert_can_write_result_files(
+    db: Session, *, user: CurrentUser, result_id: uuid.UUID
+) -> None:
+    """Quyền gắn raw data: chỉ người nhập kết quả hoặc Admin, và kết quả chưa duyệt.
+
+    Tách ra khỏi upload_result_attachment để đường generic `POST /attachments`
+    (attachment_authz) dùng CHUNG một luật — hai đường lệch nhau là cách lỗ hổng cũ
+    hình thành.
+    """
     result = _get_result(db, result_id)
-    # chỉ người nhập kết quả hoặc Admin
     if not (result.entered_by == user.id or user.role == "admin"):
         raise sample_common.forbidden("Chỉ người nhập kết quả được đính kèm raw data")
     if result.approved_by is not None:
@@ -184,6 +189,12 @@ def upload_result_attachment(
             ErrorCode.RESULT_LOCKED,
             "Kết quả đã duyệt — sửa phải tạo phiên bản mới",
         )
+
+
+def upload_result_attachment(
+    db: Session, *, user: CurrentUser, result_id: uuid.UUID, **kw
+) -> dict:
+    assert_can_write_result_files(db, user=user, result_id=result_id)
     return _upload(
         db,
         user=user,
@@ -194,21 +205,30 @@ def upload_result_attachment(
     )
 
 
+def assert_can_read_result_files(
+    db: Session, *, user: CurrentUser, result_id: uuid.UUID
+) -> None:
+    """Quyền xem raw data: kết quả đã duyệt thì mở; chưa duyệt chỉ nhóm liên quan.
+
+    Tách ra để `GET /attachments/{id}` (attachment_authz) dùng chung một luật với
+    `GET /results/{id}/attachments`.
+    """
+    result = _get_result(db, result_id)
+    if result.approved_by is not None:
+        return
+    assignment = db.get(SampleAssignment, result.assignment_id)
+    from app.services import result_service
+
+    if not result_service._can_view_pending(db, user, assignment, result):
+        raise AppException(
+            ErrorCode.RESULT_NOT_PUBLISHED,
+            "Kết quả chưa được duyệt — không thể xem raw data",
+            403,
+        )
+
+
 def list_result_attachments(
     db: Session, *, user: CurrentUser, result_id: uuid.UUID
 ) -> list[dict]:
-    result = _get_result(db, result_id)
-    assignment = db.get(SampleAssignment, result.assignment_id)
-    is_approved = result.approved_by is not None
-    if not is_approved:
-        # phạm vi xem kết quả pending
-        from app.services import result_service
-
-        can_view = result_service._can_view_pending(db, user, assignment, result)
-        if not can_view:
-            raise AppException(
-                ErrorCode.RESULT_NOT_PUBLISHED,
-                "Kết quả chưa được duyệt — không thể xem raw data",
-                403,
-            )
+    assert_can_read_result_files(db, user=user, result_id=result_id)
     return _list_attachments(db, "sample_result", result_id)

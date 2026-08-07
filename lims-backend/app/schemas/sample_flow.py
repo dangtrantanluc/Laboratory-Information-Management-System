@@ -35,7 +35,12 @@ class UpdateIntakeRequest(BaseModel):
     contact: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = None
     note: Optional[str] = None
-    status: Optional[Literal["received", "quoted", "quote_accepted", "paid", "dispatched", "completed", "cancelled"]] = None
+    # `status` ĐÃ BỎ KHỎI ĐÂY — CỐ Ý.
+    # PATCH này chỉ có require_permission("intake","manage") và service ghi bằng setattr,
+    # nên nhận status ở đây là một đường đổi trạng thái THỨ HAI bỏ qua cả state machine
+    # INTAKE_NEXT lẫn kiểm vai trò _privileged mà POST /intakes/{id}/status áp dụng —
+    # nhảy thẳng received → completed, bỏ qua báo giá và thanh toán.
+    # Đổi trạng thái: POST /intakes/{intake_id}/status
     dispatch_note: Optional[str] = None
     address: Optional[str] = Field(default=None, max_length=500)
     tax_code: Optional[str] = Field(default=None, max_length=50)

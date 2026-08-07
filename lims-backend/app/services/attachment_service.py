@@ -1,7 +1,10 @@
 """Attachment service — tải file dùng chung (M7 #30) + upload generic cho M1/M2.
 
-RBAC theo owner resource: M7 chỉ enforce phần đã biết (M1 mẫu/kết quả: cấm office).
-Khi M1/M2/M3 có RBAC chi tiết, sẽ mở rộng _check_owner_read_permission.
+Uỷ quyền cấp đối tượng nằm ở `attachment_authz` (bảng định tuyến theo owner_type,
+DENY BY DEFAULT). Trước đây file này chỉ có MỘT luật — cấm `office` đọc 3 owner_type
+của M1 — nên bất kỳ ai đăng nhập cũng tải được mọi tệp trong hệ thống nếu biết id, và
+gắn được tệp vào bất kỳ owner_id nào. Xem docstring của `attachment_authz` để biết vì
+sao luật được đặt ở module riêng thay vì ở đây.
 """
 import uuid
 from typing import Optional
@@ -11,26 +14,9 @@ from sqlalchemy.orm import Session
 
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
-from app.core.exceptions import AppException, not_found, unprocessable
+from app.core.exceptions import not_found, unprocessable
 from app.models.attachment import Attachment, VALID_OWNER_TYPES
-from app.services import attachment_common, audit_service, storage_service
-
-# owner_type thuộc nghiệp vụ M1 (mẫu/kết quả) — văn phòng bị cấm (B03)
-_M1_OWNER_TYPES = {"test_request", "sample", "sample_result"}
-
-
-def _check_owner_read_permission(user: CurrentUser, owner_type: str) -> None:
-    """RBAC theo owner resource. M7 enforce phần đã chốt; module sau mở rộng.
-
-    - M1 (mẫu/kết quả): văn phòng bị cấm → FORBIDDEN_OFFICE (B03).
-    - Các owner_type khác: mọi vai trò đã đăng nhập được đọc (M2/M3 nới RBAC riêng sau).
-    """
-    if owner_type in _M1_OWNER_TYPES and user.role == "office":
-        raise AppException(
-            ErrorCode.FORBIDDEN_OFFICE,
-            "Văn phòng không được truy cập tài nguyên mẫu/kết quả",
-            403,
-        )
+from app.services import attachment_authz, attachment_common, audit_service, storage_service
 
 
 def get_download(
@@ -50,7 +36,9 @@ def get_download(
     if att is None:
         raise not_found("Không tìm thấy tệp đính kèm")
 
-    _check_owner_read_permission(user, att.owner_type)
+    attachment_authz.assert_can_read(
+        db, user, owner_type=att.owner_type, owner_id=att.owner_id
+    )
 
     # Chặn stored-XSS: chỉ phục vụ inline nếu mime nằm trong allowlist an toàn,
     # bất kể client yêu cầu `disposition=inline` (PRODUCTION_READINESS_REVIEW
@@ -114,14 +102,20 @@ def create_attachment(
     mime: Optional[str],
     correlation_id: Optional[str],
     ip: Optional[str],
+    skip_authz: bool = False,
 ) -> dict:
-    """Upload generic — M1/M2 gọi để gắn file. owner tồn tại enforce app-layer (D9).
+    """Upload generic. Quyền ghi + sự tồn tại của owner do `attachment_authz` kiểm.
 
-    Lưu ý: M7 chưa có bảng owner (sample/chemical...) → kiểm tra owner tồn tại
-    sẽ được module tương ứng bổ sung. M7 chỉ chấp nhận owner_type trong whitelist.
+    `skip_authz=True` dành cho caller ĐÃ tự kiểm quyền theo luật riêng của module
+    (sample_report_service, calibration_service, equipment_service, form_file_service,
+    và các router có guard ngay trước lời gọi). Mặc định là KIỂM — đường generic
+    `POST /attachments` đi qua nhánh mặc định đó.
     """
     if owner_type not in VALID_OWNER_TYPES:
         raise unprocessable(ErrorCode.INVALID_OWNER_TYPE, "Loại đối tượng đính kèm không hợp lệ")
+
+    if not skip_authz:
+        attachment_authz.assert_can_write(db, user, owner_type=owner_type, owner_id=owner_id)
 
     attachment_common.check_mime(mime, allowed=attachment_common.GENERIC_ALLOWED_MIME)
     attachment_common.check_size(content)
