@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Plus, PlayCircle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -41,7 +42,7 @@ export function Risks() {
   const [createOpen, setCreateOpen] = useState(false);
   const [cronOpen, setCronOpen] = useState(false);
 
-  const { data, loading } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => riskApi.listRisks({ q: dq || undefined, kind: kind || undefined, status: status || undefined, band: band || undefined, limit: 100 }),
     [dq, kind, status, band],
   );
@@ -173,6 +174,8 @@ export function Risks() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(r) => r.id}
           onRowClick={(r) => navigate(`/risks/${r.id}`)}
           loading={loading}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -30,7 +31,7 @@ export function SampleRequests() {
   const [status, setStatus] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => samplesApi.listRequests({ q: dq || undefined, status: status || undefined, limit: 100 }),
     [dq, status],
   );
@@ -97,6 +98,8 @@ export function SampleRequests() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(r) => r.id}
           loading={loading}
           pageSize={12}

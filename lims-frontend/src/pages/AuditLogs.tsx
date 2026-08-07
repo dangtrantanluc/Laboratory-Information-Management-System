@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { ScrollText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -13,7 +14,7 @@ import type { AuditLog } from '@/types';
 export function AuditLogs() {
   const [action, setAction] = useState('');
   const [resource, setResource] = useState('');
-  const { data, loading } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => auditApi.listAuditLogs({ action: action || undefined, resource: resource || undefined, limit: 100 }),
     [action, resource],
   );
@@ -53,7 +54,9 @@ export function AuditLogs() {
             className="max-w-xs"
           />
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(a) => a.id} loading={loading} pageSize={15} />
+        <DataTable columns={columns} rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} rowKey={(a) => a.id} loading={loading} pageSize={15} />
       </Card>
     </div>
   );

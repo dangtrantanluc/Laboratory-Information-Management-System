@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Sprout, Loader2 } from 'lucide-react';
+import { Sprout, Loader2, AlertTriangle, RotateCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { describeError } from '@/lib/errors';
 
 export function EmptyState({
   icon,
@@ -31,6 +32,58 @@ export function EmptyState({
         {description && <p className="mt-1 text-sm text-subink">{description}</p>}
       </div>
       {action}
+    </div>
+  );
+}
+
+/**
+ * Trạng thái LỖI khi tải dữ liệu — KHÁC hẳn EmptyState.
+ *
+ * VÌ SAO CẦN: `useAsync` trả về `error`, nhưng 48/49 trang bỏ qua nó và render
+ * `data?.data ?? []`. Kết quả: backend 500, mất mạng, 403 và "thật sự không có dữ
+ * liệu" đều hiện ra y hệt nhau — "Không có dữ liệu". Một KTV mở "Mẫu quá hạn", thấy
+ * trống, và kết luận không có mẫu nào quá hạn trong khi API vừa lỗi.
+ * (docs/frontend/FRONTEND_UX_AUDIT.md FE-U-01)
+ *
+ * Dùng lại `describeError` — bản đồ ~150 mã lỗi vốn chỉ được dùng cho toast sau
+ * mutation, chưa từng dùng cho lỗi lúc tải trang.
+ */
+export function ErrorState({
+  error,
+  onRetry,
+  className,
+}: {
+  error: unknown;
+  onRetry?: () => void;
+  className?: string;
+}) {
+  const { title, description } = describeError(error);
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-3 px-6 py-14 text-center',
+        className,
+      )}
+    >
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-overdue/10 text-overdue">
+        <AlertTriangle size={24} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="mt-1 text-sm text-subink">
+          {description ?? 'Không tải được dữ liệu. Vui lòng thử lại.'}
+        </p>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-plate"
+        >
+          <RotateCw size={14} />
+          Thử lại
+        </button>
+      )}
     </div>
   );
 }

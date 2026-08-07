@@ -102,11 +102,17 @@ function NotificationBell() {
         /* ignore */
       }
     };
-    tick();
-    const t = window.setInterval(tick, 30000);
+    // Chỉ đếm khi tab đang hiện — xem chú thích cùng lý do ở lib/useNavBadges.ts.
+    const tickIfVisible = () => {
+      if (document.visibilityState === 'visible') void tick();
+    };
+    tickIfVisible();
+    const t = window.setInterval(tickIfVisible, 30000);
+    document.addEventListener('visibilitychange', tickIfVisible);
     return () => {
       active = false;
       window.clearInterval(t);
+      document.removeEventListener('visibilitychange', tickIfVisible);
     };
   }, []);
 

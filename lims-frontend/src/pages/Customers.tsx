@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { UserSquare2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -26,7 +27,7 @@ export function Customers() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => customersApi.listCustomers({ q: dq || undefined, limit: 100 }),
     [dq],
   );
@@ -65,6 +66,8 @@ export function Customers() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(c) => c.id}
           loading={loading}
           pageSize={12}

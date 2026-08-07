@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { FlaskConical, Plus, FileSpreadsheet } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -33,7 +34,7 @@ export function Chemicals() {
   const [createOpen, setCreateOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       chemApi.listChemicals({
         q: dq || undefined,
@@ -120,6 +121,8 @@ export function Chemicals() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(c) => c.id}
           loading={loading}
           pageSize={12}

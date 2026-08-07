@@ -30,11 +30,20 @@ export function useNavBadges(): Partial<Record<BadgeKey, number>> {
       }
       if (alive) setBadges(next);
     }
-    load();
-    const id = setInterval(load, REFRESH_MS);
+    // Chỉ gọi khi tab đang hiện. Tab để nền cả ngày trước đây vẫn bắn ~60 request/giờ,
+    // và — quan trọng hơn — chính nhịp này bảo đảm MỌI tab chạm 401 gần như cùng lúc
+    // khi access token hết hạn, kích hoạt đua refresh (xem lib/api.ts doRefresh).
+    const tick = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    tick();
+    const id = setInterval(tick, REFRESH_MS);
+    // Quay lại tab → làm mới ngay, không bắt người dùng chờ hết chu kỳ.
+    document.addEventListener('visibilitychange', tick);
     return () => {
       alive = false;
       clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
     };
   }, [user]);
 

@@ -1,5 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+} from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useDown } from '@/lib/useMediaQuery';
 import { CardSkeleton, EmptyState, TableSkeleton } from './States';
@@ -57,6 +64,17 @@ interface DataTableProps<T> {
     onPageChange: (page: number) => void;
     onLimitChange?: (limit: number) => void;
   };
+
+  /**
+   * Tổng số bản ghi THẬT trên server (`meta.total`) khi vẫn đang cắt trang ở client.
+   *
+   * Chốt tạm cho tới khi chuyển hẳn sang `server` pagination: nếu `knownTotal` lớn hơn
+   * số dòng thực nhận, bảng hiện cảnh báo thay vì im lặng giấu phần dư. Không sửa được
+   * gốc, nhưng chấm dứt việc người dùng tin rằng mình đang nhìn toàn bộ dữ liệu.
+   *
+   * Bỏ trống khi đã bật `server` (lúc đó `server.total` là nguồn đúng).
+   */
+  knownTotal?: number;
 }
 
 type SortState = { key: string; dir: 'asc' | 'desc' } | null;
@@ -83,6 +101,7 @@ export function DataTable<T>({
   stickyFirstCol = true,
   pageSizeOptions,
   server,
+  knownTotal,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState>(null);
   const [page, setPage] = useState(1);
@@ -154,8 +173,25 @@ export function DataTable<T>({
     />
   );
 
+  // Danh sách bị server cắt bớt: chỉ đúng khi CHƯA bật phân trang server.
+  const truncatedBy = !server && knownTotal != null ? knownTotal - rows.length : 0;
+
   return (
     <div className="flex flex-col">
+      {truncatedBy > 0 && !loading && (
+        <div
+          role="status"
+          className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900"
+        >
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>
+            Chỉ hiển thị <strong>{rows.length}</strong> trong tổng số{' '}
+            <strong>{knownTotal}</strong> bản ghi. Hãy dùng ô tìm kiếm hoặc bộ lọc để thu hẹp
+            — <strong>{truncatedBy}</strong> bản ghi còn lại không có trong bảng này.
+          </span>
+        </div>
+      )}
+
       {body}
 
       {!loading && totalCount > 0 && (

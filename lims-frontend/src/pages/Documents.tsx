@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Plus, BarChart3, ClipboardCheck, UploadCloud } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -37,7 +38,7 @@ export function Documents() {
   const [departmentId, setDepartmentId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data, loading } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       docsApi.listDocuments({
         q: dq || undefined,
@@ -184,6 +185,8 @@ export function Documents() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(d) => d.id}
           onRowClick={(d) => navigate(`/documents/${d.id}`)}
           loading={loading}

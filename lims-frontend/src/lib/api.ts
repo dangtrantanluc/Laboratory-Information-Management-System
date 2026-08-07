@@ -82,41 +82,133 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
   return url.toString();
 }
 
+// ───────────────────────────── Timeout ─────────────────────────────
+//
+// Không có timeout, mất mạng giữa chừng làm request treo tới khi trình duyệt tự bỏ
+// cuộc (hàng phút). useAsync không bao giờ settle ⇒ trang quay vòng vô hạn và
+// ErrorState không bao giờ hiện.
+//
+// CỐ Ý không dùng AbortSignal.any(): nó mới (Chrome 116+/Safari 17.4+) và ở đây chỉ
+// cần ghép đúng 2 tín hiệu — tự nối bằng AbortController chạy được ở mọi trình duyệt
+// đã hỗ trợ fetch.
+const DEFAULT_TIMEOUT_MS = 30_000;
+/** Upload/tải tệp lớn hợp lệ có thể lâu hơn nhiều — không áp cùng ngưỡng với JSON. */
+const TRANSFER_TIMEOUT_MS = 120_000;
+
+interface TimedSignal {
+  signal: AbortSignal;
+  /** Gọi sau khi request settle để dọn timer + listener (tránh rò rỉ). */
+  done: () => void;
+}
+
+function withTimeout(outer: AbortSignal | undefined, ms: number): TimedSignal {
+  const ac = new AbortController();
+  const timer = setTimeout(
+    () => ac.abort(new DOMException('Hết thời gian chờ máy chủ', 'TimeoutError')),
+    ms,
+  );
+  const onOuterAbort = () => ac.abort(outer?.reason);
+  if (outer) {
+    if (outer.aborted) ac.abort(outer.reason);
+    else outer.addEventListener('abort', onOuterAbort, { once: true });
+  }
+  return {
+    signal: ac.signal,
+    done: () => {
+      clearTimeout(timer);
+      outer?.removeEventListener('abort', onOuterAbort);
+    },
+  };
+}
+
+/** True nếu lỗi là do timeout của ta (khác với huỷ chủ động khi đổi trang). */
+export function isTimeoutError(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === 'TimeoutError';
+}
+
+// ───────────────────────── Refresh token ─────────────────────────
+
 let refreshPromise: Promise<boolean> | null = null;
 
-/** Gọi refresh token; trả true nếu cấp được access token mới. */
-async function doRefresh(): Promise<boolean> {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const res = await fetch(API_BASE_URL + '/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', 'x-correlation-id': uuid() },
-          body: JSON.stringify({}),
-        });
-        if (!res.ok) return false;
-        const json = await res.json();
-        if (json?.success && json?.data?.access_token) {
-          setToken(json.data.access_token);
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
-      } finally {
-        // reset sau microtask để các request song song cùng dùng 1 lần refresh
-        setTimeout(() => (refreshPromise = null), 0);
-      }
-    })();
+const REFRESH_LOCK = 'lims-token-refresh';
+
+/** Gọi thật endpoint refresh. Chỉ được chạy khi đang giữ khoá. */
+async function refreshOnce(): Promise<boolean> {
+  try {
+    const res = await fetch(API_BASE_URL + '/auth/refresh', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'x-correlation-id': uuid() },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    if (json?.success && json?.data?.access_token) {
+      setToken(json.data.access_token);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
+}
+
+/**
+ * Gọi refresh token; trả true nếu cấp được access token mới.
+ *
+ * HAI LỚP CHỐNG ĐUA — hai phạm vi khác nhau, cần cả hai:
+ *
+ * 1. `refreshPromise` — gộp trong MỘT tab. Nhiều request cùng nhận 401 thì chỉ một
+ *    lần gọi mạng.
+ *
+ * 2. Web Locks — gộp GIỮA CÁC TAB. Đây mới là lớp quan trọng: `refreshPromise` là
+ *    biến module nên mỗi tab có bản riêng. Với ACCESS_TOKEN_TTL_MINUTES=10 cộng
+ *    polling 30s (Topbar) và 60s (badge), hai tab mở song song sẽ chạm 401 gần như
+ *    cùng lúc và cùng POST /auth/refresh với CÙNG cookie. Backend khoá hàng bằng
+ *    with_for_update nên hai request bị tuần tự hoá: tab thắng xoay token, tab thua
+ *    trình ra refresh token vừa bị thu hồi ⇒ auth_service kích hoạt reuse detection
+ *    ⇒ THU HỒI TOÀN BỘ phiên của người dùng trên mọi thiết bị.
+ *    (Xem docs/frontend/FRONTEND_SECURITY_AUDIT.md FE-S-02.)
+ *
+ *    Tab vào sau khi có khoá sẽ thấy token trong localStorage ĐÃ KHÁC lúc nó bắt
+ *    đầu chờ — nghĩa là tab khác vừa xoay xong — nên dùng luôn token đó thay vì gọi
+ *    lại. Đó là lý do phải chụp `tokenBefore` TRƯỚC khi xin khoá.
+ */
+async function doRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+
+  const tokenBefore = getToken();
+  const run = async (): Promise<boolean> => {
+    if (getToken() !== tokenBefore) return true; // tab khác đã xoay xong trong lúc chờ
+    return refreshOnce();
+  };
+
+  refreshPromise = (async () => {
+    try {
+      const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+      if (locks) return await locks.request(REFRESH_LOCK, run);
+      return await run(); // trình duyệt không hỗ trợ Web Locks → vẫn chạy, chỉ mất lớp 2
+    } finally {
+      // reset sau microtask để các request song song cùng dùng 1 lần refresh
+      setTimeout(() => (refreshPromise = null), 0);
+    }
+  })();
   return refreshPromise;
 }
+
 
 /** Callback khi phiên hết hạn hoàn toàn (refresh fail) — AuthContext đăng ký. */
 let onSessionExpired: (() => void) | null = null;
 export function setOnSessionExpired(cb: (() => void) | null) {
   onSessionExpired = cb;
+}
+
+// Tab khác đăng xuất (hoặc mất phiên) → tab này phải theo. Không có cái này, người
+// dùng bấm tiếp ở tab còn lại và nhận một chuỗi lỗi 401 khó hiểu.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === TOKEN_KEY && e.newValue === null) onSessionExpired?.();
+  });
 }
 
 async function rawRequest(path: string, opts: RequestOptions, token: string | null): Promise<Response> {
@@ -133,13 +225,18 @@ async function rawRequest(path: string, opts: RequestOptions, token: string | nu
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(opts.body);
   }
-  return fetch(buildUrl(path, opts.query), {
-    method: opts.method ?? 'GET',
-    credentials: 'include',
-    headers,
-    body,
-    signal: opts.signal,
-  });
+  const t = withTimeout(opts.signal, opts.raw ? TRANSFER_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
+  try {
+    return await fetch(buildUrl(path, opts.query), {
+      method: opts.method ?? 'GET',
+      credentials: 'include',
+      headers,
+      body,
+      signal: t.signal,
+    });
+  } finally {
+    t.done();
+  }
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -251,6 +348,16 @@ export async function apiDownload(
   return { blob, filename: m?.[1] ?? 'download' };
 }
 
+/** POST multipart có timeout dài (tệp lớn) — dùng chung cho 2 hàm upload bên dưới. */
+async function postForm(path: string, method: 'POST' | 'PUT', headers: Record<string, string>, form: FormData) {
+  const t = withTimeout(undefined, TRANSFER_TIMEOUT_MS);
+  try {
+    return await fetch(buildUrl(path), { method, credentials: 'include', headers, body: form, signal: t.signal });
+  } finally {
+    t.done();
+  }
+}
+
 /** Upload multipart (file đính kèm). */
 export async function apiUpload<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
   const form = new FormData();
@@ -260,12 +367,17 @@ export async function apiUpload<T>(path: string, file: File, fieldName = 'file')
   const headers: Record<string, string> = { 'x-correlation-id': correlationId };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  let res = await fetch(buildUrl(path), { method: 'POST', credentials: 'include', headers, body: form });
+  let res = await postForm(path, 'POST', headers, form);
   if (res.status === 401) {
     const ok = await doRefresh();
     if (ok) {
-      const h2 = { ...headers, Authorization: `Bearer ${getToken()}` };
-      res = await fetch(buildUrl(path), { method: 'POST', credentials: 'include', headers: h2, body: form });
+      res = await postForm(path, 'POST', { ...headers, Authorization: `Bearer ${getToken()}` }, form);
+    } else {
+      // Trước đây thiếu nhánh này (3 đường gọi kia đều có): refresh hỏng thì người
+      // dùng ở lại trạng thái "đã đăng nhập" với token chết, mọi thao tác sau đó lỗi
+      // khó hiểu thay vì được đưa về trang đăng nhập.
+      setToken(null);
+      onSessionExpired?.();
     }
   }
   if (!res.ok) throw await parseError(res);
@@ -293,12 +405,11 @@ export async function apiUploadForm<T>(
   const headers: Record<string, string> = { 'x-correlation-id': uuid() };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  let res = await fetch(buildUrl(path), { method, credentials: 'include', headers, body: form });
+  let res = await postForm(path, method, headers, form);
   if (res.status === 401) {
     const ok = await doRefresh();
     if (ok) {
-      const h2 = { ...headers, Authorization: `Bearer ${getToken()}` };
-      res = await fetch(buildUrl(path), { method, credentials: 'include', headers: h2, body: form });
+      res = await postForm(path, method, { ...headers, Authorization: `Bearer ${getToken()}` }, form);
     } else {
       setToken(null);
       onSessionExpired?.();

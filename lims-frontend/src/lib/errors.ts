@@ -1,4 +1,4 @@
-import { ApiError } from './api';
+import { ApiError, isTimeoutError } from './api';
 
 /** Map error.code → message tiếng Việt rõ nghĩa cho nghiệp vụ. */
 const CODE_MESSAGES: Record<string, string> = {
@@ -144,6 +144,22 @@ const CODE_MESSAGES: Record<string, string> = {
 
 /** Trả message tiếng Việt cho lỗi. Lỗi kỹ thuật (5xx) ẩn chi tiết + kèm correlationId. */
 export function describeError(err: unknown): { title: string; description?: string } {
+  // Timeout của lib/api.ts (30s cho JSON, 120s cho tải/gửi tệp). Phân biệt rõ với lỗi
+  // máy chủ: ở đây rất có thể là mạng của người dùng, và thử lại là hành động đúng.
+  if (isTimeoutError(err)) {
+    return {
+      title: 'Máy chủ không phản hồi',
+      description: 'Kiểm tra kết nối mạng rồi thử lại. Nếu vẫn lỗi, báo quản trị viên.',
+    };
+  }
+  // Mất mạng hoàn toàn: fetch ném TypeError "Failed to fetch" (không phải ApiError vì
+  // chưa có response nào để đọc mã lỗi).
+  if (err instanceof TypeError && /fetch/i.test(err.message)) {
+    return {
+      title: 'Không kết nối được máy chủ',
+      description: 'Có vẻ mất kết nối mạng. Kiểm tra Wi-Fi rồi thử lại.',
+    };
+  }
   if (err instanceof ApiError) {
     if (err.status >= 500) {
       const cid = err.correlationId ? ` (mã lỗi ${err.correlationId.slice(0, 8)})` : '';

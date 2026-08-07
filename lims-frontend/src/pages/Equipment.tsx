@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { Wrench, Plus, AlertTriangle, PlayCircle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -42,7 +43,7 @@ export function Equipment() {
   const [createOpen, setCreateOpen] = useState(false);
   const [cronOpen, setCronOpen] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       onlyDue
         ? equipApi.listCalibrationDue({
@@ -211,6 +212,8 @@ export function Equipment() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(e) => e.id}
           onRowClick={(e) => navigate(`/equipment/${e.id}`)}
           loading={loading}

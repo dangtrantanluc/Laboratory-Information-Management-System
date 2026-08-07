@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { FlaskConical, Plus, Pencil, Trash2, BadgeCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -46,7 +47,7 @@ export function TestParameters() {
   const [deleteTarget, setDeleteTarget] = useState<TestParameter | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       flowApi.listTestParameters({
         q: dq || undefined,
@@ -158,6 +159,8 @@ export function TestParameters() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(p) => p.id}
           loading={loading}
           pageSizeOptions={[20, 50, 100]}

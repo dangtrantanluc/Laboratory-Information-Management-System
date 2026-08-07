@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { Users as UsersIcon, Plus, KeyRound, Power } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingApprovals } from '@/components/users/PendingApprovals';
@@ -30,7 +31,7 @@ export function UsersPage() {
   const [toggleUser, setToggleUser] = useState<UserListItem | null>(null);
   const [resetUser, setResetUser] = useState<UserListItem | null>(null);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => usersApi.listUsers({ q: dq || undefined, role: role || undefined, limit: 100 }),
     [dq, role],
   );
@@ -116,6 +117,8 @@ export function UsersPage() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
+          knownTotal={data?.meta?.total}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           rowKey={(u) => u.id}
           loading={loading}
           pageSize={12}
