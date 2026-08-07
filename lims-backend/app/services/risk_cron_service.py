@@ -89,7 +89,9 @@ def run_risk_review_due(
         audit_service.log_action(
             db, action="CRON_RISK_REVIEW_REMINDER", resource="risk_cron",
             user_id=actor.id if actor else None, correlation_id=None,
-            detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
+            # by_milestone dùng khoá SỐ → phải ép str (xem audit_service._sanitize).
+            detail={"scanned": scanned, "created": notifications_created,
+                    "by_milestone": {str(k): v for k, v in by_milestone.items()}},
         )
         db.commit()
     finally:

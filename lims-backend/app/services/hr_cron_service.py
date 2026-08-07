@@ -231,4 +231,7 @@ def _audit_cron(db, action, actor, scanned, created, skipped) -> None:
         )
         db.commit()
     except Exception:  # noqa: BLE001 — audit lỗi không chặn cron
+        # Log kèm stack: nuốt im lặng là lý do CRON-5 mất sạch dòng audit mà không ai
+        # biết trong nhiều tháng (xem equipment_cron_service._audit_cron).
+        logger.exception("CRON HR: ghi audit thất bại — dòng nhật ký kiểm toán bị mất")
         db.rollback()

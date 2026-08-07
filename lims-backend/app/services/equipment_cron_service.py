@@ -171,8 +171,15 @@ def _audit_cron(db, actor, *, scanned, created, by_milestone) -> None:
             resource="equipment_cron",
             user_id=actor.id if actor else None,
             correlation_id=None,
-            detail={"scanned": scanned, "created": created, "by_milestone": by_milestone},
+            # by_milestone dùng khoá SỐ → phải ép str (xem audit_service._sanitize).
+            detail={"scanned": scanned, "created": created,
+                    "by_milestone": {str(k): v for k, v in by_milestone.items()}},
         )
         db.commit()
     except Exception:  # noqa: BLE001 — audit lỗi không chặn cron
+        # PHẢI log kèm stack. Bản cũ nuốt lỗi hoàn toàn im lặng, nên suốt nhiều tháng
+        # CRON-5 báo "ok" trong khi KHÔNG có lấy một dòng CRON_CALIBRATION_REMINDER nào
+        # trong audit_logs. Giữ lưới an toàn (audit hỏng không được chặn cron) nhưng
+        # không được giấu nó.
+        logger.exception("CRON-5: ghi audit thất bại — dòng nhật ký kiểm toán bị mất")
         db.rollback()

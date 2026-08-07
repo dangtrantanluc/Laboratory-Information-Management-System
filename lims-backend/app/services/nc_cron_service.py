@@ -112,7 +112,14 @@ def run_capa_due(
             resource="nc_cron",
             user_id=actor.id if actor else None,
             correlation_id=None,
-            detail={"scanned": scanned, "created": notifications_created, "by_milestone": by_milestone},
+            detail={
+                "scanned": scanned,
+                "created": notifications_created,
+                # str(k): by_milestone dùng khoá SỐ. JSONB không có khoá số, và
+                # _sanitize từng ném AttributeError vì gọi key.lower() — làm cron này
+                # hỏng mỗi lần chạy. Cùng phép chuyển đã dùng ở giá trị trả về bên dưới.
+                "by_milestone": {str(k): v for k, v in by_milestone.items()},
+            },
         )
         db.commit()
     finally:
