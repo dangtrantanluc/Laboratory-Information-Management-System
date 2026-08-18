@@ -338,6 +338,8 @@ export function MonthlyReport() {
             <Field label="TH (HK1)"><Input type="number" min={0} value={t.hk1_practice_hours ?? ''} onChange={(e) => up(setTeaching, i, { hk1_practice_hours: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
             <Field label="LT (HK2)"><Input type="number" min={0} value={t.hk2_theory_hours ?? ''} onChange={(e) => up(setTeaching, i, { hk2_theory_hours: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
             <Field label="TH (HK2)"><Input type="number" min={0} value={t.hk2_practice_hours ?? ''} onChange={(e) => up(setTeaching, i, { hk2_practice_hours: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
+            <Field label="LT (HK3)"><Input type="number" min={0} value={t.hk3_theory_hours ?? ''} onChange={(e) => up(setTeaching, i, { hk3_theory_hours: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
+            <Field label="TH (HK3)"><Input type="number" min={0} value={t.hk3_practice_hours ?? ''} onChange={(e) => up(setTeaching, i, { hk3_practice_hours: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
           </RowShell>
         ))}
       </Section>

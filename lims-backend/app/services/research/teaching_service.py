@@ -14,9 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    TeachingCourse,
-)
+from app.models.research import TeachingCourse
 from app.services import audit_service, hr_common as hc
 
 
@@ -34,7 +32,11 @@ def _teaching_dict(db: Session, t: TeachingCourse) -> dict:
         "hk1_practice_hours": t.hk1_practice_hours,
         "hk2_theory_hours": t.hk2_theory_hours,
         "hk2_practice_hours": t.hk2_practice_hours,
+        "hk3_theory_hours": t.hk3_theory_hours,
+        "hk3_practice_hours": t.hk3_practice_hours,
+        "training_level": t.training_level,
         "note": t.note,
+        "evidence_url": t.evidence_url,
         "department_id": t.department_id,
         "department_name": hc.dept_name(db, t.department_id),
         "created_at": t.created_at,
@@ -85,30 +87,45 @@ def create_teaching(
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
+    # Giảng viên nội bộ HOẶC thỉnh giảng ngoài hệ thống — XOR, khớp ck_tc_lecturer_xor.
     target = payload.get("user_id")
-    if not target:
-        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu user_id", 400)
-    if user.role == "staff" and target != user.id:
+    external = (payload.get("lecturer_external_name") or "").strip() or None
+    if bool(target) == bool(external):
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            "Giảng viên phải là người nội bộ (user_id) HOẶC người ngoài hệ thống "
+            "(lecturer_external_name), không cả hai và không để trống",
+            400,
+        )
+    if target is not None:
+        if user.role == "staff" and target != user.id:
+            raise hc.forbidden("Bạn chỉ khai môn giảng dạy của chính mình")
+        hc.assert_user_exists(db, target)
+    elif user.role == "staff":
         raise hc.forbidden("Bạn chỉ khai môn giảng dạy của chính mình")
-    hc.assert_user_exists(db, target)
     if not payload.get("course_name"):
         raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu course_name", 400)
-    if not payload.get("semester"):
-        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu semester", 400)
+    # semester KHÔNG bắt buộc từ m34: mô hình theo file Excel là 1 dòng = 1 môn của 1
+    # năm học, số tiết trải trên các cột HK1/HK2/HK3 (một môn có thể dạy cả hai kỳ).
     year = payload.get("year")
     if year is None or not (1900 <= int(year) <= date.today().year + 1):
         raise AppException(ErrorCode.VALIDATION_ERROR, "year ngoài khoảng hợp lệ", 400)
     t = TeachingCourse(
         user_id=target,
+        lecturer_external_name=external,
         course_name=str(payload["course_name"]).strip(),
         semester=payload.get("semester"),
         year=year,
         academic_year=payload.get("academic_year"),
+        training_level=payload.get("training_level"),
         hk1_theory_hours=payload.get("hk1_theory_hours"),
         hk1_practice_hours=payload.get("hk1_practice_hours"),
         hk2_theory_hours=payload.get("hk2_theory_hours"),
         hk2_practice_hours=payload.get("hk2_practice_hours"),
+        hk3_theory_hours=payload.get("hk3_theory_hours"),
+        hk3_practice_hours=payload.get("hk3_practice_hours"),
         note=payload.get("note"),
+        evidence_url=payload.get("evidence_url"),
         department_id=hc.user_dept(db, target),
         created_by=user.id,
         updated_by=user.id,
@@ -150,7 +167,23 @@ def update_teaching(
         raise hc.forbidden("Bạn chỉ sửa môn giảng dạy của chính mình")
     if not changes:
         raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
-    for field in ("course_name", "semester", "year"):
+    # Trước m34 danh sách này chỉ có 3 field, nên số tiết HK1/HK2 tuy có cột trong CSDL
+    # và có trong schema vẫn KHÔNG sửa được qua PATCH — âm thầm bỏ qua thay đổi.
+    for field in (
+        "course_name",
+        "semester",
+        "year",
+        "academic_year",
+        "training_level",
+        "hk1_theory_hours",
+        "hk1_practice_hours",
+        "hk2_theory_hours",
+        "hk2_practice_hours",
+        "hk3_theory_hours",
+        "hk3_practice_hours",
+        "note",
+        "evidence_url",
+    ):
         if field in changes:
             setattr(t, field, changes[field])
     t.updated_by = user.id

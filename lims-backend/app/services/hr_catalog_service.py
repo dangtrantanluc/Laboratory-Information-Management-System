@@ -5,12 +5,8 @@ GET danh mục cấp đề tài / chỉ số bài báo / loại HĐ / loại hư
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.hr import (
-    ContractType,
-    MentorshipType,
-    PublicationCategory,
-    ResearchProjectLevel,
-)
+from app.models.hr import ContractType
+from app.models.research import MentorshipType, PublicationCategory, ResearchProjectLevel
 
 
 def _list(db: Session, model) -> list[dict]:

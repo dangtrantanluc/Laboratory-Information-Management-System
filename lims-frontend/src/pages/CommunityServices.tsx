@@ -204,6 +204,7 @@ function CommunityModal({
   const [content, setContent] = useState(service?.content ?? '');
   const [performedAt, setPerformedAt] = useState(service?.performed_at ?? '');
   const [host, setHost] = useState(service?.host ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(service?.evidence_url ?? '');
   const [submitting, setSubmitting] = useState(false);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
   const isStaff = user?.role === 'staff';
@@ -214,19 +215,16 @@ function CommunityModal({
     if (!editing && !performerId) return toast.error('Chọn người thực hiện');
     setSubmitting(true);
     try {
+      const shared = {
+        content: content.trim(),
+        performed_at: performedAt,
+        host: host || null,
+        evidence_url: evidenceUrl.trim() || null,
+      };
       if (editing) {
-        await researchApi.updateCommunity(service!.id, {
-          content: content.trim(),
-          performed_at: performedAt,
-          host: host || null,
-        });
+        await researchApi.updateCommunity(service!.id, shared);
       } else {
-        await researchApi.createCommunity({
-          content: content.trim(),
-          performed_at: performedAt,
-          host: host || null,
-          performer_user_id: performerId,
-        });
+        await researchApi.createCommunity({ ...shared, performer_user_id: performerId });
       }
       onSaved();
     } catch (err) {
@@ -270,6 +268,9 @@ function CommunityModal({
         </Field>
         <Field label="Thời gian" required>
           <Input type="date" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
+        </Field>
+        <Field label="Link minh chứng" className="md:col-span-2">
+          <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
         </Field>
         <Field label="Đơn vị chủ trì">
           <Input value={host} onChange={(e) => setHost(e.target.value)} />

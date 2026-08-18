@@ -16,8 +16,14 @@ from app.services import hr_common as hc
 def _validate_members(db: Session, members: list, *, allow_external: bool, lead_user_id):
     """Validate danh sách thành viên/tác giả. Trả (internal_user_ids set).
 
-    allow_external=False (project_members FK chặt): chỉ user_id; external → INVALID_AUTHOR.
-    Đề tài: lead_user_id phải nằm trong members.
+    allow_external=True: cho phép thành viên NGOÀI hệ thống qua external_name (XOR với
+    user_id). Đề tài NCKH dùng chế độ này từ m34 — sheet NCKH liệt kê hàng chục cộng
+    tác viên ngoài Viện ở cột "Thành viên nhiệm vụ/dự án"; chặn họ lại thì không nhập
+    nổi một dòng nào của bảng gốc.
+
+    lead_user_id: nếu chủ nhiệm là người NỘI BỘ thì phải nằm trong members. Chủ nhiệm
+    ngoài hệ thống (lead_external_name) truyền lead_user_id=None và được bỏ qua kiểm
+    tra này — service gọi tự chịu trách nhiệm thêm họ vào members.
     """
     if not members:
         raise AppException(ErrorCode.VALIDATION_ERROR, "members không được rỗng", 400)

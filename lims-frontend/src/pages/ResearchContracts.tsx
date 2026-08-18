@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DescList, DescItem } from '@/components/ui/DescList';
-import { Field, Input } from '@/components/ui/Field';
+import { Field, Input, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -16,6 +16,9 @@ import { formatDate, formatMoney } from '@/lib/format';
 import type { ResearchContract } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
+
+/** Bốn giá trị duy nhất xuất hiện ở cột "Loại hợp đồng" của file Excel 2024-2025. */
+const CONTRACT_TYPES = ['Nghiên cứu KHCN', 'Tư vấn KHCN', 'Tư vấn chuyển giao', 'Tư vấn'];
 
 export function ResearchContracts() {
   const { user } = useAuth();
@@ -46,10 +49,24 @@ export function ResearchContracts() {
 
   const columns: Column<ResearchContract>[] = [
     { key: 'title', header: 'Tên hợp đồng', render: (c) => <span className="font-medium text-ink">{c.title}</span> },
+    { key: 'contract_no', header: 'Số HĐ', render: (c) => c.contract_no ?? '—' },
     { key: 'contract_type', header: 'Loại', render: (c) => c.contract_type ?? '—' },
     { key: 'value', header: 'Giá trị', align: 'right', render: (c) => formatMoney(c.value_amount, c.currency ?? 'VND') },
     { key: 'partner', header: 'Đơn vị phối hợp', render: (c) => c.partner_org ?? '—' },
     { key: 'year', header: 'Năm học', render: (c) => c.academic_year ?? '—' },
+    {
+      key: 'evidence',
+      header: 'Minh chứng',
+      align: 'center',
+      render: (c) =>
+        c.evidence_url ? (
+          <a href={c.evidence_url} target="_blank" rel="noreferrer" className="text-berry hover:underline" onClick={(e) => e.stopPropagation()}>
+            Xem
+          </a>
+        ) : (
+          '—'
+        ),
+    },
     ...(canManage
       ? [
           {
@@ -124,6 +141,8 @@ function ContractDetailModal({ contract: c, canManage, onClose, onEdit }: { cont
       <DescList>
         <DescItem full label="Tên hợp đồng" value={c.title} />
         <DescItem label="Loại hợp đồng" value={c.contract_type} />
+        <DescItem label="Số hợp đồng" value={c.contract_no} />
+        <DescItem label="Ngày ký" value={c.signed_date ? formatDate(c.signed_date) : null} />
         <DescItem label="Giá trị" value={formatMoney(c.value_amount, c.currency ?? 'VND')} />
         <DescItem label="Đơn vị phối hợp" value={c.partner_org} />
         <DescItem label="Bắt đầu" value={c.start_date ? formatDate(c.start_date) : '—'} />
@@ -140,6 +159,10 @@ function ContractModal({ contract, onClose, onSaved }: { contract?: ResearchCont
   const editing = !!contract;
   const [title, setTitle] = useState(contract?.title ?? '');
   const [contractType, setContractType] = useState(contract?.contract_type ?? '');
+  // Excel gộp số hiệu và ngày ký vào một ô — form tách hai để lọc/đối chiếu được.
+  const [contractNo, setContractNo] = useState(contract?.contract_no ?? '');
+  const [signedDate, setSignedDate] = useState(contract?.signed_date ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(contract?.evidence_url ?? '');
   const [value, setValue] = useState(contract?.value_amount ?? '');
   const [partner, setPartner] = useState(contract?.partner_org ?? '');
   const [startDate, setStartDate] = useState(contract?.start_date ?? '');
@@ -154,11 +177,14 @@ function ContractModal({ contract, onClose, onSaved }: { contract?: ResearchCont
       const body = {
         title: title.trim(),
         contract_type: contractType || null,
+        contract_no: contractNo.trim() || null,
+        signed_date: signedDate || null,
         value_amount: value || null,
         partner_org: partner || null,
         start_date: startDate || null,
         end_date: endDate || null,
         academic_year: academicYear || null,
+        evidence_url: evidenceUrl.trim() || null,
       };
       if (editing) await activityApi.updateContract(contract!.id, body);
       else await activityApi.createContract(body);
@@ -179,12 +205,22 @@ function ContractModal({ contract, onClose, onSaved }: { contract?: ResearchCont
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Tên hợp đồng" required className="md:col-span-2"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-        <Field label="Loại hợp đồng"><Input value={contractType} onChange={(e) => setContractType(e.target.value)} placeholder="Nghiên cứu / Tư vấn KHCN…" /></Field>
+        <Field label="Loại hợp đồng">
+          <Select value={contractType} onChange={(e) => setContractType(e.target.value)}>
+            <option value="">— Chọn —</option>
+            {CONTRACT_TYPES.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Số hợp đồng"><Input value={contractNo} onChange={(e) => setContractNo(e.target.value)} placeholder="PUR.2024.00618" /></Field>
+        <Field label="Ngày ký"><Input type="date" value={signedDate ?? ''} onChange={(e) => setSignedDate(e.target.value)} /></Field>
         <Field label="Giá trị (VND)"><Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="110000000" inputMode="decimal" /></Field>
         <Field label="Đơn vị phối hợp"><Input value={partner} onChange={(e) => setPartner(e.target.value)} /></Field>
         <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
         <Field label="Bắt đầu"><Input type="date" value={startDate ?? ''} onChange={(e) => setStartDate(e.target.value)} /></Field>
         <Field label="Kết thúc"><Input type="date" value={endDate ?? ''} onChange={(e) => setEndDate(e.target.value)} /></Field>
+        <Field label="Link minh chứng" className="md:col-span-2"><Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" /></Field>
       </div>
     </Modal>
   );

@@ -3,6 +3,10 @@
  * Số thập phân (qty_base, balance_after, unit_price, stock_value...) là STRING — không parseFloat.
  */
 
+// FormSubmission dùng chung vòng đời duyệt với LabRegistration (chờ/duyệt/từ chối).
+// `export *` không đưa tên vào phạm vi của chính tệp này nên phải import tường minh.
+import type { RegistrationStatus } from './research';
+
 // ── Roles & Auth ────────────────────────────────────────────────
 export type Role =
   | 'admin'
@@ -410,6 +414,7 @@ export interface CustomerInfoRequest {
 
 // ── Customers (M7) — tách sang ./customer, re-export để giữ '@/types' ─────
 export * from './customer';
+export * from './research';
 
 // ── Notifications (M7) ──────────────────────────────────────────
 export interface Notification {
@@ -822,129 +827,7 @@ export interface CompetenceSummary {
   research_summary: { projects: number; publications: number; patents: number; mentorships: number };
 }
 
-// ── M4: NCKH ────────────────────────────────────────────────────
-export interface CatalogItem {
-  code: string;
-  label: string;
-}
-
-/** Thành viên đề tài — HOẶC user_id (nội bộ) HOẶC external_name (ngoài hệ thống). */
-export interface ProjectMember {
-  user_id: string | null;
-  external_name?: string | null;
-  name?: string | null;
-  role_in_project: string | null;
-}
-
-export interface ResearchProject {
-  id: string;
-  code?: string | null;
-  title: string;
-  level: string;
-  lead_user_id: string | null;
-  lead_user_name: string | null;
-  lead_external_name?: string | null;
-  department_id: string | null;
-  department_name: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  academic_year?: string | null;
-  budget_amount?: string | null;
-  budget_currency?: string | null;
-  is_transferred?: boolean;
-  transfer_product?: string | null;
-  status: string;
-  member_count?: number;
-  members?: ProjectMember[];
-}
-
-export type PublicationType = 'paper' | 'patent' | 'conference';
-export type PubScope = 'domestic' | 'international';
-export type AuthorRole = 'main' | 'co' | 'corresponding';
-
-export const PUBLICATION_TYPE_LABELS: Record<PublicationType, string> = {
-  paper: 'Bài báo',
-  patent: 'Sáng chế / GPHI',
-  conference: 'Báo cáo hội nghị/kỷ yếu',
-};
-
-export const AUTHOR_ROLE_LABELS: Record<AuthorRole, string> = {
-  main: 'Tác giả',
-  co: 'Đồng tác giả',
-  corresponding: 'Tác giả liên hệ',
-};
-
-/** Tác giả — HOẶC user_id (nội bộ) HOẶC external_name (ngoài hệ thống). */
-export interface PublicationAuthor {
-  user_id: string | null;
-  external_name?: string | null;
-  name?: string | null;
-  author_order: number;
-  is_corresponding: boolean;
-  author_role?: AuthorRole | null;
-}
-
-export interface Publication {
-  id: string;
-  type: PublicationType;
-  title: string;
-  journal: string | null;
-  year: number;
-  doi: string | null;
-  index_code: string | null;
-  category: string | null;
-  pub_scope?: PubScope | null;
-  is_scie?: boolean;
-  is_ssci?: boolean;
-  is_scopus?: boolean;
-  is_aci?: boolean;
-  academic_year?: string | null;
-  department_id: string | null;
-  department_name: string | null;
-  patent_no: string | null;
-  issuing_authority: string | null;
-  application_no?: string | null;
-  application_date?: string | null;
-  granted_date?: string | null;
-  patent_holder?: string | null;
-  authors: PublicationAuthor[];
-}
-
-export interface StudentMentorship {
-  id: string;
-  mentor_id: string;
-  mentor_name: string | null;
-  student_name: string;
-  topic: string | null;
-  year: number;
-  type: string;
-  department_id: string | null;
-  department_name?: string | null;
-}
-
-export type RegistrationStatus = 'pending' | 'approved' | 'rejected';
-
-export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
-  pending: 'Chờ duyệt',
-  approved: 'Đã duyệt',
-  rejected: 'Đã từ chối',
-};
-
-export interface LabRegistration {
-  id: string;
-  student_name: string;
-  mentor_id: string;
-  mentor_name: string | null;
-  registered_from: string;
-  registered_to: string | null;
-  purpose: string;
-  status: RegistrationStatus;
-  department_id: string | null;
-  decided_by_user_id: string | null;
-  decided_at: string | null;
-  created_at: string;
-}
-
+// ── M19: Thẻ vào PTN ────────────────────────────────────────────
 /** Thẻ vào PTN (sinh viên) — danh sách quản trị do Văn phòng quản lý, không qua duyệt. */
 export interface LabAccessCard {
   id: string;
@@ -960,102 +843,6 @@ export interface LabAccessCard {
   note: string | null;
   created_at: string;
   updated_at: string;
-}
-
-export interface TeachingCourse {
-  id: string;
-  user_id: string | null;
-  user_name?: string | null;
-  lecturer_external_name?: string | null;
-  course_name: string;
-  semester: string;
-  year: number;
-  academic_year?: string | null;
-  hk1_theory_hours?: number | null;
-  hk1_practice_hours?: number | null;
-  hk2_theory_hours?: number | null;
-  hk2_practice_hours?: number | null;
-  note?: string | null;
-  department_id?: string | null;
-  department_name?: string | null;
-}
-
-// ── Menu mới (migration m23) ─────────────────────────────────────
-export interface ResearchContract {
-  id: string;
-  title: string;
-  contract_type: string | null;
-  value_amount: string | null;
-  currency: string | null;
-  partner_org: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  academic_year: string | null;
-  department_id: string | null;
-  department_name?: string | null;
-  created_at?: string;
-}
-
-export type StaffActivityKind = 'dang' | 'cong_doan' | 'vilas' | 'khac';
-
-export const STAFF_ACTIVITY_KIND_LABELS: Record<StaffActivityKind, string> = {
-  dang: 'Công tác Đảng',
-  cong_doan: 'Công tác Công đoàn',
-  vilas: 'Công tác VILAS',
-  khac: 'Khác',
-};
-
-export interface StaffActivity {
-  id: string;
-  kind: StaffActivityKind;
-  content: string;
-  performed_at: string | null;
-  academic_year: string | null;
-  performer_user_id: string | null;
-  performer_name?: string | null;
-  department_id: string | null;
-  created_at?: string;
-}
-
-export interface TrainingCertificate {
-  id: string;
-  recipient_name: string;
-  certificate_no: string | null;
-  course_name: string | null;
-  issued_date: string | null;
-  note: string | null;
-  academic_year: string | null;
-  host_user_id: string | null;
-  host_name?: string | null;
-  department_id: string | null;
-  created_at?: string;
-}
-
-export interface CommunityService {
-  id: string;
-  content: string;
-  performed_at: string;
-  host: string | null;
-  performer_user_id: string;
-  performer_name?: string | null;
-  department_id?: string | null;
-  department_name?: string | null;
-}
-
-export interface AchievementStats {
-  group_by: 'individual' | 'department';
-  user_id?: string | null;
-  user_name?: string | null;
-  department_id?: string | null;
-  department_name?: string | null;
-  period: { from: string | null; to: string | null };
-  projects: { total: number; by_level: Record<string, number> };
-  publications: { total: number; by_index: Record<string, number> };
-  patents: number;
-  mentorships: number;
-  lab_registrations_approved: number;
-  teaching_courses: number;
-  community_services: number;
 }
 
 // ── M3: Quản lý Tài liệu (Document Control) ─────────────────────
@@ -1941,7 +1728,16 @@ export interface ActivityReport {
   created_at: string;
   counts?: ActivityReportCounts;
   // chi tiết (khi GET /{id})
-  teaching?: Array<{ id: string; course_name: string; hk1_theory_hours: number | null; hk1_practice_hours: number | null; hk2_theory_hours: number | null; hk2_practice_hours: number | null }>;
+  teaching?: Array<{
+    id: string;
+    course_name: string;
+    hk1_theory_hours: number | null;
+    hk1_practice_hours: number | null;
+    hk2_theory_hours: number | null;
+    hk2_practice_hours: number | null;
+    hk3_theory_hours: number | null;
+    hk3_practice_hours: number | null;
+  }>;
   projects?: Array<{ id: string; title: string; level: string | null; status: string; budget_amount: string | null }>;
   publications?: Array<{ id: string; title: string; type: string; pub_scope: string | null; journal: string | null; year: number | null; is_scie: boolean; is_scopus: boolean }>;
   contracts?: Array<{ id: string; title: string; contract_type: string | null; value_amount: string | null }>;

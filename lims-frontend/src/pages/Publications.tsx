@@ -25,7 +25,7 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
 import { formatDate } from '@/lib/format';
-import type { Publication, PublicationType } from '@/types';
+import type { PatentKind, Publication, PublicationType } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
 
@@ -276,9 +276,32 @@ function PublicationDetailModal({
             <DescItem label="Ngày nộp đơn" value={p.application_date ? formatDate(p.application_date) : null} />
             <DescItem label="Ngày cấp bằng" value={p.granted_date ? formatDate(p.granted_date) : null} />
             <DescItem label="Chủ bằng" value={p.patent_holder} />
+            <DescItem
+              label="Loại văn bằng"
+              value={
+                p.patent_kind === 'invention'
+                  ? 'Sáng chế'
+                  : p.patent_kind === 'utility_solution'
+                    ? 'Giải pháp hữu ích'
+                    : p.patent_kind === 'plant_variety'
+                      ? 'Giống cây trồng'
+                      : null
+              }
+            />
           </>
         )}
         <DescItem label="Năm học" value={p.academic_year} />
+        <DescItem
+          full
+          label="Link minh chứng"
+          value={
+            p.evidence_url ? (
+              <a href={p.evidence_url} target="_blank" rel="noreferrer" className="break-all text-berry hover:underline">
+                {p.evidence_url}
+              </a>
+            ) : null
+          }
+        />
         <DescItem
           full
           label={`Tác giả (${authors.length})`}
@@ -323,6 +346,21 @@ function PublicationModal({
   const [indexCode, setIndexCode] = useState(publication?.index_code ?? '');
   const [patentNo, setPatentNo] = useState(publication?.patent_no ?? '');
   const [issuingAuthority, setIssuingAuthority] = useState(publication?.issuing_authority ?? '');
+  // Bảng sáng chế của Excel chia ba mục I/II/III bằng dòng tiêu đề, không phải cột.
+  const [patentKind, setPatentKind] = useState<string>(publication?.patent_kind ?? '');
+  const [applicationNo, setApplicationNo] = useState(publication?.application_no ?? '');
+  const [applicationDate, setApplicationDate] = useState(publication?.application_date ?? '');
+  const [grantedDate, setGrantedDate] = useState(publication?.granted_date ?? '');
+  const [patentHolder, setPatentHolder] = useState(publication?.patent_holder ?? '');
+  // Hai bảng công bố (trong nước / quốc tế) phân biệt bằng pub_scope; bốn cờ chỉ mục
+  // là bốn cột riêng của bảng quốc tế.
+  const [pubScope, setPubScope] = useState<string>(publication?.pub_scope ?? '');
+  const [isScie, setIsScie] = useState(publication?.is_scie ?? false);
+  const [isSsci, setIsSsci] = useState(publication?.is_ssci ?? false);
+  const [isScopus, setIsScopus] = useState(publication?.is_scopus ?? false);
+  const [isAci, setIsAci] = useState(publication?.is_aci ?? false);
+  const [academicYear, setAcademicYear] = useState(publication?.academic_year ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(publication?.evidence_url ?? '');
   const [departmentId, setDepartmentId] = useState(publication?.department_id ?? '');
   const [authors, setAuthors] = useState<ContributorRow[]>(
     publication?.authors?.length
@@ -344,42 +382,54 @@ function PublicationModal({
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
   const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 
+  const isPatent = type === 'patent';
+  // Bài báo VÀ báo cáo hội nghị đều cần tên nơi đăng (tạp chí / kỷ yếu) — trước đây
+  // nhánh conference bị ép journal = null nên mất trắng cột "Tên kỷ yếu/hội nghị".
+  const needsVenue = type === 'paper' || type === 'conference';
+
   async function submit() {
     if (!title.trim()) return toast.error('Nhập tiêu đề');
-    if (type === 'paper' && !journal.trim()) return toast.error('Bài báo cần tên tạp chí/hội nghị');
+    if (needsVenue && !journal.trim()) {
+      return toast.error(type === 'paper' ? 'Bài báo cần tên tạp chí' : 'Báo cáo cần tên kỷ yếu/hội nghị');
+    }
     if (type === 'paper' && !indexCode) return toast.error('Bài báo cần chọn chỉ số');
-    if (type === 'patent' && !patentNo.trim()) return toast.error('Sáng chế cần số bằng');
+    if (isPatent && !patentNo.trim()) return toast.error('Sáng chế cần số bằng');
+    if (isPatent && !issuingAuthority.trim()) return toast.error('Sáng chế cần cơ quan cấp văn bằng');
     const y = Number(year);
     if (!Number.isInteger(y)) return toast.error('Năm không hợp lệ');
     const authorErr = validateContributors(authors);
     if (authorErr) return toast.error(authorErr);
+
+    const shared = {
+      title: title.trim(),
+      journal: needsVenue ? journal.trim() || null : null,
+      year: y,
+      doi: doi.trim() || null,
+      index_code: type === 'paper' ? indexCode || null : null,
+      pub_scope: isPatent ? null : (pubScope || null),
+      is_scie: isPatent ? false : isScie,
+      is_ssci: isPatent ? false : isSsci,
+      is_scopus: isPatent ? false : isScopus,
+      is_aci: isPatent ? false : isAci,
+      academic_year: academicYear.trim() || null,
+      patent_no: isPatent ? patentNo.trim() || null : null,
+      issuing_authority: isPatent ? issuingAuthority.trim() || null : null,
+      application_no: isPatent ? applicationNo.trim() || null : null,
+      application_date: isPatent ? applicationDate || null : null,
+      granted_date: isPatent ? grantedDate || null : null,
+      patent_holder: isPatent ? patentHolder.trim() || null : null,
+      patent_kind: isPatent ? ((patentKind || null) as PatentKind | null) : null,
+      evidence_url: evidenceUrl.trim() || null,
+      department_id: departmentId || null,
+    };
+
     setSubmitting(true);
     try {
       if (editing) {
-        await researchApi.updatePublication(publication!.id, {
-          title: title.trim(),
-          journal: type === 'paper' ? journal || null : null,
-          year: y,
-          doi: doi || null,
-          index_code: type === 'paper' ? indexCode || null : null,
-          patent_no: type === 'patent' ? patentNo || null : null,
-          issuing_authority: type === 'patent' ? issuingAuthority || null : null,
-          department_id: departmentId || null,
-        });
+        await researchApi.updatePublication(publication!.id, shared);
         await researchApi.replacePublicationAuthors(publication!.id, toAuthors(authors));
       } else {
-        await researchApi.createPublication({
-          type,
-          title: title.trim(),
-          journal: type === 'paper' ? journal || null : null,
-          year: y,
-          doi: doi || null,
-          index_code: type === 'paper' ? indexCode || null : null,
-          patent_no: type === 'patent' ? patentNo || null : null,
-          issuing_authority: type === 'patent' ? issuingAuthority || null : null,
-          department_id: departmentId || null,
-          authors: toAuthors(authors),
-        });
+        await researchApi.createPublication({ ...shared, type, authors: toAuthors(authors) });
       }
       onSaved();
     } catch (err) {
@@ -410,7 +460,8 @@ function PublicationModal({
         <Field label="Loại" required>
           <Select value={type} onChange={(e) => setType(e.target.value as PublicationType)} disabled={editing}>
             <option value="paper">Bài báo</option>
-            <option value="patent">Sáng chế / GPHI</option>
+            <option value="conference">Báo cáo hội nghị / kỷ yếu</option>
+            <option value="patent">Sáng chế / GPHI / Giống cây trồng</option>
           </Select>
         </Field>
         <Field label="Năm" required>
@@ -420,35 +471,106 @@ function PublicationModal({
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
 
-        {type === 'paper' ? (
+        {needsVenue ? (
           <>
-            <Field label="Tạp chí / Hội nghị" required>
+            <Field label={type === 'paper' ? 'Tên tạp chí' : 'Tên kỷ yếu / hội nghị'} required>
               <Input value={journal} onChange={(e) => setJournal(e.target.value)} />
             </Field>
-            <Field label="Chỉ số" required>
-              <Select value={indexCode} onChange={(e) => setIndexCode(e.target.value)}>
-                <option value="">— Chọn —</option>
-                {(indexes ?? []).map((i) => (
-                  <option key={i.code} value={i.code}>
-                    {i.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="DOI" className="md:col-span-2">
+            {type === 'paper' ? (
+              <Field label="Chỉ số" required>
+                <Select value={indexCode} onChange={(e) => setIndexCode(e.target.value)}>
+                  <option value="">— Chọn —</option>
+                  {(indexes ?? []).map((i) => (
+                    <option key={i.code} value={i.code}>
+                      {i.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : (
+              <Field label="Phạm vi">
+                <Select value={pubScope} onChange={(e) => setPubScope(e.target.value)}>
+                  <option value="">— Chưa phân loại —</option>
+                  <option value="domestic">Trong nước</option>
+                  <option value="international">Quốc tế</option>
+                </Select>
+              </Field>
+            )}
+
+            {type === 'paper' && (
+              <Field label="Phạm vi" hint="Excel tách hai bảng: trong nước và quốc tế">
+                <Select value={pubScope} onChange={(e) => setPubScope(e.target.value)}>
+                  <option value="">— Chưa phân loại —</option>
+                  <option value="domestic">Trong nước</option>
+                  <option value="international">Quốc tế</option>
+                </Select>
+              </Field>
+            )}
+            <Field label="DOI" className={type === 'paper' ? undefined : 'md:col-span-2'}>
               <Input value={doi} onChange={(e) => setDoi(e.target.value)} placeholder="10.1000/abc123" />
             </Field>
+
+            <div className="md:col-span-2">
+              <p className="mb-2 text-sm font-medium text-ink">Chỉ mục quốc tế</p>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {(
+                  [
+                    ['SCIE', isScie, setIsScie],
+                    ['SSCI', isSsci, setIsSsci],
+                    ['Scopus', isScopus, setIsScopus],
+                    ['ACI', isAci, setIsAci],
+                  ] as Array<[string, boolean, (v: boolean) => void]>
+                ).map(([label, checked, set]) => (
+                  <label key={label} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-blueberry"
+                      checked={checked}
+                      onChange={(e) => set(e.target.checked)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
           </>
         ) : (
           <>
+            <Field label="Loại văn bằng" required>
+              <Select value={patentKind} onChange={(e) => setPatentKind(e.target.value)}>
+                <option value="">— Chọn —</option>
+                <option value="invention">Sáng chế</option>
+                <option value="utility_solution">Giải pháp hữu ích</option>
+                <option value="plant_variety">Giống cây trồng</option>
+              </Select>
+            </Field>
             <Field label="Số bằng" required>
               <Input value={patentNo} onChange={(e) => setPatentNo(e.target.value)} />
             </Field>
-            <Field label="Cơ quan cấp">
+            <Field label="Cơ quan cấp văn bằng" required>
               <Input value={issuingAuthority} onChange={(e) => setIssuingAuthority(e.target.value)} />
+            </Field>
+            <Field label="Chủ bằng">
+              <Input value={patentHolder} onChange={(e) => setPatentHolder(e.target.value)} />
+            </Field>
+            <Field label="Số đơn">
+              <Input value={applicationNo} onChange={(e) => setApplicationNo(e.target.value)} />
+            </Field>
+            <Field label="Ngày nộp đơn">
+              <Input type="date" value={applicationDate ?? ''} onChange={(e) => setApplicationDate(e.target.value)} />
+            </Field>
+            <Field label="Ngày cấp văn bằng">
+              <Input type="date" value={grantedDate ?? ''} onChange={(e) => setGrantedDate(e.target.value)} />
             </Field>
           </>
         )}
+
+        <Field label="Năm học">
+          <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" />
+        </Field>
+        <Field label="Link minh chứng">
+          <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
+        </Field>
 
         <Field label="Phòng ban" className="md:col-span-2">
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>

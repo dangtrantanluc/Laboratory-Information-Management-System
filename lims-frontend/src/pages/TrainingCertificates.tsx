@@ -7,16 +7,26 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DescList, DescItem } from '@/components/ui/DescList';
-import { Field, Input, Textarea } from '@/components/ui/Field';
+import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
 import { formatDate } from '@/lib/format';
-import type { TrainingCertificate } from '@/types';
+import type { CertKind, TrainingCertificate } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
 
+
+/** Sheet PHỤC VỤ CỘNG ĐỒNG có hai danh sách GCN cùng cấu trúc, tách bằng tiêu đề. */
+const CERT_KINDS = [
+  { value: 'short_course', label: 'Lớp ngắn hạn' },
+  { value: 'lab_safety', label: 'Tập huấn an toàn PTN & PCCC' },
+] as const;
+
+function certKindLabel(v?: string | null): string {
+  return CERT_KINDS.find((k) => k.value === v)?.label ?? '—';
+}
 
 export function TrainingCertificates() {
   const { user } = useAuth();
@@ -49,6 +59,7 @@ export function TrainingCertificates() {
     { key: 'recipient', header: 'Người được cấp', render: (c) => <span className="font-medium text-ink">{c.recipient_name}</span> },
     { key: 'cert_no', priority: 1, header: 'Số GCN', render: (c) => c.certificate_no ?? '—' },
     { key: 'course', header: 'Lớp học / khóa', render: (c) => c.course_name ?? '—' },
+    { key: 'kind', header: 'Loại danh sách', render: (c) => certKindLabel(c.cert_kind) },
     { key: 'issued', priority: 1, header: 'Ngày cấp', sortValue: (c) => c.issued_date ?? '', render: (c) => (c.issued_date ? formatDate(c.issued_date) : '—') },
     { key: 'year', header: 'Năm học', render: (c) => c.academic_year ?? '—' },
     ...(canManage
@@ -104,6 +115,7 @@ function CertModal({ cert, onClose, onSaved }: { cert?: TrainingCertificate; onC
   const editing = !!cert;
   const [recipient, setRecipient] = useState(cert?.recipient_name ?? '');
   const [certNo, setCertNo] = useState(cert?.certificate_no ?? '');
+  const [certKind, setCertKind] = useState<string>(cert?.cert_kind ?? '');
   const [course, setCourse] = useState(cert?.course_name ?? '');
   const [issuedDate, setIssuedDate] = useState(cert?.issued_date ?? '');
   const [academicYear, setAcademicYear] = useState(cert?.academic_year ?? '');
@@ -114,7 +126,15 @@ function CertModal({ cert, onClose, onSaved }: { cert?: TrainingCertificate; onC
     if (!recipient.trim()) return toast.error('Nhập tên người được cấp');
     setSubmitting(true);
     try {
-      const body = { recipient_name: recipient.trim(), certificate_no: certNo || null, course_name: course || null, issued_date: issuedDate || null, academic_year: academicYear || null, note: note || null };
+      const body = {
+        recipient_name: recipient.trim(),
+        certificate_no: certNo || null,
+        cert_kind: (certKind || null) as CertKind | null,
+        course_name: course || null,
+        issued_date: issuedDate || null,
+        academic_year: academicYear || null,
+        note: note || null,
+      };
       if (editing) await activityApi.updateCertificate(cert!.id, body);
       else await activityApi.createCertificate(body);
       onSaved();
@@ -130,6 +150,14 @@ function CertModal({ cert, onClose, onSaved }: { cert?: TrainingCertificate; onC
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Người được cấp GCN" required className="md:col-span-2"><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
         <Field label="Số GCN"><Input value={certNo} onChange={(e) => setCertNo(e.target.value)} /></Field>
+        <Field label="Loại danh sách">
+          <Select value={certKind} onChange={(e) => setCertKind(e.target.value)}>
+            <option value="">— Chưa phân loại —</option>
+            {CERT_KINDS.map((k) => (
+              <option key={k.value} value={k.value}>{k.label}</option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Ngày cấp"><Input type="date" value={issuedDate ?? ''} onChange={(e) => setIssuedDate(e.target.value)} /></Field>
         <Field label="Lớp học / khóa"><Input value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
         <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>

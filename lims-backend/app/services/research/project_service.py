@@ -13,11 +13,7 @@ from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    ProjectMember,
-    ResearchProject,
-    ResearchProjectLevel,
-)
+from app.models.research import ProjectMember, ResearchProject, ResearchProjectLevel
 from app.services import audit_service, hr_common as hc
 from app.services.research._shared import _assert_staff_in_members, _validate_members
 
@@ -46,6 +42,7 @@ def _project_dict(db: Session, p: ResearchProject, *, with_members: bool) -> dic
         "budget_currency": p.budget_currency,
         "is_transferred": p.is_transferred,
         "transfer_product": p.transfer_product,
+        "evidence_url": p.evidence_url,
         "status": p.status,
         "member_count": member_count,
         "created_at": p.created_at,
@@ -140,12 +137,19 @@ def create_project(
     level = payload.get("level")
     if not level or db.get(ResearchProjectLevel, level) is None:
         raise AppException(ErrorCode.INVALID_PROJECT_LEVEL, "Cấp đề tài ngoài danh mục", 400)
+    # Chủ nhiệm: nội bộ HOẶC ngoài hệ thống — XOR, khớp CHECK ck_rp_lead_present.
     lead_user_id = payload.get("lead_user_id")
-    if not lead_user_id:
-        raise AppException(ErrorCode.LEAD_REQUIRED, "Thiếu chủ nhiệm (lead_user_id)", 400)
+    lead_external_name = (payload.get("lead_external_name") or "").strip() or None
+    if bool(lead_user_id) == bool(lead_external_name):
+        raise AppException(
+            ErrorCode.LEAD_REQUIRED,
+            "Chủ nhiệm phải là người nội bộ (lead_user_id) HOẶC người ngoài hệ thống "
+            "(lead_external_name), không cả hai và không để trống",
+            400,
+        )
     members = payload.get("members") or []
     internal_users = _validate_members(
-        db, members, allow_external=False, lead_user_id=lead_user_id
+        db, members, allow_external=True, lead_user_id=lead_user_id
     )
     _assert_staff_in_members(user, internal_users, "thành viên")
 
@@ -155,7 +159,8 @@ def create_project(
         raise AppException(ErrorCode.INVALID_DATE_ORDER, "end_date < start_date", 422)
 
     department_id = payload.get("department_id")
-    if department_id is None:
+    if department_id is None and lead_user_id is not None:
+        # Chủ nhiệm ngoài hệ thống không suy ra được phòng — để NULL, người dùng tự chọn.
         department_id = hc.user_dept(db, lead_user_id)
 
     budget = hc.parse_decimal(payload.get("budget_amount"), field="budget_amount", positive=False)
@@ -164,6 +169,7 @@ def create_project(
         title=str(title).strip(),
         level=level,
         lead_user_id=lead_user_id,
+        lead_external_name=lead_external_name,
         department_id=department_id,
         start_date=start_date,
         end_date=end_date,
@@ -172,6 +178,7 @@ def create_project(
         budget_currency=payload.get("budget_currency") or "VND",
         is_transferred=bool(payload.get("is_transferred")),
         transfer_product=payload.get("transfer_product"),
+        evidence_url=payload.get("evidence_url"),
         status=payload.get("status") or "ongoing",
         created_by=user.id,
         updated_by=user.id,
@@ -182,7 +189,8 @@ def create_project(
         db.add(
             ProjectMember(
                 project_id=p.id,
-                user_id=m["user_id"],
+                user_id=m.get("user_id"),
+                external_name=m.get("external_name"),
                 role_in_project=m.get("role_in_project") or "member",
             )
         )
@@ -251,6 +259,22 @@ def update_project(
             raise AppException(
                 ErrorCode.LEAD_REQUIRED, "Chủ nhiệm mới phải là thành viên đề tài", 400
             )
+    # Trạng thái chủ nhiệm SAU khi áp changes phải giữ XOR nội bộ/ngoài hệ thống.
+    # Kiểm trên giá trị dự kiến (không phải giá trị hiện tại) vì PATCH có thể đổi một
+    # trong hai vế và làm cả hai cùng NULL — DB chỉ chặn được trường hợp đó, không
+    # chặn được trường hợp cả hai cùng có giá trị.
+    next_lead_id = changes.get("lead_user_id", p.lead_user_id)
+    next_lead_ext = changes.get("lead_external_name", p.lead_external_name)
+    if isinstance(next_lead_ext, str):
+        next_lead_ext = next_lead_ext.strip() or None
+        changes["lead_external_name"] = next_lead_ext
+    if bool(next_lead_id) == bool(next_lead_ext):
+        raise AppException(
+            ErrorCode.LEAD_REQUIRED,
+            "Chủ nhiệm phải là người nội bộ HOẶC người ngoài hệ thống, không cả hai "
+            "và không để trống",
+            400,
+        )
     new_start = changes.get("start_date", p.start_date)
     new_end = changes.get("end_date", p.end_date)
     if new_start and new_end and new_end < new_start:
@@ -260,13 +284,24 @@ def update_project(
         "title",
         "level",
         "lead_user_id",
+        "lead_external_name",
         "department_id",
         "start_date",
         "end_date",
+        "academic_year",
+        "budget_currency",
+        "is_transferred",
+        "transfer_product",
+        "evidence_url",
         "status",
     ):
         if field in changes:
             setattr(p, field, changes[field])
+    # budget_amount đi đường riêng: API nhận string-decimal để không mất chính xác float.
+    if "budget_amount" in changes:
+        p.budget_amount = hc.parse_decimal(
+            changes["budget_amount"], field="budget_amount", positive=False
+        )
     p.updated_by = user.id
     p.updated_at = func.now()
     db.flush()
@@ -321,7 +356,7 @@ def replace_project_members(
     p = _get_project_or_404(db, project_id)
     _assert_project_scope(db, user, p)
     internal_users = _validate_members(
-        db, members, allow_external=False, lead_user_id=p.lead_user_id
+        db, members, allow_external=True, lead_user_id=p.lead_user_id
     )
     _assert_staff_in_members(user, internal_users, "thành viên")
     db.execute(
@@ -331,7 +366,8 @@ def replace_project_members(
         db.add(
             ProjectMember(
                 project_id=p.id,
-                user_id=m["user_id"],
+                user_id=m.get("user_id"),
+                external_name=m.get("external_name"),
                 role_in_project=m.get("role_in_project") or "member",
             )
         )

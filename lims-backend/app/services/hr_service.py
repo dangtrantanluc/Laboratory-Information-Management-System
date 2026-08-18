@@ -17,12 +17,7 @@ from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    Competence,
-    ContractType,
-    HrProfile,
-    SalaryHistory,
-)
+from app.models.hr import Competence, ContractType, HrProfile, SalaryHistory
 from app.models.user import User
 from app.services import audit_service, hr_common as hc
 

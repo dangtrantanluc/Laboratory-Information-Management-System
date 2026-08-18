@@ -2,19 +2,41 @@ import { useState } from 'react';
 import { Presentation, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Field, Input, Select } from '@/components/ui/Field';
+import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
-import type { TeachingCourse } from '@/types';
+import type { TeachingCourse, TrainingLevel } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+
+/** Sheet ĐÀO TẠO tách hai bảng cùng cấu trúc cột — nhãn hiển thị của training_level. */
+const TRAINING_LEVELS: Array<{ value: TrainingLevel; label: string }> = [
+  { value: 'undergraduate', label: 'Đại học' },
+  { value: 'postgraduate', label: 'Sau đại học' },
+];
+const SEMESTERS = ['HK1', 'HK2', 'HK3'];
+
+function levelLabel(v?: TrainingLevel | null): string {
+  return TRAINING_LEVELS.find((l) => l.value === v)?.label ?? '—';
+}
+
+/** Tổng số tiết theo loại — cộng cả ba học kỳ (Excel để trống ô nghĩa là 0 tiết). */
+function totalHours(c: TeachingCourse, kind: 'theory' | 'practice'): number {
+  const k = kind === 'theory' ? 'theory' : 'practice';
+  return (
+    (c[`hk1_${k}_hours` as const] ?? 0) +
+    (c[`hk2_${k}_hours` as const] ?? 0) +
+    (c[`hk3_${k}_hours` as const] ?? 0)
+  );
+}
 
 export function TeachingCourses() {
   const { user } = useAuth();
@@ -45,17 +67,38 @@ export function TeachingCourses() {
   const columns: Column<TeachingCourse>[] = [
     { key: 'course', header: 'Môn học', sortValue: (c) => c.course_name, render: (c) => <span className="font-semibold text-ink">{c.course_name}</span> },
     { key: 'user', header: 'Người phụ trách', render: (c) => c.user_name ?? '—' },
-    { key: 'semester', header: 'Học kỳ', render: (c) => c.semester },
+    { key: 'level', header: 'Bậc', render: (c) => (c.training_level ? <Badge tone="info">{levelLabel(c.training_level)}</Badge> : '—') },
     { key: 'year', header: 'Năm', align: 'center', sortValue: (c) => c.year, render: (c) => c.year },
     {
+      // Excel có 3 cặp cột LT/TH theo học kỳ; bảng danh sách hiện tổng, chi tiết ở modal.
       key: 'hours',
-      header: 'Số tiết (LT/TH)',
+      header: 'Tổng tiết (LT/TH)',
       align: 'center',
+      sortValue: (c) => totalHours(c, 'theory') + totalHours(c, 'practice'),
       render: (c) => {
-        const th = (c.hk1_theory_hours ?? 0) + (c.hk2_theory_hours ?? 0);
-        const pr = (c.hk1_practice_hours ?? 0) + (c.hk2_practice_hours ?? 0);
-        return th || pr ? `${th} / ${pr}` : '—';
+        const th = totalHours(c, 'theory');
+        const pr = totalHours(c, 'practice');
+        return th || pr ? <span className="tabular-nums">{th} / {pr}</span> : '—';
       },
+    },
+    {
+      key: 'evidence',
+      header: 'Minh chứng',
+      align: 'center',
+      render: (c) =>
+        c.evidence_url ? (
+          <a
+            href={c.evidence_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-berry hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Xem
+          </a>
+        ) : (
+          '—'
+        ),
     },
     ...(canManage
       ? [
@@ -149,33 +192,90 @@ function TeachingModal({
   const { user } = useAuth();
   const toast = useToast();
   const editing = !!course;
+
+  // Giảng viên: nội bộ HOẶC thỉnh giảng ngoài hệ thống (XOR, khớp ck_tc_lecturer_xor).
+  const [mode, setMode] = useState<'internal' | 'external'>(
+    course && !course.user_id ? 'external' : 'internal',
+  );
   const [userId, setUserId] = useState(course?.user_id ?? user?.id ?? '');
+  const [externalName, setExternalName] = useState(course?.lecturer_external_name ?? '');
+
   const [courseName, setCourseName] = useState(course?.course_name ?? '');
+  const [trainingLevel, setTrainingLevel] = useState<string>(course?.training_level ?? '');
   const [semester, setSemester] = useState(course?.semester ?? '');
   const [year, setYear] = useState(String(course?.year ?? new Date().getFullYear()));
+  const [academicYear, setAcademicYear] = useState(course?.academic_year ?? '');
+  // Sáu ô số tiết: 3 học kỳ × (lý thuyết, thực hành) — đúng cấu trúc sheet ĐÀO TẠO.
+  const [hours, setHours] = useState<Record<string, string>>({
+    hk1_theory_hours: course?.hk1_theory_hours?.toString() ?? '',
+    hk1_practice_hours: course?.hk1_practice_hours?.toString() ?? '',
+    hk2_theory_hours: course?.hk2_theory_hours?.toString() ?? '',
+    hk2_practice_hours: course?.hk2_practice_hours?.toString() ?? '',
+    hk3_theory_hours: course?.hk3_theory_hours?.toString() ?? '',
+    hk3_practice_hours: course?.hk3_practice_hours?.toString() ?? '',
+  });
+  const [note, setNote] = useState(course?.note ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(course?.evidence_url ?? '');
   const [submitting, setSubmitting] = useState(false);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
 
+  function setHour(key: string, value: string) {
+    setHours((prev) => ({ ...prev, [key]: value }));
+  }
+
+  /** '' → null (không khai), số → number. Giữ 0 là giá trị hợp lệ. */
+  function hourValue(key: string): number | null {
+    const raw = hours[key];
+    if (raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function invalidHour(): string | null {
+    for (const [key, raw] of Object.entries(hours)) {
+      if (raw === '') continue;
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 0 || n > 10000) {
+        return `Số tiết "${key}" phải là số nguyên từ 0 đến 10000`;
+      }
+    }
+    return null;
+  }
+
   async function submit() {
     if (!courseName.trim()) return toast.error('Nhập tên môn');
-    if (!semester.trim()) return toast.error('Nhập học kỳ');
-    if (!editing && !userId) return toast.error('Chọn người phụ trách');
+    if (mode === 'internal' && !userId) return toast.error('Chọn giảng viên');
+    if (mode === 'external' && !externalName.trim()) return toast.error('Nhập tên giảng viên thỉnh giảng');
     const y = Number(year);
     if (!Number.isInteger(y)) return toast.error('Năm không hợp lệ');
+    const hourErr = invalidHour();
+    if (hourErr) return toast.error(hourErr);
+
+    const shared = {
+      course_name: courseName.trim(),
+      semester: semester || null,
+      year: y,
+      academic_year: academicYear.trim() || null,
+      training_level: (trainingLevel || null) as TrainingLevel | null,
+      hk1_theory_hours: hourValue('hk1_theory_hours'),
+      hk1_practice_hours: hourValue('hk1_practice_hours'),
+      hk2_theory_hours: hourValue('hk2_theory_hours'),
+      hk2_practice_hours: hourValue('hk2_practice_hours'),
+      hk3_theory_hours: hourValue('hk3_theory_hours'),
+      hk3_practice_hours: hourValue('hk3_practice_hours'),
+      note: note.trim() || null,
+      evidence_url: evidenceUrl.trim() || null,
+    };
+
     setSubmitting(true);
     try {
       if (editing) {
-        await researchApi.updateTeaching(course!.id, {
-          course_name: courseName.trim(),
-          semester: semester.trim(),
-          year: y,
-        });
+        await researchApi.updateTeaching(course!.id, shared);
       } else {
         await researchApi.createTeaching({
-          user_id: userId,
-          course_name: courseName.trim(),
-          semester: semester.trim(),
-          year: y,
+          ...shared,
+          user_id: mode === 'internal' ? userId : null,
+          lecturer_external_name: mode === 'external' ? externalName.trim() : null,
         });
       }
       onSaved();
@@ -190,7 +290,9 @@ function TeachingModal({
     <Modal
       open
       onClose={onClose}
+      size="lg"
       title={editing ? 'Sửa môn giảng dạy' : 'Thêm môn giảng dạy'}
+      description="Số tiết khai theo từng học kỳ; để trống ô nào nghĩa là học kỳ đó không dạy."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
@@ -202,28 +304,115 @@ function TeachingModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {!editing && (
-          <Field label="Người phụ trách" required className="md:col-span-2">
-            <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
-              <option value="">— Chọn —</option>
-              {(users?.data ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.full_name}
+      <div className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {!editing && (
+            <>
+              <Field label="Giảng viên" required>
+                <Select value={mode} onChange={(e) => setMode(e.target.value as 'internal' | 'external')}>
+                  <option value="internal">Trong hệ thống</option>
+                  <option value="external">Thỉnh giảng (ngoài hệ thống)</option>
+                </Select>
+              </Field>
+              {mode === 'internal' ? (
+                <Field label="Chọn người" required>
+                  <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
+                    <option value="">— Chọn —</option>
+                    {(users?.data ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.full_name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : (
+                <Field label="Họ tên giảng viên" required>
+                  <Input value={externalName} onChange={(e) => setExternalName(e.target.value)} />
+                </Field>
+              )}
+            </>
+          )}
+
+          <Field label="Tên môn" required className="md:col-span-2">
+            <Input value={courseName} onChange={(e) => setCourseName(e.target.value)} />
+          </Field>
+
+          <Field label="Bậc đào tạo">
+            <Select value={trainingLevel} onChange={(e) => setTrainingLevel(e.target.value)}>
+              <option value="">— Chưa phân loại —</option>
+              {TRAINING_LEVELS.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
                 </option>
               ))}
             </Select>
           </Field>
-        )}
-        <Field label="Tên môn" required className="md:col-span-2">
-          <Input value={courseName} onChange={(e) => setCourseName(e.target.value)} />
-        </Field>
-        <Field label="Học kỳ" required>
-          <Input value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="HK1" />
-        </Field>
-        <Field label="Năm học" required>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
-        </Field>
+          <Field label="Học kỳ chính" hint="Tuỳ chọn — một môn có thể dạy nhiều kỳ">
+            <Select value={semester} onChange={(e) => setSemester(e.target.value)}>
+              <option value="">— Không ghi —</option>
+              {SEMESTERS.map((sm) => (
+                <option key={sm} value={sm}>
+                  {sm}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Năm" required>
+            <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
+          </Field>
+          <Field label="Năm học">
+            <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" />
+          </Field>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-subink">Số tiết theo học kỳ</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[360px] border-collapse text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-subink">
+                  <th className="pb-2 pr-3 font-medium">Học kỳ</th>
+                  <th className="pb-2 pr-3 font-medium">Lý thuyết</th>
+                  <th className="pb-2 font-medium">Thực hành</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SEMESTERS.map((sm, i) => (
+                  <tr key={sm}>
+                    <td className="py-1.5 pr-3 font-medium text-ink">{sm}</td>
+                    <td className="py-1.5 pr-3">
+                      <Input
+                        type="number"
+                        min={0}
+                        aria-label={`Số tiết lý thuyết ${sm}`}
+                        value={hours[`hk${i + 1}_theory_hours`]}
+                        onChange={(e) => setHour(`hk${i + 1}_theory_hours`, e.target.value)}
+                      />
+                    </td>
+                    <td className="py-1.5">
+                      <Input
+                        type="number"
+                        min={0}
+                        aria-label={`Số tiết thực hành ${sm}`}
+                        value={hours[`hk${i + 1}_practice_hours`]}
+                        onChange={(e) => setHour(`hk${i + 1}_practice_hours`, e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Link minh chứng" hint="Thời khoá biểu — Drive, SharePoint…" className="md:col-span-2">
+            <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
+          </Field>
+          <Field label="Ghi chú" className="md:col-span-2">
+            <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </div>
       </div>
     </Modal>
   );

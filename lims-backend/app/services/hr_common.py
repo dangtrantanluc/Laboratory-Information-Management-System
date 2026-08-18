@@ -9,6 +9,8 @@ xem được lương/HĐ/PII CỦA CHÍNH MÌNH. 3 nhóm strip độc lập:
   - PII: chỉ admin/office + chính chủ (leader KHÔNG xem PII).
 
 Quyền SỬA lương/HĐ = chỉ admin + office (QUYẾT ĐỊNH #1). Leader chỉ XEM.
+Quyền GHI nhóm NCKH = admin + leader + office (m34, thay QUYẾT ĐỊNH #5) + staff
+trên bản ghi của chính mình.
 
 NUMERIC không float — Decimal xuyên suốt; JSON trả string (giữ precision).
 """
@@ -261,16 +263,28 @@ def assert_user_exists(db: Session, user_id: uuid.UUID) -> None:
 
 
 # ===== Scope research (BR-HR-023) =====
+# THAY ĐỔI CHÍNH SÁCH (m34, thay QUYẾT ĐỊNH #5): Văn phòng ĐƯỢC thêm/sửa/xoá toàn bộ
+# nhóm NCKH, ngang admin và lãnh đạo. Lý do: Văn phòng là bộ phận tổng hợp file
+# "TỔNG HỢP CÁC HOẠT ĐỘNG" hằng năm — trước đây chỉ được XEM nên phải nhờ người khác
+# nhập hộ từng dòng. Văn phòng đã có quyền ghi tương đương ở nhóm hành chính
+# (hợp đồng / công tác khác / chứng nhận đào tạo — activity_service._assert_can_write),
+# nên đây là bước đồng bộ chính sách chứ không phải nới quyền mới về bản chất.
+#
+# KHÔNG đổi: quyền đọc lương / hợp đồng lao động / PII (can_read_salary, can_read_pii)
+# giữ nguyên như cũ — đó là trục quyền độc lập với NCKH.
 def assert_research_access(user: CurrentUser) -> None:
-    """Văn phòng KHÔNG truy cập nhóm NCKH (QUYẾT ĐỊNH #5) → 403 FORBIDDEN_OFFICE."""
-    if user.role == "office":
-        raise AppException(
-            ErrorCode.FORBIDDEN_OFFICE,
-            "Văn phòng không được truy cập thành tích NCKH",
-            403,
-        )
+    """Cổng GHI nhóm NCKH. Hiện KHÔNG chặn vai trò nào (xem ghi chú chính sách trên).
+
+    Giữ hàm để các router vẫn có một điểm móc duy nhất nếu sau này cần siết lại theo
+    vai trò — bỏ hẳn lời gọi sẽ khiến việc siết lại phải sửa 20+ endpoint.
+    """
+    return None
 
 
 def is_research_all(user: CurrentUser) -> bool:
-    """admin/leader = all; staff = own."""
-    return user.role in ("admin", "leader")
+    """Phạm vi toàn hệ thống: admin/leader/office. staff = chỉ bản ghi của mình.
+
+    'office' nằm ở nhóm all vì Văn phòng không phải tác giả/thành viên của bản ghi nào —
+    nếu xếp vào nhánh own thì mọi thao tác đều 403 dù đã được cấp quyền ghi.
+    """
+    return user.role in ("admin", "leader", "office")

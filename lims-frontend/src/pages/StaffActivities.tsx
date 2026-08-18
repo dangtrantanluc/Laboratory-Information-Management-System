@@ -57,6 +57,19 @@ export function StaffActivities() {
     { key: 'content', header: 'Hoạt động', render: (a) => <span className="font-medium text-ink">{a.content}</span> },
     { key: 'performer', header: 'Người thực hiện', render: (a) => a.performer_name ?? '—' },
     { key: 'year', header: 'Năm học', render: (a) => a.academic_year ?? '—' },
+    {
+      key: 'evidence',
+      header: 'Minh chứng',
+      align: 'center',
+      render: (a) =>
+        a.evidence_url ? (
+          <a href={a.evidence_url} target="_blank" rel="noreferrer" className="text-berry hover:underline" onClick={(e) => e.stopPropagation()}>
+            Xem
+          </a>
+        ) : (
+          '—'
+        ),
+    },
     ...(canManage
       ? [
           {
@@ -122,17 +135,22 @@ function ActivityModal({ activity, onClose, onSaved }: { activity?: StaffActivit
   const [content, setContent] = useState(activity?.content ?? '');
   const [performedAt, setPerformedAt] = useState(activity?.performed_at ?? '');
   const [academicYear, setAcademicYear] = useState(activity?.academic_year ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(activity?.evidence_url ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
     if (!content.trim()) return toast.error('Nhập nội dung hoạt động');
     setSubmitting(true);
+    const body = {
+      kind,
+      content: content.trim(),
+      performed_at: performedAt || null,
+      academic_year: academicYear || null,
+      evidence_url: evidenceUrl.trim() || null,
+    };
     try {
-      if (editing) {
-        await activityApi.updateActivity(activity!.id, { kind, content: content.trim(), performed_at: performedAt || null, academic_year: academicYear || null });
-      } else {
-        await activityApi.createActivity({ kind, content: content.trim(), performed_at: performedAt || null, academic_year: academicYear || null });
-      }
+      if (editing) await activityApi.updateActivity(activity!.id, body);
+      else await activityApi.createActivity(body);
       onSaved();
     } catch (err) {
       toast.error(describeError(err).title);
@@ -152,6 +170,7 @@ function ActivityModal({ activity, onClose, onSaved }: { activity?: StaffActivit
         <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
         <Field label="Nội dung hoạt động" required className="md:col-span-2"><Textarea rows={3} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
         <Field label="Thời gian"><Input type="date" value={performedAt ?? ''} onChange={(e) => setPerformedAt(e.target.value)} /></Field>
+        <Field label="Link minh chứng" hint="Hình ảnh, khen thưởng, quyết định, chứng nhận"><Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" /></Field>
       </div>
     </Modal>
   );

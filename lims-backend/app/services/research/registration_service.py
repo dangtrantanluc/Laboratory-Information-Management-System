@@ -13,9 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    LabRegistration,
-)
+from app.models.research import LabRegistration
 from app.services import audit_service, hr_common as hc
 
 

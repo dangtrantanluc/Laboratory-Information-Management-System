@@ -202,7 +202,7 @@ function ReportDetailModal({
           </DescList>
 
           <DetailSection title="Môn giảng dạy" rows={r.teaching}
-            render={(t) => (<><div className="font-medium text-ink">{t.course_name}</div><div className="text-xs text-subink">LT/TH HK1: {t.hk1_theory_hours ?? 0}/{t.hk1_practice_hours ?? 0} · HK2: {t.hk2_theory_hours ?? 0}/{t.hk2_practice_hours ?? 0}</div></>)} />
+            render={(t) => (<><div className="font-medium text-ink">{t.course_name}</div><div className="text-xs text-subink">LT/TH HK1: {t.hk1_theory_hours ?? 0}/{t.hk1_practice_hours ?? 0} · HK2: {t.hk2_theory_hours ?? 0}/{t.hk2_practice_hours ?? 0} · HK3: {t.hk3_theory_hours ?? 0}/{t.hk3_practice_hours ?? 0}</div></>)} />
           <DetailSection title="Đề tài NCKH" rows={r.projects}
             render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{p.level ?? '—'} · KP: {money(p.budget_amount)}</div></>)} />
           <DetailSection title="Bài báo & Báo cáo KH" rows={r.publications}

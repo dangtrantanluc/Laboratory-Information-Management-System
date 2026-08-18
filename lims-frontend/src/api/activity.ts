@@ -1,5 +1,6 @@
 import { apiDelete, apiGetPaged, apiPatch, apiPost } from '@/lib/api';
 import type {
+  CertKind,
   ResearchContract,
   StaffActivity,
   StaffActivityKind,
@@ -20,12 +21,16 @@ export function listContracts(f: ContractFilters = {}) {
 export interface ContractBody {
   title: string;
   contract_type?: string | null;
+  /** Excel gộp "PUR.2024.00618 ký ngày 23/9/2024" — tách số hiệu và ngày ký. */
+  contract_no?: string | null;
+  signed_date?: string | null;
   value_amount?: string | null;
   currency?: string | null;
   partner_org?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   academic_year?: string | null;
+  evidence_url?: string | null;
   department_id?: string | null;
 }
 export function createContract(body: ContractBody) {
@@ -53,6 +58,7 @@ export interface ActivityBody {
   content: string;
   performed_at?: string | null;
   academic_year?: string | null;
+  evidence_url?: string | null;
   performer_user_id?: string | null;
   department_id?: string | null;
 }
@@ -79,6 +85,8 @@ export function listCertificates(f: CertificateFilters = {}) {
 export interface CertificateBody {
   recipient_name: string;
   certificate_no?: string | null;
+  /** Tách hai danh sách của sheet PHỤC VỤ CỘNG ĐỒNG. */
+  cert_kind?: CertKind | null;
   course_name?: string | null;
   issued_date?: string | null;
   note?: string | null;

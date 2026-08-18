@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import LabRegistration
+from app.models.research import LabRegistration
 from app.services.research import registration_service
 
 _ADMIN_ID = uuid.UUID("00000000-0000-0000-0000-0000000000a1")

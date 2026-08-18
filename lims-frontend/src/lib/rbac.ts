@@ -102,9 +102,15 @@ export function canViewCompetence(user: CurrentUser | null): boolean {
 export function canViewResearch(user: CurrentUser | null): boolean {
   return !!user;
 }
-/** Quản lý thành tích NCKH (CRUD): admin/leader/staff. Office CHỈ xem → false. */
+/**
+ * Quản lý thành tích NCKH (CRUD): admin/leader/VĂN PHÒNG + staff trên bản ghi của mình.
+ *
+ * Văn phòng là bộ phận tổng hợp file "TỔNG HỢP CÁC HOẠT ĐỘNG" hằng năm; trước đây chỉ
+ * được XEM nên phải nhờ người khác nhập hộ từng dòng. Backend đổi cùng lúc ở
+ * hr_common.assert_research_access + is_research_all — sửa một phía sẽ lệch.
+ */
 export function canManageResearch(user: CurrentUser | null): boolean {
-  return !!user && user.role !== 'office';
+  return !!user;
 }
 
 // ── 3 menu hành chính m23 (Hợp đồng / Công tác khác / Chứng nhận đào tạo) ──
@@ -127,9 +133,9 @@ export function canViewMentorship(user: CurrentUser | null): boolean {
 export function canViewTeaching(user: CurrentUser | null): boolean {
   return ['admin', 'leader', 'lab_manager', 'office'].includes(user?.role ?? '');
 }
-/** Quản lý (CRUD) Hướng dẫn SV & Giảng dạy: admin/leader/lab_manager (office CHỈ xem). */
+/** Quản lý (CRUD) Hướng dẫn SV & Giảng dạy: admin/leader/lab_manager + Văn phòng. */
 export function canManageMentorshipTeaching(user: CurrentUser | null): boolean {
-  return ['admin', 'leader', 'lab_manager'].includes(user?.role ?? '');
+  return ['admin', 'leader', 'lab_manager', 'office'].includes(user?.role ?? '');
 }
 
 // ── M3: Quản lý tài liệu (Document Control) ─────────────────────

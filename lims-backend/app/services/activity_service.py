@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
-from app.models.hr import ResearchContract, StaffActivity, TrainingCertificate
+from app.models.research import ResearchContract, StaffActivity, TrainingCertificate
 from app.services import audit_service, hr_common as hc
 
 
@@ -27,12 +27,15 @@ def _contract_dict(db: Session, c: ResearchContract) -> dict:
         "id": c.id,
         "title": c.title,
         "contract_type": c.contract_type,
+        "contract_no": c.contract_no,
+        "signed_date": c.signed_date.isoformat() if c.signed_date else None,
         "value_amount": str(c.value_amount) if c.value_amount is not None else None,
         "currency": c.currency,
         "partner_org": c.partner_org,
         "start_date": c.start_date.isoformat() if c.start_date else None,
         "end_date": c.end_date.isoformat() if c.end_date else None,
         "academic_year": c.academic_year,
+        "evidence_url": c.evidence_url,
         "department_id": c.department_id,
         "department_name": hc.dept_name(db, c.department_id),
         "created_at": c.created_at,
@@ -67,11 +70,14 @@ def create_contract(db: Session, *, user: CurrentUser, payload: dict, correlatio
     c = ResearchContract(
         title=str(payload["title"]).strip(),
         contract_type=payload.get("contract_type"),
+        contract_no=payload.get("contract_no"),
+        signed_date=payload.get("signed_date"),
         value_amount=hc.parse_decimal(payload.get("value_amount"), field="value_amount"),
         currency=payload.get("currency") or "VND",
         partner_org=payload.get("partner_org"),
         start_date=start, end_date=end,
         academic_year=payload.get("academic_year"),
+        evidence_url=payload.get("evidence_url"),
         department_id=payload.get("department_id"),
         created_by=user.id, updated_by=user.id,
     )
@@ -129,6 +135,7 @@ def _activity_dict(db: Session, a: StaffActivity) -> dict:
         "content": a.content,
         "performed_at": a.performed_at.isoformat() if a.performed_at else None,
         "academic_year": a.academic_year,
+        "evidence_url": a.evidence_url,
         "performer_user_id": a.performer_user_id,
         "performer_name": hc.user_name(db, a.performer_user_id),
         "department_id": a.department_id,
@@ -158,6 +165,7 @@ def create_activity(db: Session, *, user: CurrentUser, payload: dict, correlatio
     a = StaffActivity(
         kind=payload["kind"], content=str(payload["content"]).strip(),
         performed_at=payload.get("performed_at"), academic_year=payload.get("academic_year"),
+        evidence_url=payload.get("evidence_url"),
         performer_user_id=payload.get("performer_user_id") or user.id,
         department_id=payload.get("department_id"),
         created_by=user.id, updated_by=user.id,
@@ -210,6 +218,7 @@ def _cert_dict(db: Session, c: TrainingCertificate) -> dict:
         "id": c.id,
         "recipient_name": c.recipient_name,
         "certificate_no": c.certificate_no,
+        "cert_kind": c.cert_kind,
         "course_name": c.course_name,
         "issued_date": c.issued_date.isoformat() if c.issued_date else None,
         "note": c.note,
@@ -242,7 +251,8 @@ def create_certificate(db: Session, *, user: CurrentUser, payload: dict, correla
     _assert_can_write(user)
     c = TrainingCertificate(
         recipient_name=str(payload["recipient_name"]).strip(),
-        certificate_no=payload.get("certificate_no"), course_name=payload.get("course_name"),
+        certificate_no=payload.get("certificate_no"), cert_kind=payload.get("cert_kind"),
+        course_name=payload.get("course_name"),
         issued_date=payload.get("issued_date"), note=payload.get("note"),
         academic_year=payload.get("academic_year"),
         host_user_id=payload.get("host_user_id") or user.id,

@@ -12,6 +12,8 @@ class TeachingEntry(BaseModel):
     hk1_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     note: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
