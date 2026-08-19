@@ -415,6 +415,7 @@ export interface CustomerInfoRequest {
 // ── Customers (M7) — tách sang ./customer, re-export để giữ '@/types' ─────
 export * from './customer';
 export * from './research';
+export * from './activityReport';
 
 // ── Notifications (M7) ──────────────────────────────────────────
 export interface Notification {
@@ -1694,52 +1695,3 @@ export interface ImprovementItem {
   updated_at: string;
 }
 
-// ── Báo cáo hoạt động hàng tháng (m25) ───────────────────────────
-export type ActivityReportStatus = 'draft' | 'submitted' | 'reviewed';
-
-export const ACTIVITY_REPORT_STATUS_LABELS: Record<ActivityReportStatus, string> = {
-  draft: 'Nháp',
-  submitted: 'Đã nộp',
-  reviewed: 'Đã tổng hợp',
-};
-
-export interface ActivityReportCounts {
-  teaching: number;
-  projects: number;
-  publications: number;
-  contracts: number;
-  activities: number;
-}
-
-export interface ActivityReport {
-  id: string;
-  reporter_user_id: string;
-  reporter_name: string | null;
-  department_id: string | null;
-  department_name: string | null;
-  period_label: string;
-  period_year: number | null;
-  academic_year: string | null;
-  status: ActivityReportStatus;
-  note: string | null;
-  submitted_at: string | null;
-  reviewed_by_name: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  counts?: ActivityReportCounts;
-  // chi tiết (khi GET /{id})
-  teaching?: Array<{
-    id: string;
-    course_name: string;
-    hk1_theory_hours: number | null;
-    hk1_practice_hours: number | null;
-    hk2_theory_hours: number | null;
-    hk2_practice_hours: number | null;
-    hk3_theory_hours: number | null;
-    hk3_practice_hours: number | null;
-  }>;
-  projects?: Array<{ id: string; title: string; level: string | null; status: string; budget_amount: string | null }>;
-  publications?: Array<{ id: string; title: string; type: string; pub_scope: string | null; journal: string | null; year: number | null; is_scie: boolean; is_scopus: boolean }>;
-  contracts?: Array<{ id: string; title: string; contract_type: string | null; value_amount: string | null }>;
-  activities?: Array<{ id: string; kind: string; content: string }>;
-}

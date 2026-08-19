@@ -8,24 +8,29 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescSection,
+  DetailHero,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
+import { TRAINING_LEVEL_LABELS } from '@/types';
 import type { TeachingCourse, TrainingLevel } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
 
-/** Sheet ĐÀO TẠO tách hai bảng cùng cấu trúc cột — nhãn hiển thị của training_level. */
-const TRAINING_LEVELS: Array<{ value: TrainingLevel; label: string }> = [
-  { value: 'undergraduate', label: 'Đại học' },
-  { value: 'postgraduate', label: 'Sau đại học' },
-];
+/** Sheet ĐÀO TẠO tách hai bảng cùng cấu trúc cột — HK3 là bổ sung của m34. */
 const SEMESTERS = ['HK1', 'HK2', 'HK3'];
 
 function levelLabel(v?: TrainingLevel | null): string {
-  return TRAINING_LEVELS.find((l) => l.value === v)?.label ?? '—';
+  return v ? TRAINING_LEVEL_LABELS[v] : '—';
 }
 
 /** Tổng số tiết theo loại — cộng cả ba học kỳ (Excel để trống ô nghĩa là 0 tiết). */
@@ -43,6 +48,7 @@ export function TeachingCourses() {
   const toast = useToast();
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TeachingCourse | null>(null);
+  const [viewTarget, setViewTarget] = useState<TeachingCourse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TeachingCourse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -142,10 +148,25 @@ export function TeachingCourses() {
           rowKey={(c) => c.id}
           loading={loading}
           pageSize={12}
-          onRowClick={canManage ? (c) => setEditTarget(c) : undefined}
+          // Bấm hàng mở modal XEM, không nhảy thẳng vào form ghi: bảng chỉ hiện
+          // TỔNG số tiết nên trước đây muốn xem tách HK1/HK2/HK3 buộc phải vào
+          // chế độ sửa — vừa lệch với 6 trang cùng nhóm, vừa dễ sửa nhầm.
+          onRowClick={(c) => setViewTarget(c)}
         />
       </Card>
 
+      {viewTarget && (
+        <TeachingDetailModal
+          course={viewTarget}
+          canManage={canManage}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            const c = viewTarget;
+            setViewTarget(null);
+            setEditTarget(c);
+          }}
+        />
+      )}
       {createOpen && (
         <TeachingModal
           onClose={() => setCreateOpen(false)}
@@ -177,6 +198,123 @@ export function TeachingCourses() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+function TeachingDetailModal({
+  course: c,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  course: TeachingCourse;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const theory = totalHours(c, 'theory');
+  const practice = totalHours(c, 'practice');
+  // Chỉ hiện học kỳ có khai giờ. Bày đủ ba dòng trong đó hai dòng trống làm người
+  // đọc phải tự lọc — mà môn dạy cả ba kỳ là ngoại lệ, không phải thường lệ.
+  const terms = ([1, 2, 3] as const)
+    .map((i) => ({
+      label: `HK${i}`,
+      theory: c[`hk${i}_theory_hours` as const] ?? null,
+      practice: c[`hk${i}_practice_hours` as const] ?? null,
+    }))
+    .filter((t) => t.theory !== null || t.practice !== null);
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={c.course_name}
+      description="Môn học được phân công giảng dạy"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <DetailHero
+          chips={
+            <>
+              {c.training_level && <Badge tone="info">{levelLabel(c.training_level)}</Badge>}
+              {c.semester && <Badge tone="neutral">{c.semester}</Badge>}
+            </>
+          }
+          metricLabel="Tổng tiết (LT / TH)"
+          metric={theory || practice ? `${theory} / ${practice}` : null}
+        />
+
+        <DescSection title="Số tiết theo học kỳ">
+          {terms.length === 0 ? (
+            <p className="text-sm text-stem">Chưa khai số tiết cho học kỳ nào.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[320px] border-collapse text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-stem">
+                    <th className="pb-2 pr-4 font-semibold">Học kỳ</th>
+                    <th className="pb-2 pr-4 font-semibold">Lý thuyết</th>
+                    <th className="pb-2 font-semibold">Thực hành</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {terms.map((t) => (
+                    <tr key={t.label} className="border-t border-hairline">
+                      <td className="py-2 pr-4 font-medium text-ink">{t.label}</td>
+                      <td className="py-2 pr-4 tabular-nums text-ink">{t.theory ?? '—'}</td>
+                      <td className="py-2 tabular-nums text-ink">{t.practice ?? '—'}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-hairline-hi">
+                    <td className="py-2 pr-4 text-[11px] font-semibold uppercase tracking-wide text-stem">
+                      Tổng
+                    </td>
+                    <td className="py-2 pr-4 font-semibold tabular-nums text-ink">{theory}</td>
+                    <td className="py-2 font-semibold tabular-nums text-ink">{practice}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DescSection>
+
+        <DescSection title="Giảng viên & minh chứng">
+          <DescList>
+            <DescItem
+              label="Giảng viên"
+              value={
+                c.user_name ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Avatar name={c.user_name} size="sm" />
+                    <span>
+                      {c.user_name}
+                      {!c.user_id && <span className="ml-1.5 text-xs text-stem">(thỉnh giảng)</span>}
+                    </span>
+                  </span>
+                ) : null
+              }
+            />
+            <DescItem label="Phòng ban" value={c.department_name} />
+            <DescItem label="Năm" value={c.year} />
+            <DescItem label="Năm học" value={c.academic_year} />
+            <DescLink url={c.evidence_url} label="Link minh chứng (thời khoá biểu)" />
+            <DescItem full label="Ghi chú" value={c.note} />
+          </DescList>
+        </DescSection>
+      </div>
+    </Modal>
   );
 }
 
@@ -340,9 +478,9 @@ function TeachingModal({
           <Field label="Bậc đào tạo">
             <Select value={trainingLevel} onChange={(e) => setTrainingLevel(e.target.value)}>
               <option value="">— Chưa phân loại —</option>
-              {TRAINING_LEVELS.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
+              {Object.entries(TRAINING_LEVEL_LABELS).map(([v, label]) => (
+                <option key={v} value={v}>
+                  {label}
                 </option>
               ))}
             </Select>

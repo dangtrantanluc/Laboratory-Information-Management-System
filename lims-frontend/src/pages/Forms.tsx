@@ -425,6 +425,7 @@ function TemplateModal({
     <Modal
       open
       onClose={onClose}
+      size="lg"
       title={template ? 'Sửa biểu mẫu' : 'Thêm biểu mẫu'}
       footer={
         <>

@@ -7,8 +7,16 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescPeople,
+  DescSection,
+  DetailHero,
+} from '@/components/ui/DescList';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { Badge } from '@/components/ui/Badge';
 import { PublicationTypeBadge } from '@/components/ui/StatusBadge';
 import {
@@ -25,6 +33,7 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
 import { formatDate } from '@/lib/format';
+import { PATENT_KIND_LABELS } from '@/types';
 import type { PatentKind, Publication, PublicationType } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
@@ -213,7 +222,22 @@ function PublicationDetailModal({
   onEdit: () => void;
 }) {
   const isPaper = p.type === 'paper';
+  const isPatent = p.type === 'patent';
   const authors = p.authors.slice().sort((a, b) => a.author_order - b.author_order);
+
+  const indexBadges = [
+    p.is_scie && { label: 'SCIE', tone: 'success' as const },
+    p.is_ssci && { label: 'SSCI', tone: 'success' as const },
+    p.is_scopus && { label: 'Scopus', tone: 'info' as const },
+    p.is_aci && { label: 'ACI', tone: 'neutral' as const },
+  ].filter(Boolean) as Array<{ label: string; tone: 'success' | 'info' | 'neutral' }>;
+
+  const people = authors.map((a) => ({
+    // Thứ tự tác giả là thông tin nghiệp vụ (tác giả chính đứng đầu) nên giữ số.
+    name: `${a.author_order}. ${a.name ?? a.external_name ?? 'Không rõ'}`,
+    role: a.is_corresponding ? 'Tác giả liên hệ' : null,
+    external: !a.user_id,
+  }));
 
   return (
     <Modal
@@ -221,7 +245,7 @@ function PublicationDetailModal({
       onClose={onClose}
       size="lg"
       title={p.title}
-      description={<PublicationTypeBadge type={p.type} />}
+      description={isPatent ? 'Văn bằng sở hữu trí tuệ' : 'Công bố khoa học'}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -235,94 +259,88 @@ function PublicationDetailModal({
         </>
       }
     >
-      <DescList>
-        <DescItem label="Năm" value={p.year} />
-        <DescItem label="Phòng ban" value={p.department_name} />
-        {p.type !== 'patent' ? (
-          <>
-            <DescItem label="Tạp chí / Kỷ yếu / Hội nghị" value={p.journal} full />
-            {isPaper && <DescItem label="Chỉ số" value={<Badge tone="info">{indexLabel(p.category ?? p.index_code)}</Badge>} />}
-            <DescItem label="Phạm vi" value={p.pub_scope === 'international' ? 'Quốc tế' : p.pub_scope === 'domestic' ? 'Trong nước' : null} />
-            <DescItem
-              full
-              label="Xếp hạng chỉ mục"
-              value={
-                p.is_scie || p.is_ssci || p.is_scopus || p.is_aci ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.is_scie && <Badge tone="success">SCIE</Badge>}
-                    {p.is_ssci && <Badge tone="success">SSCI</Badge>}
-                    {p.is_scopus && <Badge tone="info">Scopus</Badge>}
-                    {p.is_aci && <Badge tone="neutral">ACI</Badge>}
-                  </div>
-                ) : null
-              }
-            />
-            <DescItem
-              label="DOI"
-              value={
-                p.doi ? (
-                  <a href={`https://doi.org/${p.doi}`} target="_blank" rel="noreferrer" className="text-berry hover:underline">
-                    {p.doi}
-                  </a>
-                ) : null
-              }
-            />
-          </>
-        ) : (
-          <>
-            <DescItem label="Số bằng" value={p.patent_no} />
-            <DescItem label="Cơ quan cấp" value={p.issuing_authority} />
-            <DescItem label="Số đơn" value={p.application_no} />
-            <DescItem label="Ngày nộp đơn" value={p.application_date ? formatDate(p.application_date) : null} />
-            <DescItem label="Ngày cấp bằng" value={p.granted_date ? formatDate(p.granted_date) : null} />
-            <DescItem label="Chủ bằng" value={p.patent_holder} />
-            <DescItem
-              label="Loại văn bằng"
-              value={
-                p.patent_kind === 'invention'
-                  ? 'Sáng chế'
-                  : p.patent_kind === 'utility_solution'
-                    ? 'Giải pháp hữu ích'
-                    : p.patent_kind === 'plant_variety'
-                      ? 'Giống cây trồng'
-                      : null
-              }
-            />
-          </>
+      <div className="flex flex-col gap-6">
+        <DetailHero
+          chips={
+            <>
+              {/* Có patent_kind thì nó ĐÃ nói rõ hơn ("Sáng chế") so với nhãn loại
+                  ("Sáng chế / GPHI") — hiện cả hai là hai chip trùng nghĩa cạnh nhau. */}
+              {isPatent && p.patent_kind ? (
+                <Badge tone="info">{PATENT_KIND_LABELS[p.patent_kind]}</Badge>
+              ) : (
+                <PublicationTypeBadge type={p.type} />
+              )}
+              {!isPatent && p.pub_scope && (
+                <Badge tone="info">{p.pub_scope === 'international' ? 'Quốc tế' : 'Trong nước'}</Badge>
+              )}
+              {isPaper && <Badge tone="neutral">{indexLabel(p.category ?? p.index_code)}</Badge>}
+              {indexBadges.map((b) => (
+                <Badge key={b.label} tone={b.tone}>
+                  {b.label}
+                </Badge>
+              ))}
+            </>
+          }
+          metricLabel="Năm công bố"
+          metric={p.year}
+        />
+
+        {!isPatent && (
+          <DescSection title="Nơi công bố">
+            <DescList>
+              <DescItem
+                full
+                label={p.type === 'conference' ? 'Tên kỷ yếu / hội nghị' : 'Tên tạp chí'}
+                value={p.journal}
+              />
+              <DescItem
+                label="DOI"
+                value={
+                  p.doi ? (
+                    <a
+                      href={`https://doi.org/${p.doi}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blueberry hover:underline"
+                    >
+                      {p.doi}
+                    </a>
+                  ) : null
+                }
+              />
+              <DescItem label="Năm học" value={p.academic_year} />
+            </DescList>
+          </DescSection>
         )}
-        <DescItem label="Năm học" value={p.academic_year} />
-        <DescItem
-          full
-          label="Link minh chứng"
-          value={
-            p.evidence_url ? (
-              <a href={p.evidence_url} target="_blank" rel="noreferrer" className="break-all text-berry hover:underline">
-                {p.evidence_url}
-              </a>
-            ) : null
-          }
-        />
-        <DescItem
-          full
-          label={`Tác giả (${authors.length})`}
-          value={
-            authors.length === 0 ? null : (
-              <ol className="mt-1 divide-y divide-hairline overflow-hidden rounded-lg border border-hairline">
-                {authors.map((a, i) => (
-                  <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
-                    <span className="text-sm text-ink">
-                      <span className="mr-2 text-xs text-subink">{a.author_order}.</span>
-                      {a.name ?? a.external_name ?? '—'}
-                      {!a.user_id && <span className="ml-1.5 text-xs text-subink">(ngoài hệ thống)</span>}
-                    </span>
-                    {a.is_corresponding && <Badge tone="success">Tác giả liên hệ</Badge>}
-                  </li>
-                ))}
-              </ol>
-            )
-          }
-        />
-      </DescList>
+
+        {isPatent && (
+          <DescSection title="Văn bằng">
+            <DescList>
+              <DescItem label="Số bằng" value={p.patent_no} emphasis />
+              <DescItem label="Chủ bằng" value={p.patent_holder} />
+              <DescItem full label="Cơ quan cấp văn bằng" value={p.issuing_authority} />
+              <DescItem label="Số đơn" value={p.application_no} />
+              <DescItem
+                label="Ngày nộp đơn"
+                value={p.application_date ? formatDate(p.application_date) : null}
+              />
+              <DescItem
+                label="Ngày cấp văn bằng"
+                value={p.granted_date ? formatDate(p.granted_date) : null}
+              />
+              <DescItem label="Năm học" value={p.academic_year} />
+            </DescList>
+          </DescSection>
+        )}
+
+        <DescSection title="Tác giả & minh chứng">
+          <DescList>
+            <DescPeople label="Tác giả" people={people} />
+            <DescItem label="Phòng ban" value={p.department_name} />
+            <DescLink url={p.evidence_url} full={false} />
+          </DescList>
+        </DescSection>
+      </div>
     </Modal>
   );
 }
@@ -443,7 +461,7 @@ function PublicationModal({
     <Modal
       open
       onClose={onClose}
-      size="lg"
+      size="xl"
       title={editing ? 'Cập nhật công bố' : 'Thêm bài báo / sáng chế'}
       footer={
         <>
@@ -456,7 +474,8 @@ function PublicationModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Định danh">
         <Field label="Loại" required>
           <Select value={type} onChange={(e) => setType(e.target.value as PublicationType)} disabled={editing}>
             <option value="paper">Bài báo</option>
@@ -470,7 +489,9 @@ function PublicationModal({
         <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
+        </FormSection>
 
+        <FormSection title={needsVenue ? 'Nơi công bố' : 'Văn bằng'}>
         {needsVenue ? (
           <>
             <Field label={type === 'paper' ? 'Tên tạp chí' : 'Tên kỷ yếu / hội nghị'} required>
@@ -539,9 +560,9 @@ function PublicationModal({
             <Field label="Loại văn bằng" required>
               <Select value={patentKind} onChange={(e) => setPatentKind(e.target.value)}>
                 <option value="">— Chọn —</option>
-                <option value="invention">Sáng chế</option>
-                <option value="utility_solution">Giải pháp hữu ích</option>
-                <option value="plant_variety">Giống cây trồng</option>
+                {Object.entries(PATENT_KIND_LABELS).map(([v, label]) => (
+                  <option key={v} value={v}>{label}</option>
+                ))}
               </Select>
             </Field>
             <Field label="Số bằng" required>
@@ -564,7 +585,9 @@ function PublicationModal({
             </Field>
           </>
         )}
+        </FormSection>
 
+        <FormSection title="Hồ sơ & minh chứng">
         <Field label="Năm học">
           <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" />
         </Field>
@@ -582,14 +605,12 @@ function PublicationModal({
             ))}
           </Select>
         </Field>
+        </FormSection>
 
-        <div className="md:col-span-2">
-          <p className="mb-2 text-sm font-medium text-ink">
-            Tác giả <span className="text-overdue">*</span>
-          </p>
+        <FormSection title="Tác giả" cols={1} hint="Tác giả nội bộ chọn từ danh sách; người ngoài Viện nhập tên trực tiếp.">
           <ContributorEditor rows={authors} onChange={setAuthors} users={users?.data ?? []} variant="author" />
-        </div>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

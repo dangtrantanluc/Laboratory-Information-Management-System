@@ -8,14 +8,18 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import { DescList, DescItem, DescSection } from '@/components/ui/DescList';
 import { Input } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
 import { formatDateTime, formatMoney } from '@/lib/format';
-import { ACTIVITY_REPORT_STATUS_LABELS } from '@/types';
+import {
+  ACTIVITY_REPORT_STATUS_LABELS,
+  PUBLICATION_TYPE_LABELS,
+  STAFF_ACTIVITY_KIND_LABELS,
+} from '@/types';
 import type { ActivityReport, ActivityReportStatus } from '@/types';
 import { canSubmitActivityReport, canReviewActivityReports } from '@/lib/rbac';
 import * as reportApi from '@/api/activityReport';
@@ -206,25 +210,30 @@ function ReportDetailModal({
           <DetailSection title="Đề tài NCKH" rows={r.projects}
             render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{p.level ?? '—'} · KP: {money(p.budget_amount)}</div></>)} />
           <DetailSection title="Bài báo & Báo cáo KH" rows={r.publications}
-            render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{p.type} · {p.journal ?? '—'} · {p.year ?? '—'}{p.is_scie ? ' · SCIE' : ''}{p.is_scopus ? ' · Scopus' : ''}</div></>)} />
+            render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{PUBLICATION_TYPE_LABELS[p.type]} · {p.journal ?? '—'} · {p.year ?? '—'}{p.is_scie ? ' · SCIE' : ''}{p.is_scopus ? ' · Scopus' : ''}</div></>)} />
           <DetailSection title="Hợp đồng" rows={r.contracts}
             render={(c) => (<><div className="font-medium text-ink">{c.title}</div><div className="text-xs text-subink">{c.contract_type ?? '—'} · {money(c.value_amount)}</div></>)} />
           <DetailSection title="Công tác khác" rows={r.activities}
-            render={(a) => (<><div className="font-medium text-ink">{a.content}</div><div className="text-xs text-subink">{a.kind}</div></>)} />
+            render={(a) => (<><div className="font-medium text-ink">{a.content}</div><div className="text-xs text-subink">{STAFF_ACTIVITY_KIND_LABELS[a.kind]}</div></>)} />
         </div>
       )}
     </Modal>
   );
 }
 
+/**
+ * Một khối "N dòng hoạt động cùng loại" trong báo cáo kỳ.
+ *
+ * Tiêu đề khối đi qua DescSection thay vì tự vẽ, để trông giống mọi modal chi tiết
+ * khác; phần thân giữ riêng vì DescSection không lo việc dựng danh sách dòng.
+ */
 function DetailSection<T>({ title, rows, render }: { title: string; rows?: T[]; render: (row: T) => React.ReactNode }) {
   if (!rows || rows.length === 0) return null;
   return (
-    <div>
-      <div className="mb-2 text-sm font-semibold text-ink">{title} <span className="text-subink">({rows.length})</span></div>
+    <DescSection title={`${title} (${rows.length})`}>
       <div className="flex flex-col divide-y divide-hairline rounded-lg border border-hairline">
         {rows.map((row, i) => <div key={i} className="p-3">{render(row)}</div>)}
       </div>
-    </div>
+    </DescSection>
   );
 }

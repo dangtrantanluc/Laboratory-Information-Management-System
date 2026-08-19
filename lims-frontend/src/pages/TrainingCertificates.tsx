@@ -6,26 +6,29 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescSection,
+  DetailHero,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, truncate } from '@/lib/format';
+import { CERT_KIND_LABELS } from '@/types';
 import type { CertKind, TrainingCertificate } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
 
 
 /** Sheet PHỤC VỤ CỘNG ĐỒNG có hai danh sách GCN cùng cấu trúc, tách bằng tiêu đề. */
-const CERT_KINDS = [
-  { value: 'short_course', label: 'Lớp ngắn hạn' },
-  { value: 'lab_safety', label: 'Tập huấn an toàn PTN & PCCC' },
-] as const;
-
-function certKindLabel(v?: string | null): string {
-  return CERT_KINDS.find((k) => k.value === v)?.label ?? '—';
+function certKindLabel(v?: CertKind | null): string {
+  return v ? CERT_KIND_LABELS[v] : '—';
 }
 
 export function TrainingCertificates() {
@@ -94,18 +97,64 @@ export function TrainingCertificates() {
       {createOpen && <CertModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); reload(); toast.success('Đã thêm'); }} />}
       {editTarget && <CertModal cert={editTarget} onClose={() => setEditTarget(null)} onSaved={() => { setEditTarget(null); reload(); toast.success('Đã cập nhật'); }} />}
       {viewTarget && (
-        <Modal open onClose={() => setViewTarget(null)} title="Chi tiết chứng nhận" footer={<><Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>{canManage && <Button onClick={() => { const c = viewTarget; setViewTarget(null); setEditTarget(c); }}><Pencil size={14} /> Chỉnh sửa</Button>}</>}>
-          <DescList>
-            <DescItem label="Người được cấp" value={viewTarget.recipient_name} />
-            <DescItem label="Số GCN" value={viewTarget.certificate_no} />
-            <DescItem label="Lớp học / khóa" value={viewTarget.course_name} />
-            <DescItem label="Ngày cấp" value={viewTarget.issued_date ? formatDate(viewTarget.issued_date) : '—'} />
-            <DescItem label="Năm học" value={viewTarget.academic_year} />
-            <DescItem full label="Ghi chú" value={viewTarget.note} />
-          </DescList>
+        <Modal
+          open
+          onClose={() => setViewTarget(null)}
+          size="lg"
+          title={viewTarget.recipient_name}
+          description="Chứng nhận / giấy chứng nhận đào tạo"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>
+              {canManage && (
+                <Button onClick={() => { const c = viewTarget; setViewTarget(null); setEditTarget(c); }}>
+                  <Pencil size={14} /> Chỉnh sửa
+                </Button>
+              )}
+            </>
+          }
+        >
+          <div className="flex flex-col gap-6">
+            <DetailHero
+              chips={
+                <>
+                  {viewTarget.cert_kind && <Badge tone="info">{certKindLabel(viewTarget.cert_kind)}</Badge>}
+                  {viewTarget.certificate_no && (
+                    <span className="rounded-md border border-hairline bg-surface2 px-2 py-0.5 font-mono text-xs text-ink">
+                      {viewTarget.certificate_no}
+                    </span>
+                  )}
+                </>
+              }
+              metricLabel="Ngày cấp"
+              metric={viewTarget.issued_date ? formatDate(viewTarget.issued_date) : null}
+            />
+
+            <DescSection title="Khoá học">
+              <DescList>
+                <DescItem full label="Lớp học / khoá" value={viewTarget.course_name} />
+                {/* cert_kind KHÔNG lặp lại ở đây: chip trong DetailHero đã mang nó rồi.
+                    Trước m34 trường này không có ở modal, nhưng chữa bằng cách hiện hai
+                    lần trong cùng một màn thì lại thành nhiễu. */}
+                <DescItem label="Năm học" value={viewTarget.academic_year} />
+                <DescItem
+                  label="Người phụ trách"
+                  value={
+                    viewTarget.host_name ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Avatar name={viewTarget.host_name} size="sm" />
+                        {viewTarget.host_name}
+                      </span>
+                    ) : null
+                  }
+                />
+                <DescItem full label="Ghi chú" value={viewTarget.note} />
+              </DescList>
+            </DescSection>
+          </div>
         </Modal>
       )}
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa chứng nhận" message="Xóa chứng nhận này?" confirmText="Xóa" loading={deleting} />
+      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa chứng nhận" message={`Xóa chứng nhận của "${truncate(deleteTarget?.recipient_name)}"? Thao tác không thể hoàn tác.`} confirmText="Xóa" loading={deleting} />
     </div>
   );
 }
@@ -146,15 +195,15 @@ function CertModal({ cert, onClose, onSaved }: { cert?: TrainingCertificate; onC
   }
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Sửa chứng nhận' : 'Thêm chứng nhận'} footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button onClick={submit} loading={submitting}>{editing ? 'Lưu' : 'Thêm'}</Button></>}>
+    <Modal open onClose={onClose} size="lg" title={editing ? 'Sửa chứng nhận' : 'Thêm chứng nhận'} footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button onClick={submit} loading={submitting}>{editing ? 'Lưu' : 'Thêm'}</Button></>}>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Người được cấp GCN" required className="md:col-span-2"><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
         <Field label="Số GCN"><Input value={certNo} onChange={(e) => setCertNo(e.target.value)} /></Field>
         <Field label="Loại danh sách">
           <Select value={certKind} onChange={(e) => setCertKind(e.target.value)}>
             <option value="">— Chưa phân loại —</option>
-            {CERT_KINDS.map((k) => (
-              <option key={k.value} value={k.value}>{k.label}</option>
+            {Object.entries(CERT_KIND_LABELS).map(([v, label]) => (
+              <option key={v} value={v}>{label}</option>
             ))}
           </Select>
         </Field>

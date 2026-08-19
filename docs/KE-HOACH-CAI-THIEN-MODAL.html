@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kế hoạch cải thiện Modal LIMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  /* Cùng hệ màu/chữ với docs/DOI-CHIEU-EXCEL-2024-2025.html — hai tài liệu là một bộ. */
+  :root {
+    --ground:#F6F7F1; --surface:#FFFFFF; --raised:#FBFCF6; --sunk:#EFF1E7;
+    --hairline:#E2E4D8; --hairline-hi:#CFD3C2; --ink:#1A1F1B; --subink:#52564C; --faint:#7C826F;
+    --forest:#1A6E4A; --sage:#5A8A6C; --amber:#8A6A28; --amber-bg:#F4EDDC;
+    --clay:#A83228; --clay-bg:#F7E4E1; --ok-bg:#E2EFE6;
+    --shadow:0 1px 2px rgba(26,31,27,.05), 0 8px 24px -16px rgba(26,31,27,.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#101410; --surface:#181D18; --raised:#1E241E; --sunk:#141914;
+      --hairline:#2C332B; --hairline-hi:#3C453A; --ink:#E9ECE1; --subink:#A3AB9B; --faint:#7F8878;
+      --forest:#5FBE91; --sage:#8FB79D; --amber:#D7B87A; --amber-bg:#2E2818;
+      --clay:#E5837A; --clay-bg:#33201D; --ok-bg:#16291F;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#101410; --surface:#181D18; --raised:#1E241E; --sunk:#141914;
+    --hairline:#2C332B; --hairline-hi:#3C453A; --ink:#E9ECE1; --subink:#A3AB9B; --faint:#7F8878;
+    --forest:#5FBE91; --sage:#8FB79D; --amber:#D7B87A; --amber-bg:#2E2818;
+    --clay:#E5837A; --clay-bg:#33201D; --ok-bg:#16291F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+  * { box-sizing:border-box; }
+  body {
+    background:var(--ground); color:var(--ink); margin:0;
+    font-family:'Be Vietnam Pro','Segoe UI',system-ui,-apple-system,sans-serif;
+    font-size:15px; line-height:1.62; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 24px 96px; display:flex; flex-direction:column; gap:52px; }
+
+  header.mast { display:flex; flex-direction:column; gap:16px; padding:56px 0 32px; border-bottom:2px solid var(--ink); }
+  .eyebrow { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--sage); }
+  h1 { font-family:'Lora',Georgia,serif; font-weight:600; font-size:clamp(30px,4.6vw,44px); line-height:1.12; margin:0; text-wrap:balance; }
+  .stand { max-width:62ch; color:var(--subink); margin:0; }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px; background:var(--hairline); border:1px solid var(--hairline); border-radius:3px; overflow:hidden; }
+  .stat { background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:2px; }
+  .stat .n { font-family:'Lora',serif; font-size:28px; font-weight:600; line-height:1; font-variant-numeric:tabular-nums; }
+  .stat .n.bad{color:var(--clay)} .stat .n.warn{color:var(--amber)} .stat .n.good{color:var(--forest)}
+  .stat .k { font-size:12.5px; color:var(--subink); line-height:1.35; }
+
+  section { display:flex; flex-direction:column; gap:20px; }
+  h2 { font-family:'Lora',Georgia,serif; font-size:clamp(22px,3vw,29px); font-weight:600; margin:0; line-height:1.2; text-wrap:balance; }
+  h3 { font-size:16px; font-weight:600; margin:0; }
+  p { margin:0; }
+  .sechead { display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--hairline-hi); padding-top:24px; }
+  .sechead p { color:var(--subink); max-width:66ch; }
+
+  /* Giai đoạn */
+  .phase { background:var(--surface); border:1px solid var(--hairline); border-radius:3px; box-shadow:var(--shadow); overflow:hidden; }
+  .phase > .head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; padding:14px 20px; background:var(--raised); border-bottom:1px solid var(--hairline); }
+  .phase > .head .tag { font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--sage); }
+  .phase > .head .cost { margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--faint); }
+  .phase > .body { padding:18px 20px; display:flex; flex-direction:column; gap:16px; }
+
+  .tscroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:620px; font-size:13.5px; }
+  thead th { text-align:left; font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:500; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); padding:8px 12px; border-bottom:1px solid var(--hairline); white-space:nowrap; }
+  tbody td { padding:10px 12px; border-bottom:1px solid var(--hairline); vertical-align:top; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody tr.bad td:first-child { box-shadow:inset 3px 0 0 var(--clay); }
+  tbody tr.warn td:first-child { box-shadow:inset 3px 0 0 var(--amber); }
+  tbody tr.ok td:first-child { box-shadow:inset 3px 0 0 var(--sage); }
+
+  code, .fld { font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--sunk); border:1px solid var(--hairline); border-radius:2px; padding:1px 5px; white-space:nowrap; }
+  .note { color:var(--subink); font-size:12.5px; line-height:1.5; }
+  .chip { font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:700; padding:3px 6px; border-radius:2px; border:1px solid transparent; white-space:nowrap; }
+  .chip.y{background:var(--ok-bg);color:var(--forest);border-color:color-mix(in srgb,var(--forest) 28%,transparent)}
+  .chip.p{background:var(--amber-bg);color:var(--amber);border-color:color-mix(in srgb,var(--amber) 34%,transparent)}
+  .chip.n{background:var(--clay-bg);color:var(--clay);border-color:color-mix(in srgb,var(--clay) 30%,transparent)}
+
+  pre { margin:0; background:var(--sunk); border:1px solid var(--hairline); border-radius:3px; padding:14px 16px; overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.66; }
+  pre .c{color:var(--faint)} pre .k{color:var(--forest);font-weight:700}
+
+  ul { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:5px; color:var(--subink); font-size:14px; }
+  ul li strong { color:var(--ink); font-weight:600; }
+
+  .callout { background:var(--raised); border:1px solid var(--hairline); border-left:3px solid var(--sage); border-radius:3px; padding:16px 18px; display:flex; flex-direction:column; gap:7px; }
+  .callout.warn { border-left-color:var(--amber); }
+  .callout .lbl { font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sage); }
+  .callout.warn .lbl { color:var(--amber); }
+  .callout p { color:var(--subink); font-size:14px; }
+  a { color:var(--forest); text-underline-offset:2px; }
+  a:focus-visible { outline:2px solid var(--forest); outline-offset:2px; }
+  @media (max-width:640px){ .wrap{padding:0 16px 64px; gap:40px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">LIMS · Frontend · Rà soát 83 modal</div>
+  <h1>Kế hoạch cải thiện Modal</h1>
+  <p class="stand">
+    Năm giai đoạn, xếp theo tỉ lệ <em>giá trị ÷ rủi ro</em>. Giai đoạn 0–1 sửa được ngay
+    trong một buổi và không đụng cấu trúc; giai đoạn 3 là phần lớn công và cần chốt phạm vi
+    trước khi bắt tay.
+  </p>
+</header>
+
+<div class="stats">
+  <div class="stat"><span class="n">83</span><span class="k">modal toàn hệ thống</span></div>
+  <div class="stat"><span class="n">66</span><span class="k">modal form<br>(chưa từng rà)</span></div>
+  <div class="stat"><span class="n good">4</span><span class="k">modal đã theo<br>mẫu mới</span></div>
+  <div class="stat"><span class="n bad">8</span><span class="k">lỗi hiển thị &<br>hộp thoại xoá mơ hồ</span></div>
+  <div class="stat"><span class="n warn">17</span><span class="k">form lớn không<br>chia nhóm trường</span></div>
+</div>
+
+<!-- ═══════════ GIAI ĐOẠN 0 ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Giai đoạn 0 — Sửa lỗi hiển thị</h2>
+    <p>Tám chỗ, mỗi chỗ một tới hai dòng. Không đụng cấu trúc, không đụng API. Làm trước vì
+      đây là lỗi người dùng nhìn thấy trực tiếp, và hai chỗ nằm trên chứng từ in cho khách.</p>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G0.1</span><h3>Bốn lỗi in dữ liệu thô ra màn hình</h3><span class="cost">2 tệp · ~15 phút</span></div>
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Vị trí</th><th>Đang hiện</th><th>Phải hiện</th><th>Cách sửa</th></tr></thead>
+          <tbody>
+            <tr class="bad"><td><span class="fld">ActivityReports.tsx:213</span></td><td><code>cong_doan</code></td><td>Công tác Công đoàn</td><td class="note">Dùng <span class="fld">STAFF_ACTIVITY_KIND_LABELS</span> — đã có sẵn trong <span class="fld">types</span></td></tr>
+            <tr class="bad"><td><span class="fld">ActivityReports.tsx:211</span></td><td><code>paper</code> · <code>conference</code></td><td>Bài báo · Báo cáo hội nghị/kỷ yếu</td><td class="note">Dùng <span class="fld">PUBLICATION_TYPE_LABELS</span></td></tr>
+            <tr class="bad"><td><span class="fld">SampleFlow.tsx:368</span></td><td><code>2026-08-25</code></td><td>25/08/2026</td><td class="note">Bọc <span class="fld">formatDate()</span> — <strong>phiếu nhận mẫu in cho khách</strong></td></tr>
+            <tr class="bad"><td><span class="fld">SampleFlow.tsx:1028</span></td><td><code>2026-08-25</code></td><td>25/08/2026</td><td class="note">Như trên — phiếu chuyển mẫu</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G0.2</span><h3>Bốn hộp thoại xoá không nêu tên bản ghi</h3><span class="cost">4 tệp · ~15 phút</span></div>
+    <div class="body">
+      <p class="note">Thao tác không hoàn tác được mà người dùng không có cách đối chiếu đã bấm
+        đúng dòng chưa. Nơi khác trong hệ thống đều nêu tên — bốn chỗ này lệch chuẩn, và đều
+        nằm đúng nhóm m23/m34.</p>
+      <pre><span class="c">// Đang có                          →  Sửa thành</span>
+"Xóa hợp đồng này?"                 <span class="k">→</span>  `Xóa hợp đồng "${t?.title}"?`
+"Xóa hoạt động này?"                <span class="k">→</span>  `Xóa hoạt động "${t?.content}"?`
+"Xóa hoạt động cộng đồng này?"      <span class="k">→</span>  `Xóa hoạt động "${t?.content}"?`
+"Xóa chứng nhận này?"               <span class="k">→</span>  `Xóa GCN của "${t?.recipient_name}"?`
+
+<span class="c">ResearchContracts · StaffActivities · CommunityServices · TrainingCertificates</span>
+<span class="c">Nội dung dài thì cắt ~60 ký tự như modal xem đang làm.</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ GIAI ĐOẠN 1 ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Giai đoạn 1 — Khổ modal</h2>
+    <p>Đổi một thuộc tính mỗi chỗ. Giảm chật ngay mà chưa cần tái cấu trúc — nhưng
+      <strong>không thay thế</strong> việc chia nhóm ở giai đoạn 3, chỉ mua thời gian.</p>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G1</span><h3>Sáu modal có số ô vượt sức chứa</h3><span class="cost">6 tệp · ~15 phút</span></div>
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Modal</th><th>Ô nhập</th><th>Khổ nay</th><th>Đề xuất</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="bad"><td><span class="fld">Publications.tsx:465</span></td><td>13 (nhánh sáng chế)</td><td>lg · 48rem</td><td><strong>xl · 64rem</strong></td><td class="note">Form lớn nhất hệ thống. Do m34 nâng từ 9 lên 13 ô</td></tr>
+            <tr class="bad"><td><span class="fld">ResearchContracts.tsx:258</span></td><td>10</td><td>md · 36rem</td><td><strong>lg</strong></td><td class="note">m34 thêm 3 ô mà quên nâng khổ</td></tr>
+            <tr class="bad"><td><span class="fld">LabAccessCards.tsx:223</span></td><td>10</td><td>md</td><td><strong>lg</strong></td><td class="note">Có sẵn từ trước</td></tr>
+            <tr class="warn"><td><span class="fld">TrainingCertificates.tsx:149</span></td><td>7</td><td>md</td><td><strong>lg</strong></td><td class="note">—</td></tr>
+            <tr class="warn"><td><span class="fld">HrProfileView.tsx:689</span></td><td>7</td><td>md</td><td><strong>lg</strong></td><td class="note">—</td></tr>
+            <tr class="warn"><td><span class="fld">Forms.tsx:425</span></td><td>7</td><td>md</td><td><strong>lg</strong></td><td class="note">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <span class="lbl">Đo lại cho đúng</span>
+        <p><span class="fld">TeachingCourses</span> đo ra 10 <span class="fld">&lt;Field&gt;</span> nhưng
+          thực tế có <strong>15 điều khiển nhập</strong>: sáu ô số tiết nằm trong bảng học kỳ,
+          không bọc <span class="fld">&lt;Field&gt;</span> nên phép đếm bỏ sót. Modal này đã ở khổ
+          <span class="fld">lg</span> và đã có chia nhóm nên vẫn đọc được — nhưng đừng tin con số 10.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ GIAI ĐOẠN 2 ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Giai đoạn 2 — Bốn modal chi tiết còn lại</h2>
+    <p>Khép kín phần đã bắt đầu: 4/8 modal chi tiết đã theo mẫu mới, còn 4 chưa. Một trong
+      số đó đang <em>giấu mất</em> trường m34 vừa thêm.</p>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G2</span><h3>Đồng bộ mẫu xem chi tiết</h3><span class="cost">4 tệp · ~1,5 giờ</span></div>
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Modal</th><th>Vấn đề</th><th>Việc phải làm</th></tr></thead>
+          <tbody>
+            <tr class="bad"><td><span class="fld">TrainingCertificates</span><br><span class="note">Chứng nhận đào tạo</span></td><td class="note"><strong>Thiếu <span class="fld">cert_kind</span></strong> — bảng đã có cột "Loại danh sách", mở chi tiết ra lại mất. Thiếu cả người phụ trách.</td><td class="note">Thêm 2 trường · tiêu đề lấy tên người được cấp thay cho "Chi tiết chứng nhận" · nhóm bằng <span class="fld">DescSection</span></td></tr>
+            <tr class="bad"><td><span class="fld">TeachingCourses</span><br><span class="note">Môn giảng dạy</span></td><td class="note"><strong>Không có modal xem.</strong> Bấm hàng mở thẳng form sửa. Bảng chỉ hiện TỔNG số tiết ⇒ cách duy nhất xem tách HK1/HK2/HK3 là vào chế độ ghi.</td><td class="note">Viết modal xem mới: hero (bậc đào tạo + tổng tiết) · bảng 3 học kỳ · giảng viên · minh chứng · ghi chú</td></tr>
+            <tr class="warn"><td><span class="fld">StaffActivities</span><br><span class="note">Công tác khác</span></td><td class="note">Tiêu đề generic "Chi tiết hoạt động"; chưa nhóm mục.</td><td class="note">Tiêu đề lấy nội dung (cắt ~90 ký tự) · một <span class="fld">DescSection</span>. Không cần hero — không có số chủ đạo.</td></tr>
+            <tr class="warn"><td><span class="fld">ActivityReports</span><br><span class="note">Báo cáo hoạt động</span></td><td class="note">Tự định nghĩa <span class="fld">DetailSection</span> cục bộ, trùng chức năng <span class="fld">DescSection</span>.</td><td class="note">Thay bằng <span class="fld">DescSection</span> (sau khi G0.1 đã sửa 2 lỗi mã thô ở đây)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note"><strong>Hướng dẫn SV</strong> cũng mở thẳng form sửa như Môn giảng dạy, nhưng
+        không có trường m34 nào nên <em>không mất dữ liệu</em> — xếp xuống việc tuỳ chọn cuối kế hoạch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ GIAI ĐOẠN 3 ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Giai đoạn 3 — Chia nhóm trường cho form</h2>
+    <p>Phần lớn công và là chỗ cần bạn chốt phạm vi. 17/18 form từ 7 ô trở lên đang đổ tất cả
+      vào một lưới 2 cột phẳng. Đây đúng là vấn đề đã chữa ở phía <em>xem</em> bằng
+      <code>DescSection</code>, nhưng phía <em>nhập</em> chưa có gì tương đương.</p>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G3.1</span><h3>Dựng primitive <code>FormSection</code></h3><span class="cost">1 tệp mới · ~45 phút</span></div>
+    <div class="body">
+      <pre><span class="c">// src/components/ui/FormSection.tsx — đối xứng với DescSection ở phía xem</span>
+<span class="k">export function</span> FormSection({ title, hint, children, cols = 2 })
+  <span class="c">// tiêu đề nhóm chữ nhỏ + gạch phân cách + lưới bên trong</span>
+  <span class="c">// hint: câu giải thích ngắn cho cả nhóm, thay vì lặp hint ở từng ô</span></pre>
+      <p class="note">Dùng lại đúng ngôn ngữ thị giác của <span class="fld">DescSection</span>
+        (chữ hoa nhỏ màu sage + gạch hairline) để hai mặt xem/nhập của cùng một bản ghi trông
+        là một hệ, không phải hai hệ.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G3.2</span><h3>Áp cho 6 form nặng nhất (≥10 ô)</h3><span class="cost">6 tệp · ~4 giờ</span></div>
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Form</th><th>Ô</th><th>Nhóm đề xuất</th></tr></thead>
+          <tbody>
+            <tr class="bad"><td><span class="fld">Publications</span></td><td>13</td><td class="note"><strong>Định danh</strong> (Loại · Tiêu đề · Năm) → <strong>Nơi công bố</strong> (Tạp chí/Kỷ yếu · Chỉ số · Phạm vi · DOI · 4 cờ chỉ mục) <em>hoặc</em> <strong>Văn bằng</strong> (Loại VB · Số bằng · Cơ quan cấp · Chủ bằng · Số đơn · Ngày nộp · Ngày cấp) → <strong>Tác giả</strong> → <strong>Hồ sơ &amp; minh chứng</strong> (Năm học · Link · Phòng ban)<br><span style="color:var(--faint)">Đúng bằng bốn nhóm của modal xem đã làm — hai mặt soi gương nhau.</span></td></tr>
+            <tr class="bad"><td><span class="fld">ResearchProjects</span></td><td>13</td><td class="note"><strong>Định danh</strong> (Tên · Mã · Cấp) → <strong>Chủ trì &amp; thành viên</strong> (Chủ nhiệm · Phòng ban · danh sách) → <strong>Thời gian &amp; kinh phí</strong> (Bắt đầu · Kết thúc · Năm học · Kinh phí · Trạng thái) → <strong>Chuyển giao &amp; minh chứng</strong></td></tr>
+            <tr class="bad"><td><span class="fld">IntakeCreateModal</span></td><td>12</td><td class="note"><strong>Khách hàng</strong> (Tên · Địa chỉ · MST · Người liên hệ · ĐT · Mail) → <strong>Mẫu &amp; hẹn trả</strong> → <strong>Kết quả &amp; lệ phí</strong> → <strong>Đính kèm BM 7.1.01</strong></td></tr>
+            <tr class="bad"><td><span class="fld">Quotations</span></td><td>12</td><td class="note"><strong>Khách hàng</strong> (Tên · Địa chỉ · Email · ĐT) → <strong>Hiệu lực</strong> (Ngày lập · Hiệu lực đến · VAT) → <strong>Dòng chỉ tiêu</strong> (Loại mẫu · Chỉ tiêu · SL · Đơn giá) → <strong>Ghi chú in vào báo giá</strong></td></tr>
+            <tr class="warn"><td><span class="fld">LabAccessCards</span></td><td>10</td><td class="note"><strong>Sinh viên</strong> (Họ tên · Lớp · MSSV · Email) → <strong>Đăng ký</strong> (PTN · Mục đích · GVHD) → <strong>Hiệu lực</strong> (Từ · Đến · Ghi chú)</td></tr>
+            <tr class="warn"><td><span class="fld">TestParameters</span></td><td>10</td><td class="note"><strong>Định danh</strong> (Nhóm nền mẫu · Tên chỉ tiêu · Nền mẫu chi tiết) → <strong>Thực hiện</strong> (Phòng lab · Phương pháp · Người phụ trách · Thời gian trả) → <strong>Giá</strong> (Đơn giá · Đơn vị · Ghi chú)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note"><span class="fld">ResearchContracts</span> (10 ô) đã có nhóm đề xuất sẵn ở modal
+        xem: Định danh → Đối tác &amp; giá trị → Thời gian &amp; minh chứng. Gộp vào đợt này nếu làm.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G3.3</span><h3>Mười form 7–9 ô còn lại</h3><span class="cost">10 tệp · ~3 giờ · TUỲ CHỌN</span></div>
+    <div class="body">
+      <p class="note">Customers · Risks · Equipment · SampleFlow(dispatch) · HrProfileView ·
+        Documents · EquipmentDetail · Forms · Nonconformities · TrainingCertificates.
+        Mức chật thấp hơn — có thể để lại đợt sau mà không ai kêu.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ GIAI ĐOẠN 4 ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Giai đoạn 4 — Gom ba lối viết nhãn/giá trị về một</h2>
+    <p>Cùng một việc "hiện các trường của một bản ghi" đang được giải ba cách khác nhau
+      trong cùng một ứng dụng.</p>
+  </div>
+
+  <div class="phase">
+    <div class="head"><span class="tag">G4</span><h3>Chuyển 2 modal về <code>DescList</code></h3><span class="cost">2 tệp · ~1 giờ</span></div>
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Lối viết</th><th>Số tệp</th><th>Xử lý</th></tr></thead>
+          <tbody>
+            <tr class="ok"><td class="note"><span class="fld">DescList</span> / <span class="fld">DescItem</span></td><td>11</td><td class="note">Giữ — đây là chuẩn</td></tr>
+            <tr class="warn"><td class="note">Inline <code>&lt;span&gt;Nhãn:&lt;/span&gt; giá trị</code></td><td>2</td><td class="note"><span class="fld">Quotations.tsx:252</span> · <span class="fld">SampleFlow.tsx:1016</span> → chuyển sang <span class="fld">DescList</span>. Sửa luôn 2 chỗ ngày ISO ở G0.1 nằm ngay trong hai khối này.</td></tr>
+            <tr class="warn"><td class="note">Khối <code>uppercase</code> tự chế</td><td>4</td><td class="note">EquipmentDetail · ChemicalDetail · HrProfileView · FormFileManager — nằm ở <strong>trang</strong>, không phải modal. Để lại, không thuộc phạm vi modal.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ TỔNG HỢP ═══════════ -->
+<section>
+  <div class="sechead">
+    <h2>Tổng hợp &amp; thứ tự</h2>
+  </div>
+  <div class="phase">
+    <div class="body">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Giai đoạn</th><th>Việc</th><th>Tệp</th><th>Công</th><th>Rủi ro</th><th>Chặn ai không?</th></tr></thead>
+          <tbody>
+            <tr class="ok"><td><strong>G0</strong> Lỗi hiển thị</td><td>8 chỗ</td><td>6</td><td>30 phút</td><td>Không</td><td class="note">Có — dữ liệu sai trên chứng từ in</td></tr>
+            <tr class="ok"><td><strong>G1</strong> Khổ modal</td><td>6 chỗ</td><td>6</td><td>15 phút</td><td>Không</td><td class="note">Không, nhưng khó dùng</td></tr>
+            <tr class="warn"><td><strong>G2</strong> Modal chi tiết</td><td>4 modal</td><td>4</td><td>1,5 giờ</td><td>Thấp</td><td class="note">Có — Môn giảng dạy phải vào form ghi mới xem được số tiết</td></tr>
+            <tr class="warn"><td><strong>G3.1</strong> FormSection</td><td>1 primitive</td><td>1</td><td>45 phút</td><td>Thấp</td><td class="note">Tiền đề cho G3.2</td></tr>
+            <tr class="bad"><td><strong>G3.2</strong> 6 form nặng</td><td>6 form</td><td>6</td><td>4 giờ</td><td><strong>Vừa</strong></td><td class="note">Không — nhưng chạm 4 module khác nhau</td></tr>
+            <tr class="warn"><td><strong>G4</strong> Gom lối viết</td><td>2 modal</td><td>2</td><td>1 giờ</td><td>Thấp</td><td class="note">Không</td></tr>
+            <tr class="warn"><td><strong>G3.3</strong> 10 form nhẹ</td><td>10 form</td><td>10</td><td>3 giờ</td><td>Vừa</td><td class="note">Không — tuỳ chọn</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <span class="lbl">Kiểm chứng mỗi giai đoạn</span>
+        <p><code>npx tsc -b --force</code> · <code>npm run build</code> ·
+          <code>npm run check:responsive</code> · <code>node scripts/check-file-size.mjs</code>,
+          rồi chụp màn hình bằng Chrome headless qua CDP trên bản xem thử
+          <code>localhost:3070</code> — đúng cách đã dùng để nghiệm thu 4 modal trước.
+          G3.2 chạm form <em>ghi</em> nên phải thử tạo/sửa thật một bản ghi mỗi form, không chỉ nhìn ảnh.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="lbl">Giới hạn phạm vi — cam kết không làm</span>
+        <p>Không đổi luồng nghiệp vụ, không đổi API/schema, không đổi quy tắc validate, không
+          đổi quyền. Toàn bộ kế hoạch này chỉ sắp xếp lại thứ tự và hình thức trình bày của
+          những trường vốn đã có.</p>
+      </div>
+
+      <div class="callout warn">
+        <span class="lbl">Nói rõ trách nhiệm</span>
+        <p>Ba trong sáu form chật ở G1 là do chính m34 tôi làm: Publications từ 9 lên 13 ô,
+          ResearchProjects lên 13, ResearchContracts thêm 3 ô mà giữ nguyên khổ
+          <code>md</code>. G1 và G3.2 phần lớn là trả nợ cho đợt thay đổi đó chứ không phải
+          dọn nợ của người khác.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

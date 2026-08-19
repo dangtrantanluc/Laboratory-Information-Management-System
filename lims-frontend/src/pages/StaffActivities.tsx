@@ -6,13 +6,19 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescSection,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
 import { Field, Input, Textarea, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, truncate } from '@/lib/format';
 import { STAFF_ACTIVITY_KIND_LABELS } from '@/types';
 import type { StaffActivity, StaffActivityKind } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
@@ -113,17 +119,62 @@ export function StaffActivities() {
       {createOpen && <ActivityModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); reload(); toast.success('Đã thêm'); }} />}
       {editTarget && <ActivityModal activity={editTarget} onClose={() => setEditTarget(null)} onSaved={() => { setEditTarget(null); reload(); toast.success('Đã cập nhật'); }} />}
       {viewTarget && (
-        <Modal open onClose={() => setViewTarget(null)} title="Chi tiết hoạt động" footer={<><Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>{canManage && <Button onClick={() => { const a = viewTarget; setViewTarget(null); setEditTarget(a); }}><Pencil size={14} /> Chỉnh sửa</Button>}</>}>
-          <DescList>
-            <DescItem label="Nhóm" value={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]} />
-            <DescItem label="Người thực hiện" value={viewTarget.performer_name} />
-            <DescItem full label="Nội dung" value={<span className="whitespace-pre-wrap">{viewTarget.content}</span>} />
-            <DescItem label="Thời gian" value={viewTarget.performed_at ? formatDate(viewTarget.performed_at) : '—'} />
-            <DescItem label="Năm học" value={viewTarget.academic_year} />
-          </DescList>
+        <Modal
+          open
+          onClose={() => setViewTarget(null)}
+          title={truncate(viewTarget.content, 90)}
+          description={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>
+              {canManage && (
+                <Button onClick={() => { const a = viewTarget; setViewTarget(null); setEditTarget(a); }}>
+                  <Pencil size={14} /> Chỉnh sửa
+                </Button>
+              )}
+            </>
+          }
+        >
+          {/* Không dùng DetailHero: bản ghi không có số chủ đạo nào, dải tóm tắt sẽ
+              chỉ còn một chip lẻ trong khung lớn — thêm khoảng trống, không thêm tin. */}
+          <div className="flex flex-col gap-6">
+            {viewTarget.content.length > 90 && (
+              <DescSection title="Nội dung">
+                <DescList cols={1}>
+                  <DescItem
+                    full
+                    label="Nội dung hoạt động"
+                    value={<span className="whitespace-pre-wrap">{viewTarget.content}</span>}
+                  />
+                </DescList>
+              </DescSection>
+            )}
+
+            <DescSection title="Thực hiện">
+              <DescList>
+                <DescItem label="Nhóm công tác" value={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]} />
+                <DescItem label="Thời gian" value={viewTarget.performed_at ? formatDate(viewTarget.performed_at) : null} />
+                <DescItem
+                  label="Người thực hiện"
+                  value={
+                    viewTarget.performer_name ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Avatar name={viewTarget.performer_name} size="sm" />
+                        {viewTarget.performer_name}
+                      </span>
+                    ) : null
+                  }
+                />
+                <DescItem label="Năm học" value={viewTarget.academic_year} />
+                {/* Bảng danh sách đã có cột "Minh chứng"; modal chi tiết thiếu thì
+                    người dùng phải quay ra bảng mới bấm được link. */}
+                <DescLink url={viewTarget.evidence_url} />
+              </DescList>
+            </DescSection>
+          </div>
         </Modal>
       )}
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa hoạt động" message="Xóa hoạt động này?" confirmText="Xóa" loading={deleting} />
+      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa hoạt động" message={`Xóa hoạt động "${truncate(deleteTarget?.content)}"? Thao tác không thể hoàn tác.`} confirmText="Xóa" loading={deleting} />
     </div>
   );
 }

@@ -90,3 +90,15 @@ export function avatarColor(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return palette[h % palette.length];
 }
+
+/**
+ * Cắt chuỗi dài kèm dấu ba chấm — dùng cho tiêu đề modal và câu xác nhận xoá.
+ *
+ * Tên bản ghi trong hệ thống này có thể rất dài (tên đề tài NCKH tới 200+ ký tự,
+ * nội dung hoạt động cả đoạn), nên chỗ nào nhắc lại tên bản ghi trong một dòng
+ * đều cần cắt. Gom về đây để ngưỡng cắt nhất quán thay vì mỗi trang một kiểu.
+ */
+export function truncate(text?: string | null, max = 60): string {
+  if (!text) return '';
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}

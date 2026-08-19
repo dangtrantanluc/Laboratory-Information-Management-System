@@ -4,15 +4,24 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescPeriod,
+  DescSection,
+  DetailHero,
+} from '@/components/ui/DescList';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatMoney, truncate } from '@/lib/format';
 import type { ResearchContract } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
@@ -127,7 +136,7 @@ export function ResearchContracts() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
         title="Xóa hợp đồng"
-        message="Xóa hợp đồng này?"
+        message={`Xóa hợp đồng "${truncate(deleteTarget?.title)}"? Thao tác không thể hoàn tác.`}
         confirmText="Xóa"
         loading={deleting}
       />
@@ -135,21 +144,71 @@ export function ResearchContracts() {
   );
 }
 
-function ContractDetailModal({ contract: c, canManage, onClose, onEdit }: { contract: ResearchContract; canManage: boolean; onClose: () => void; onEdit: () => void }) {
+function ContractDetailModal({
+  contract: c,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  contract: ResearchContract;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
   return (
-    <Modal open onClose={onClose} title="Chi tiết hợp đồng" footer={<><Button variant="secondary" onClick={onClose}>Đóng</Button>{canManage && <Button onClick={onEdit}><Pencil size={14} /> Chỉnh sửa</Button>}</>}>
-      <DescList>
-        <DescItem full label="Tên hợp đồng" value={c.title} />
-        <DescItem label="Loại hợp đồng" value={c.contract_type} />
-        <DescItem label="Số hợp đồng" value={c.contract_no} />
-        <DescItem label="Ngày ký" value={c.signed_date ? formatDate(c.signed_date) : null} />
-        <DescItem label="Giá trị" value={formatMoney(c.value_amount, c.currency ?? 'VND')} />
-        <DescItem label="Đơn vị phối hợp" value={c.partner_org} />
-        <DescItem label="Bắt đầu" value={c.start_date ? formatDate(c.start_date) : '—'} />
-        <DescItem label="Kết thúc" value={c.end_date ? formatDate(c.end_date) : '—'} />
-        <DescItem label="Năm học" value={c.academic_year} />
-        <DescItem label="Phòng ban" value={c.department_name} />
-      </DescList>
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={c.title}
+      description="Hợp đồng nghiên cứu / tư vấn khoa học công nghệ"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <DetailHero
+          chips={
+            <>
+              {c.contract_type && <Badge tone="info">{c.contract_type}</Badge>}
+              {c.contract_no && (
+                <span className="rounded-md border border-hairline bg-surface2 px-2 py-0.5 font-mono text-xs text-ink">
+                  {c.contract_no}
+                </span>
+              )}
+            </>
+          }
+          metricLabel="Giá trị hợp đồng"
+          metric={formatMoney(c.value_amount, c.currency ?? 'VND')}
+        />
+
+        <DescSection title="Đối tác & ký kết">
+          <DescList>
+            {/* Tên công ty dài 40-60 ký tự — cho trọn hàng thay vì bóp vào nửa cột
+                rồi xuống 3 dòng, kéo lệch nhịp cả lưới (lỗi của bản cũ). */}
+            <DescItem full label="Đơn vị phối hợp" value={c.partner_org} />
+            <DescItem label="Ngày ký" value={c.signed_date ? formatDate(c.signed_date) : null} />
+            <DescItem label="Năm học" value={c.academic_year} />
+          </DescList>
+        </DescSection>
+
+        <DescSection title="Thực hiện">
+          <DescList>
+            <DescPeriod label="Thời gian thực hiện" from={c.start_date} to={c.end_date} />
+            <DescItem label="Phòng ban" value={c.department_name} />
+            <DescLink url={c.evidence_url} />
+          </DescList>
+        </DescSection>
+      </div>
     </Modal>
   );
 }
@@ -200,10 +259,12 @@ function ContractModal({ contract, onClose, onSaved }: { contract?: ResearchCont
     <Modal
       open
       onClose={onClose}
+      size="lg"
       title={editing ? 'Sửa hợp đồng' : 'Thêm hợp đồng'}
       footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button onClick={submit} loading={submitting}>{editing ? 'Lưu' : 'Thêm'}</Button></>}
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Định danh">
         <Field label="Tên hợp đồng" required className="md:col-span-2"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
         <Field label="Loại hợp đồng">
           <Select value={contractType} onChange={(e) => setContractType(e.target.value)}>
@@ -215,13 +276,20 @@ function ContractModal({ contract, onClose, onSaved }: { contract?: ResearchCont
         </Field>
         <Field label="Số hợp đồng"><Input value={contractNo} onChange={(e) => setContractNo(e.target.value)} placeholder="PUR.2024.00618" /></Field>
         <Field label="Ngày ký"><Input type="date" value={signedDate ?? ''} onChange={(e) => setSignedDate(e.target.value)} /></Field>
+        </FormSection>
+
+        <FormSection title="Đối tác & giá trị">
+        <Field label="Đơn vị phối hợp" className="md:col-span-2"><Input value={partner} onChange={(e) => setPartner(e.target.value)} /></Field>
         <Field label="Giá trị (VND)"><Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="110000000" inputMode="decimal" /></Field>
-        <Field label="Đơn vị phối hợp"><Input value={partner} onChange={(e) => setPartner(e.target.value)} /></Field>
         <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
+        </FormSection>
+
+        <FormSection title="Thời gian & minh chứng">
         <Field label="Bắt đầu"><Input type="date" value={startDate ?? ''} onChange={(e) => setStartDate(e.target.value)} /></Field>
         <Field label="Kết thúc"><Input type="date" value={endDate ?? ''} onChange={(e) => setEndDate(e.target.value)} /></Field>
         <Field label="Link minh chứng" className="md:col-span-2"><Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" /></Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

@@ -689,6 +689,7 @@ function CompetenceModal({
     <Modal
       open
       onClose={onClose}
+      size="lg"
       title={editing ? 'Sửa mục năng lực' : 'Thêm mục năng lực'}
       footer={
         <>

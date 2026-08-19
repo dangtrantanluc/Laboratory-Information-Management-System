@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { CustomerPicker } from '@/components/ui/CustomerPicker';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -108,7 +109,8 @@ export function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; on
         </>
       }
     >
-      <div className="flex flex-col gap-4">
+      <FormBody>
+        <FormSection title="Khách hàng" cols={1}>
         <Field
           label="Tên khách hàng / đơn vị"
           required
@@ -139,13 +141,17 @@ export function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; on
           <Field label="Người liên hệ"><Input value={f.contact_person} onChange={set('contact_person')} /></Field>
           <Field label="Điện thoại"><Input value={f.phone} onChange={set('phone')} /></Field>
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Mail"><Input value={f.email} onChange={set('email')} /></Field>
-          <Field label="Ngày hẹn trả kết quả"><Input value={f.due_date} onChange={set('due_date')} placeholder="dd/mm/yyyy" /></Field>
-        </div>
+        <Field label="Mail"><Input value={f.email} onChange={set('email')} /></Field>
+        </FormSection>
+
+        <FormSection title="Mẫu & hẹn trả" cols={1}>
+        <Field label="Ngày hẹn trả kết quả"><Input value={f.due_date} onChange={set('due_date')} placeholder="dd/mm/yyyy" /></Field>
         <Field label="Mô tả mẫu">
           <Textarea value={f.description} onChange={set('description')} />
         </Field>
+        </FormSection>
+
+        <FormSection title="Kết quả & lệ phí" cols={1}>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <Field label="Phiếu kết quả">
             <Select value={f.result_language} onChange={set('result_language')}>
@@ -164,10 +170,14 @@ export function IntakeCreateModal({ onClose, onDone }: { onClose: () => void; on
           </Field>
           <Field label="Lệ phí / ứng trước"><Input value={f.fee_note} onChange={set('fee_note')} /></Field>
         </div>
+        </FormSection>
+
+        <FormSection title="Đính kèm" cols={1}>
         <Field label="Phiếu nhận mẫu đã điền (BM 7.1.01)">
           <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

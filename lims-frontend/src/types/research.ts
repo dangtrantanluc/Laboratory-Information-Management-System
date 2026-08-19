@@ -51,6 +51,26 @@ export type PubScope = 'domestic' | 'international';
 export type PatentKind = 'invention' | 'utility_solution' | 'plant_variety';
 export type TrainingLevel = 'undergraduate' | 'postgraduate';
 export type CertKind = 'short_course' | 'lab_safety';
+
+// Mỗi union đi kèm MỘT bảng nhãn ngay cạnh nó — quy ước sẵn có của tệp này
+// (PUBLICATION_TYPE_LABELS, AUTHOR_ROLE_LABELS…). Kiểu Record<Union, string> chứ
+// không phải Record<string, string>: thêm nhánh mới vào union mà quên nhãn thì
+// TypeScript báo lỗi, thay vì để mã thô lọt ra giao diện.
+export const PATENT_KIND_LABELS: Record<PatentKind, string> = {
+  invention: 'Sáng chế',
+  utility_solution: 'Giải pháp hữu ích',
+  plant_variety: 'Giống cây trồng',
+};
+
+export const TRAINING_LEVEL_LABELS: Record<TrainingLevel, string> = {
+  undergraduate: 'Đại học',
+  postgraduate: 'Sau đại học',
+};
+
+export const CERT_KIND_LABELS: Record<CertKind, string> = {
+  short_course: 'Lớp ngắn hạn',
+  lab_safety: 'Tập huấn an toàn PTN & PCCC',
+};
 export type AuthorRole = 'main' | 'co' | 'corresponding';
 
 export const PUBLICATION_TYPE_LABELS: Record<PublicationType, string> = {
