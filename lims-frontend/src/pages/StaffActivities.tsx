@@ -6,13 +6,19 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescSection,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
 import { Field, Input, Textarea, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, truncate } from '@/lib/format';
 import { STAFF_ACTIVITY_KIND_LABELS } from '@/types';
 import type { StaffActivity, StaffActivityKind } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
@@ -57,6 +63,19 @@ export function StaffActivities() {
     { key: 'content', header: 'Hoạt động', render: (a) => <span className="font-medium text-ink">{a.content}</span> },
     { key: 'performer', header: 'Người thực hiện', render: (a) => a.performer_name ?? '—' },
     { key: 'year', header: 'Năm học', render: (a) => a.academic_year ?? '—' },
+    {
+      key: 'evidence',
+      header: 'Minh chứng',
+      align: 'center',
+      render: (a) =>
+        a.evidence_url ? (
+          <a href={a.evidence_url} target="_blank" rel="noreferrer" className="text-berry hover:underline" onClick={(e) => e.stopPropagation()}>
+            Xem
+          </a>
+        ) : (
+          '—'
+        ),
+    },
     ...(canManage
       ? [
           {
@@ -100,17 +119,62 @@ export function StaffActivities() {
       {createOpen && <ActivityModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); reload(); toast.success('Đã thêm'); }} />}
       {editTarget && <ActivityModal activity={editTarget} onClose={() => setEditTarget(null)} onSaved={() => { setEditTarget(null); reload(); toast.success('Đã cập nhật'); }} />}
       {viewTarget && (
-        <Modal open onClose={() => setViewTarget(null)} title="Chi tiết hoạt động" footer={<><Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>{canManage && <Button onClick={() => { const a = viewTarget; setViewTarget(null); setEditTarget(a); }}><Pencil size={14} /> Chỉnh sửa</Button>}</>}>
-          <DescList>
-            <DescItem label="Nhóm" value={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]} />
-            <DescItem label="Người thực hiện" value={viewTarget.performer_name} />
-            <DescItem full label="Nội dung" value={<span className="whitespace-pre-wrap">{viewTarget.content}</span>} />
-            <DescItem label="Thời gian" value={viewTarget.performed_at ? formatDate(viewTarget.performed_at) : '—'} />
-            <DescItem label="Năm học" value={viewTarget.academic_year} />
-          </DescList>
+        <Modal
+          open
+          onClose={() => setViewTarget(null)}
+          title={truncate(viewTarget.content, 90)}
+          description={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setViewTarget(null)}>Đóng</Button>
+              {canManage && (
+                <Button onClick={() => { const a = viewTarget; setViewTarget(null); setEditTarget(a); }}>
+                  <Pencil size={14} /> Chỉnh sửa
+                </Button>
+              )}
+            </>
+          }
+        >
+          {/* Không dùng DetailHero: bản ghi không có số chủ đạo nào, dải tóm tắt sẽ
+              chỉ còn một chip lẻ trong khung lớn — thêm khoảng trống, không thêm tin. */}
+          <div className="flex flex-col gap-6">
+            {viewTarget.content.length > 90 && (
+              <DescSection title="Nội dung">
+                <DescList cols={1}>
+                  <DescItem
+                    full
+                    label="Nội dung hoạt động"
+                    value={<span className="whitespace-pre-wrap">{viewTarget.content}</span>}
+                  />
+                </DescList>
+              </DescSection>
+            )}
+
+            <DescSection title="Thực hiện">
+              <DescList>
+                <DescItem label="Nhóm công tác" value={STAFF_ACTIVITY_KIND_LABELS[viewTarget.kind]} />
+                <DescItem label="Thời gian" value={viewTarget.performed_at ? formatDate(viewTarget.performed_at) : null} />
+                <DescItem
+                  label="Người thực hiện"
+                  value={
+                    viewTarget.performer_name ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Avatar name={viewTarget.performer_name} size="sm" />
+                        {viewTarget.performer_name}
+                      </span>
+                    ) : null
+                  }
+                />
+                <DescItem label="Năm học" value={viewTarget.academic_year} />
+                {/* Bảng danh sách đã có cột "Minh chứng"; modal chi tiết thiếu thì
+                    người dùng phải quay ra bảng mới bấm được link. */}
+                <DescLink url={viewTarget.evidence_url} />
+              </DescList>
+            </DescSection>
+          </div>
         </Modal>
       )}
-      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa hoạt động" message="Xóa hoạt động này?" confirmText="Xóa" loading={deleting} />
+      <ConfirmDialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} title="Xóa hoạt động" message={`Xóa hoạt động "${truncate(deleteTarget?.content)}"? Thao tác không thể hoàn tác.`} confirmText="Xóa" loading={deleting} />
     </div>
   );
 }
@@ -122,17 +186,22 @@ function ActivityModal({ activity, onClose, onSaved }: { activity?: StaffActivit
   const [content, setContent] = useState(activity?.content ?? '');
   const [performedAt, setPerformedAt] = useState(activity?.performed_at ?? '');
   const [academicYear, setAcademicYear] = useState(activity?.academic_year ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(activity?.evidence_url ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   async function submit() {
     if (!content.trim()) return toast.error('Nhập nội dung hoạt động');
     setSubmitting(true);
+    const body = {
+      kind,
+      content: content.trim(),
+      performed_at: performedAt || null,
+      academic_year: academicYear || null,
+      evidence_url: evidenceUrl.trim() || null,
+    };
     try {
-      if (editing) {
-        await activityApi.updateActivity(activity!.id, { kind, content: content.trim(), performed_at: performedAt || null, academic_year: academicYear || null });
-      } else {
-        await activityApi.createActivity({ kind, content: content.trim(), performed_at: performedAt || null, academic_year: academicYear || null });
-      }
+      if (editing) await activityApi.updateActivity(activity!.id, body);
+      else await activityApi.createActivity(body);
       onSaved();
     } catch (err) {
       toast.error(describeError(err).title);
@@ -152,6 +221,7 @@ function ActivityModal({ activity, onClose, onSaved }: { activity?: StaffActivit
         <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
         <Field label="Nội dung hoạt động" required className="md:col-span-2"><Textarea rows={3} value={content} onChange={(e) => setContent(e.target.value)} /></Field>
         <Field label="Thời gian"><Input type="date" value={performedAt ?? ''} onChange={(e) => setPerformedAt(e.target.value)} /></Field>
+        <Field label="Link minh chứng" hint="Hình ảnh, khen thưởng, quyết định, chứng nhận"><Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" /></Field>
       </div>
     </Modal>
   );

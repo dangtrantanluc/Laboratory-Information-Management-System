@@ -6,7 +6,7 @@ import pytest
 
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import Publication, ResearchProject, TeachingCourse
+from app.models.research import Publication, ResearchProject, TeachingCourse
 from app.services import activity_report_service as svc
 
 _ADMIN_ID = uuid.UUID("00000000-0000-0000-0000-0000000000a1")

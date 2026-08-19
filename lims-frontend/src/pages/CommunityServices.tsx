@@ -6,13 +6,19 @@ import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescSection,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
 import { Field, Input, Textarea, Select } from '@/components/ui/Field';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { describeError } from '@/lib/errors';
-import { formatDate } from '@/lib/format';
+import { formatDate, truncate } from '@/lib/format';
 import { canManageResearch } from '@/lib/rbac';
 import type { CommunityService } from '@/types';
 import * as researchApi from '@/api/research';
@@ -139,7 +145,7 @@ export function CommunityServices() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
         title="Xóa hoạt động"
-        message="Xóa hoạt động cộng đồng này?"
+        message={`Xóa hoạt động "${truncate(deleteTarget?.content)}"? Thao tác không thể hoàn tác.`}
         confirmText="Xóa"
         loading={deleting}
       />
@@ -158,11 +164,16 @@ function CommunityDetailModal({
   onClose: () => void;
   onEdit: () => void;
 }) {
+  const TITLE_MAX = 90;
+  const truncated = c.content.length > TITLE_MAX;
+
   return (
     <Modal
       open
       onClose={onClose}
-      title="Chi tiết hoạt động cộng đồng"
+      // Modal này chỉ có 5 trường: giữ khổ `md`. Cho `lg` như hai modal kia sẽ
+      // thành hộp rộng gần như trống — đúng lỗi "quá thưa" của bản cũ.
+      title={truncate(c.content, TITLE_MAX)}
       description="Hoạt động phục vụ cộng đồng, xã hội"
       footer={
         <>
@@ -177,13 +188,46 @@ function CommunityDetailModal({
         </>
       }
     >
-      <DescList>
-        <DescItem full label="Nội dung hoạt động" value={<span className="whitespace-pre-wrap">{c.content}</span>} />
-        <DescItem label="Đơn vị chủ trì" value={c.host} />
-        <DescItem label="Người thực hiện" value={c.performer_name} />
-        <DescItem label="Thời gian" value={formatDate(c.performed_at)} />
-        <DescItem label="Phòng ban" value={c.department_name} />
-      </DescList>
+      <div className="flex flex-col gap-6">
+        {/* KHÔNG dùng DetailHero ở đây: bản ghi này không có con số chủ đạo hay
+            trạng thái nào, nên dải tóm tắt chỉ còn một chip lẻ trong khung lớn —
+            thêm khoảng trống chứ không thêm thông tin. Hero dành cho bản ghi có
+            kinh phí / giá trị / trạng thái để neo mắt. */}
+
+        {/* Chỉ hiện lại nội dung khi tiêu đề đã bị cắt — nếu không thì đây là đoạn
+            chữ y hệt tiêu đề nằm ngay dưới tiêu đề. */}
+        {truncated && (
+          <DescSection title="Nội dung">
+            <DescList cols={1}>
+              <DescItem
+                full
+                label="Mô tả hoạt động"
+                value={<span className="whitespace-pre-wrap">{c.content}</span>}
+              />
+            </DescList>
+          </DescSection>
+        )}
+
+        <DescSection title="Thực hiện">
+          <DescList>
+            <DescItem label="Thời gian" value={formatDate(c.performed_at)} />
+            <DescItem
+              label="Người thực hiện"
+              value={
+                c.performer_name ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Avatar name={c.performer_name} size="sm" />
+                    {c.performer_name}
+                  </span>
+                ) : null
+              }
+            />
+            <DescItem label="Đơn vị chủ trì" value={c.host} />
+            <DescItem label="Phòng ban" value={c.department_name} />
+            <DescLink url={c.evidence_url} />
+          </DescList>
+        </DescSection>
+      </div>
     </Modal>
   );
 }
@@ -204,6 +248,7 @@ function CommunityModal({
   const [content, setContent] = useState(service?.content ?? '');
   const [performedAt, setPerformedAt] = useState(service?.performed_at ?? '');
   const [host, setHost] = useState(service?.host ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(service?.evidence_url ?? '');
   const [submitting, setSubmitting] = useState(false);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
   const isStaff = user?.role === 'staff';
@@ -214,19 +259,16 @@ function CommunityModal({
     if (!editing && !performerId) return toast.error('Chọn người thực hiện');
     setSubmitting(true);
     try {
+      const shared = {
+        content: content.trim(),
+        performed_at: performedAt,
+        host: host || null,
+        evidence_url: evidenceUrl.trim() || null,
+      };
       if (editing) {
-        await researchApi.updateCommunity(service!.id, {
-          content: content.trim(),
-          performed_at: performedAt,
-          host: host || null,
-        });
+        await researchApi.updateCommunity(service!.id, shared);
       } else {
-        await researchApi.createCommunity({
-          content: content.trim(),
-          performed_at: performedAt,
-          host: host || null,
-          performer_user_id: performerId,
-        });
+        await researchApi.createCommunity({ ...shared, performer_user_id: performerId });
       }
       onSaved();
     } catch (err) {
@@ -270,6 +312,9 @@ function CommunityModal({
         </Field>
         <Field label="Thời gian" required>
           <Input type="date" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
+        </Field>
+        <Field label="Link minh chứng" className="md:col-span-2">
+          <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
         </Field>
         <Field label="Đơn vị chủ trì">
           <Input value={host} onChange={(e) => setHost(e.target.value)} />

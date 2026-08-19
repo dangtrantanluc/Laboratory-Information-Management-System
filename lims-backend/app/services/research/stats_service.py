@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
+from app.models.research import (
     CommunityService,
     LabRegistration,
     ProjectMember,

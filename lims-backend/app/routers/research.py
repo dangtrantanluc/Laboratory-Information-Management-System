@@ -1,8 +1,10 @@
 """Router M4.3 — Thành tích NCKH: đề tài, bài báo/sáng chế, hướng dẫn SV, đăng ký lab
 (có duyệt), giảng dạy, cộng đồng, thống kê + Excel.
 
-Văn phòng bị CẤM toàn bộ nhóm NCKH (hc.assert_research_access → 403). Scope staff own
-enforce ở service. Tác giả/thành viên ngoài hệ thống qua external_name (XOR).
+Quyền GHI: admin + lãnh đạo + VĂN PHÒNG (m34 — trước đây Văn phòng bị cấm ghi theo
+QUYẾT ĐỊNH #5; xem ghi chú chính sách ở hr_common.assert_research_access). staff ghi
+được trên bản ghi mình tham gia — scope enforce ở service. Tác giả/thành viên/chủ nhiệm
+ngoài hệ thống qua external_name (XOR với user_id).
 """
 import uuid
 from datetime import date
@@ -61,13 +63,13 @@ def _cid(request: Request) -> Optional[str]:
 
 
 def _guard(user: CurrentUser) -> CurrentUser:
-    """GHI nhóm NCKH: chặn office (thành tích NCKH của người khác — office chỉ được XEM)."""
+    """GHI nhóm NCKH: admin/leader/office toàn hệ thống, staff trên bản ghi của mình."""
     hc.assert_research_access(user)
     return user
 
 
 def _guard_read(user: CurrentUser) -> CurrentUser:
-    """ĐỌC nhóm NCKH: cho phép cả VĂN PHÒNG xem toàn bộ thông tin NCKH (read-only)."""
+    """ĐỌC nhóm NCKH: mọi vai trò đã đăng nhập."""
     return user
 
 

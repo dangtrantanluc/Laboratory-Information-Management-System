@@ -8,9 +8,11 @@ import type {
   Publication,
   PublicationAuthor,
   PublicationType,
+  PatentKind,
   ResearchProject,
   StudentMentorship,
   TeachingCourse,
+  TrainingLevel,
 } from '@/types';
 
 // ── Danh mục ────────────────────────────────────────────────────
@@ -45,7 +47,9 @@ export interface CreateProjectBody {
   code?: string | null;
   title: string;
   level: string;
-  lead_user_id: string;
+  /** Chủ nhiệm: nội bộ HOẶC ngoài hệ thống — gửi đúng một trong hai. */
+  lead_user_id?: string | null;
+  lead_external_name?: string | null;
   department_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
@@ -55,6 +59,7 @@ export interface CreateProjectBody {
   budget_currency?: string | null;
   is_transferred?: boolean | null;
   transfer_product?: string | null;
+  evidence_url?: string | null;
   members: ProjectMember[];
 }
 export function createProject(body: CreateProjectBody) {
@@ -108,6 +113,8 @@ export interface CreatePublicationBody {
   application_date?: string | null;
   granted_date?: string | null;
   patent_holder?: string | null;
+  patent_kind?: PatentKind | null;
+  evidence_url?: string | null;
   department_id?: string | null;
   authors: PublicationAuthor[];
 }
@@ -166,16 +173,23 @@ export function listTeaching(f: TeachingFilters = {}) {
   return apiGetPaged<TeachingCourse[]>('/teaching-courses', { ...f });
 }
 export interface CreateTeachingBody {
-  user_id: string;
+  /** Giảng viên: nội bộ HOẶC thỉnh giảng ngoài hệ thống — gửi đúng một trong hai. */
+  user_id?: string | null;
+  lecturer_external_name?: string | null;
   course_name: string;
-  semester: string;
+  /** Tuỳ chọn: một môn có thể dạy nhiều học kỳ, số tiết nằm ở các cột HK1/HK2/HK3. */
+  semester?: string | null;
   year: number;
   academic_year?: string | null;
+  training_level?: TrainingLevel | null;
   hk1_theory_hours?: number | null;
   hk1_practice_hours?: number | null;
   hk2_theory_hours?: number | null;
   hk2_practice_hours?: number | null;
+  hk3_theory_hours?: number | null;
+  hk3_practice_hours?: number | null;
   note?: string | null;
+  evidence_url?: string | null;
 }
 export function createTeaching(body: CreateTeachingBody) {
   return apiPost<TeachingCourse>('/teaching-courses', body);
@@ -204,6 +218,7 @@ export interface CreateCommunityBody {
   content: string;
   performed_at: string;
   host?: string | null;
+  evidence_url?: string | null;
   performer_user_id: string;
 }
 export function createCommunity(body: CreateCommunityBody) {

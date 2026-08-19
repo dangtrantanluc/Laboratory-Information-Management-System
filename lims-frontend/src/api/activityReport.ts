@@ -24,6 +24,8 @@ export interface TeachingEntry {
   hk1_practice_hours?: number | null;
   hk2_theory_hours?: number | null;
   hk2_practice_hours?: number | null;
+  hk3_theory_hours?: number | null;
+  hk3_practice_hours?: number | null;
   note?: string | null;
 }
 export interface ProjectEntry {

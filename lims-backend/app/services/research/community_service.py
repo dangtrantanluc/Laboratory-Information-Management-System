@@ -13,9 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    CommunityService,
-)
+from app.models.research import CommunityService
 from app.services import audit_service, hr_common as hc
 
 
@@ -25,6 +23,7 @@ def _community_dict(db: Session, c: CommunityService) -> dict:
         "content": c.content,
         "performed_at": c.performed_at.isoformat() if c.performed_at else None,
         "host": c.host,
+        "evidence_url": c.evidence_url,
         "performer_user_id": c.performer_user_id,
         "performer_name": hc.user_name(db, c.performer_user_id),
         "department_id": c.department_id,
@@ -94,6 +93,7 @@ def create_community(
         content=str(payload["content"]).strip(),
         performed_at=payload.get("performed_at"),
         host=payload.get("host"),
+        evidence_url=payload.get("evidence_url"),
         performer_user_id=performer,
         department_id=hc.user_dept(db, performer),
         created_by=user.id,
@@ -132,7 +132,7 @@ def update_community(
         raise hc.forbidden("Bạn chỉ sửa hoạt động của chính mình")
     if not changes:
         raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
-    for field in ("content", "performed_at", "host"):
+    for field in ("content", "performed_at", "host", "evidence_url"):
         if field in changes:
             setattr(c, field, changes[field])
     c.updated_by = user.id

@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
 import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
-import { formatDateTime, formatMoney } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { EmptyState } from '@/components/ui/States';
 import { canManageIntake, canUpdateDispatch } from '@/lib/rbac';
 import {
@@ -365,7 +365,7 @@ function IntakeDetailModal({
           <IntakeWorkflow intake={intake} canManage={canManage} onChanged={() => { reload(); onChanged(); }} />
 
           <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 gap-y-2 text-sm">
-            <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake.due_date ?? '—'}</div>
+            <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake.due_date ? formatDate(intake.due_date) : '—'}</div>
             <div className="sm:col-span-2"><span className="text-subink">Mô tả mẫu:</span> {intake.description ?? '—'}</div>
           </div>
 
@@ -1025,7 +1025,7 @@ function DispatchDetailModal({
         {/* Thông tin mẫu (không nhạy cảm) */}
         <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 gap-y-2 text-sm">
           <div className="sm:col-span-2"><span className="text-subink">Mô tả mẫu:</span> {intake?.description ?? '—'}</div>
-          <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake?.due_date ?? '—'}</div>
+          <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake?.due_date ? formatDate(intake.due_date) : '—'}</div>
           <div>
             <span className="text-subink">Trạng thái:</span>{' '}
             <Badge tone={DISPATCH_TONE[dispatch.status]}>{DISPATCH_STATUS_LABELS[dispatch.status]}</Badge>

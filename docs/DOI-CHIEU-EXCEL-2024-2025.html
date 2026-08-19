@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đối chiếu Excel Hoạt động 2024–2025</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  /* ============ TOKENS — palette "Botanical / Living Science" lấy từ src/index.css ============ */
+  :root {
+    --ground:      #F6F7F1;
+    --surface:     #FFFFFF;
+    --raised:      #FBFCF6;
+    --sunk:        #EFF1E7;
+    --hairline:    #E2E4D8;
+    --hairline-hi: #CFD3C2;
+    --ink:         #1A1F1B;
+    --subink:      #52564C;
+    --faint:       #7C826F;
+    --forest:      #1A6E4A;
+    --sage:        #5A8A6C;
+    --amber:       #8A6A28;
+    --amber-bg:    #F4EDDC;
+    --clay:        #A83228;
+    --clay-bg:     #F7E4E1;
+    --ok-bg:       #E2EFE6;
+    --shadow:      0 1px 2px rgba(26,31,27,.05), 0 8px 24px -16px rgba(26,31,27,.28);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #101410;
+      --surface:     #181D18;
+      --raised:      #1E241E;
+      --sunk:        #141914;
+      --hairline:    #2C332B;
+      --hairline-hi: #3C453A;
+      --ink:         #E9ECE1;
+      --subink:      #A3AB9B;
+      --faint:       #7F8878;
+      --forest:      #5FBE91;
+      --sage:        #8FB79D;
+      --amber:       #D7B87A;
+      --amber-bg:    #2E2818;
+      --clay:        #E5837A;
+      --clay-bg:     #33201D;
+      --ok-bg:       #16291F;
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #101410;
+    --surface:     #181D18;
+    --raised:      #1E241E;
+    --sunk:        #141914;
+    --hairline:    #2C332B;
+    --hairline-hi: #3C453A;
+    --ink:         #E9ECE1;
+    --subink:      #A3AB9B;
+    --faint:       #7F8878;
+    --forest:      #5FBE91;
+    --sage:        #8FB79D;
+    --amber:       #D7B87A;
+    --amber-bg:    #2E2818;
+    --clay:        #E5837A;
+    --clay-bg:     #33201D;
+    --ok-bg:       #16291F;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+    font-weight: 400;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ============ MASTHEAD ============ */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 56px 0 34px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--sage);
+  }
+  h1 {
+    font-family: 'Lora', Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(30px, 4.6vw, 46px);
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    max-width: 62ch;
+    color: var(--subink);
+    font-size: 16px;
+    margin: 0;
+  }
+  .sourcebar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 26px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    color: var(--faint);
+    padding-top: 6px;
+  }
+  .sourcebar b { color: var(--subink); font-weight: 500; }
+
+  /* ============ STAT STRIP ============ */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stat { background: var(--surface); padding: 18px 20px; display: flex; flex-direction: column; gap: 3px; }
+  .stat .n {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .n.warn { color: var(--amber); }
+  .stat .n.bad  { color: var(--clay); }
+  .stat .n.good { color: var(--forest); }
+  .stat .k { font-size: 12.5px; color: var(--subink); line-height: 1.35; }
+
+  /* ============ SECTIONS ============ */
+  section { display: flex; flex-direction: column; gap: 22px; scroll-margin-top: 20px; }
+  h2 {
+    font-family: 'Lora', Georgia, serif;
+    font-size: clamp(23px, 3vw, 30px);
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-size: 16.5px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.35;
+  }
+  .sechead { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--hairline-hi); padding-top: 26px; }
+  .sechead p { margin: 0; color: var(--subink); max-width: 66ch; }
+  p { margin: 0; }
+
+  /* ============ MAPPING CARD ============ */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .cardhead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    padding: 15px 20px;
+    background: var(--raised);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .cardhead .tag {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sage);
+    letter-spacing: .06em;
+  }
+  .cardhead .dest {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+  .cardhead .dest b { color: var(--forest); font-weight: 500; }
+
+  .tscroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13.5px; }
+  thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--hairline);
+    white-space: nowrap;
+  }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.sev-bad  td:first-child { box-shadow: inset 3px 0 0 var(--clay); }
+  tbody tr.sev-warn td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+  tbody tr.sev-ok   td:first-child { box-shadow: inset 3px 0 0 var(--sage); }
+
+  .col {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--faint);
+    width: 34px;
+    text-align: center;
+  }
+  code, .fld {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--sunk);
+    border: 1px solid var(--hairline);
+    border-radius: 2px;
+    padding: 1px 5px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .none { color: var(--clay); font-style: italic; font-size: 12.5px; }
+  .note { color: var(--subink); font-size: 12.5px; line-height: 1.5; }
+
+  /* status chips: DB / API / FORM */
+  .st { display: flex; gap: 5px; }
+  .chip {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: 3px 6px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .chip.y { background: var(--ok-bg);   color: var(--forest); border-color: color-mix(in srgb, var(--forest) 28%, transparent); }
+  .chip.p { background: var(--amber-bg); color: var(--amber);  border-color: color-mix(in srgb, var(--amber) 34%, transparent); }
+  .chip.n { background: var(--clay-bg);  color: var(--clay);   border-color: color-mix(in srgb, var(--clay) 30%, transparent); }
+
+  /* ============ FINDINGS ============ */
+  .finding {
+    border-left-color: var(--sage) !important;
+    display: grid;
+    grid-template-columns: 76px 1fr;
+    gap: 0 20px;
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--clay);
+    border-radius: 3px;
+  }
+  .finding.med { border-left-color: var(--amber); }
+  .finding .rank {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: var(--clay);
+    padding-top: 3px;
+  }
+  .finding.med .rank { color: var(--amber); }
+  .finding .body { display: flex; flex-direction: column; gap: 7px; }
+  .finding .body p { color: var(--subink); font-size: 14px; max-width: 68ch; }
+  .finding .body .where {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ============ CODE BLOCK ============ */
+  pre {
+    margin: 0;
+    background: var(--sunk);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.68;
+    color: var(--ink);
+  }
+  pre .c { color: var(--faint); }
+  pre .k { color: var(--forest); font-weight: 700; }
+
+  ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--subink); font-size: 14px; }
+  ul li strong { color: var(--ink); font-weight: 600; }
+  ul.tight { gap: 3px; }
+
+  .cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
+  .callout {
+    background: var(--raised);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .callout .lbl {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--sage);
+  }
+
+  a { color: var(--forest); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px 64px; gap: 44px; }
+    .finding { grid-template-columns: 1fr; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">LIMS · Viện NC Công nghệ Sinh học &amp; Môi trường</div>
+    <h1>Đối chiếu Excel Hoạt động 2024–2025</h1>
+    <p class="standfirst">
+      Rà từng sheet, từng bảng của file tổng hợp hoạt động năm học 2024–2025 và đối chiếu với
+      cấu trúc dữ liệu đang chạy trong LIMS — ở cả ba lớp: bảng CSDL, hợp đồng API, và form
+      nhập liệu trên giao diện. <strong>Toàn bộ khoảng trống dưới đây đã được sửa</strong> trong
+      migration <code>m34</code>, kèm Học kỳ 3 và quyền ghi cho Văn phòng.
+    </p>
+    <div class="sourcebar">
+      <span><b>Nguồn:</b> docs/TỔNG HỢP CÁC HOẠT ĐỘNG NĂM 2024-2025(1).xlsx</span>
+      <span><b>Sheet:</b> 4</span>
+      <span><b>Bảng con:</b> 11</span>
+      <span><b>Đối chiếu với:</b> app/models/hr.py · app/routers/research.py · src/pages/*</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><span class="n">72</span><span class="k">cột dữ liệu trong Excel<br>(không tính STT)</span></div>
+    <div class="stat"><span class="n good">67</span><span class="k">nhập được trọn vẹn<br>qua giao diện</span></div>
+    <div class="stat"><span class="n warn">5</span><span class="k">có dữ liệu nhưng chưa có<br>bản kết xuất theo mẫu</span></div>
+    <div class="stat"><span class="n good">13</span><span class="k">cột mới thêm<br>trong migration m34</span></div>
+    <div class="stat"><span class="n good">638</span><span class="k">test backend xanh<br>(16 test mới)</span></div>
+  </div>
+
+  <!-- ================= FINDINGS ================= -->
+  <section id="findings">
+    <div class="sechead">
+      <h2>Sáu vấn đề — đã xử lý</h2>
+      <p>Xếp theo mức chặn nghiệp vụ. Trước m34, những mục này khiến dữ liệu Excel không thể
+        nhập trọn vẹn vào hệ thống kể cả khi người dùng thao tác đúng. Mỗi mục kèm cách sửa
+        đã áp dụng.</p>
+    </div>
+
+    <div class="stack">
+
+      <div class="finding">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 1</div>
+        <div class="body">
+          <h3>Không có trường “Link minh chứng” ở bất kỳ bảng nào</h3>
+          <p>Cả 4 sheet đều có cột <em>Link minh chứng</em> (URL Google Drive, DOI, trang tạp chí,
+            ảnh khen thưởng). Toàn hệ thống không có cột nào lưu URL minh chứng — chỉ có
+            <code>attachments</code> là tệp upload, không thay thế được đường dẫn ngoài. Đây là
+            cột thiếu ở 8/11 bảng Excel, chiếm phần lớn con số 12 cột thiếu.</p>
+          <p class="where">Đã thêm <b>evidence_url TEXT</b> vào 6 bảng · form nhập + cột "Minh chứng" mở link ra tab mới</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 2</div>
+        <div class="body">
+          <h3>Bảng “Bài báo cáo hội nghị / kỷ yếu” không nhập được qua giao diện</h3>
+          <p>Backend có <code>type = 'conference'</code> và ràng buộc CHECK cho phép, nhưng ô chọn
+            Loại trên form chỉ hiển thị <em>Bài báo</em> và <em>Sáng chế / GPHI</em>. Ngay cả khi
+            chọn được, dòng <code>journal: type === 'paper' ? journal : null</code> vẫn ép tên kỷ
+            yếu về null — mất luôn cột “Tên kỷ yếu/hội nghị”. 23 dòng dữ liệu 2024–2025 không có
+            đường vào hệ thống.</p>
+          <p class="where">Đã thêm option "Báo cáo hội nghị / kỷ yếu" · nhãn ô đổi theo loại (Tên tạp chí ↔ Tên kỷ yếu/hội nghị) · bỏ ép journal = null</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 3</div>
+        <div class="body">
+          <h3>Form không phân biệt được công bố trong nước và quốc tế</h3>
+          <p>Excel tách hẳn hai bảng, hệ thống dùng <code>pub_scope</code> để phân biệt — nhưng form
+            không có ô nhập, nên mọi công bố tạo qua giao diện đều có <code>pub_scope = NULL</code>.
+            Bốn cờ chỉ mục <code>is_scie</code>, <code>is_ssci</code>, <code>is_scopus</code>,
+            <code>is_aci</code> cũng có sẵn trong CSDL và API nhưng không xuất hiện trên form. Không
+            dựng lại được bảng “Công bố quốc tế” theo đúng mẫu.</p>
+          <p class="where">Đã thêm ô "Phạm vi" + 4 hộp kiểm SCIE/SSCI/Scopus/ACI · update_publication mở từ 8 lên 20 field</p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 4</div>
+        <div class="body">
+          <h3>Form giảng dạy không nhập được số tiết</h3>
+          <p><code>teaching_courses</code> đã có đủ 4 cột số tiết HK1/HK2 × Lý thuyết/Thực hành và
+            API nhận đủ, nhưng modal thêm/sửa môn chỉ có 4 ô: người phụ trách, tên môn, học kỳ,
+            năm. Toàn bộ số liệu giờ giảng — phần chính của sheet ĐÀO TẠO — chỉ nhập được qua màn
+            Báo cáo tháng.</p>
+          <p class="where">Modal viết lại: bảng 3 học kỳ × (LT, TH) = 6 ô · update_teaching mở từ 3 lên 13 field</p>
+        </div>
+      </div>
+
+      <div class="finding med">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 5</div>
+        <div class="body">
+          <h3>Bốn trường phân loại bị mất khi nhập</h3>
+          <p>Excel dùng tiêu đề nhóm thay cho cột, nên các trường này vô hình nếu chỉ đọc dòng
+            tiêu đề: <strong>Số hợp đồng</strong> (“PUR.2024.00618 ký ngày 23/9/2024”) không có cột
+            trong <code>research_contracts</code>; <strong>Sáng chế / Giải pháp hữu ích / Giống cây
+            trồng</strong> là ba mục I–II–III nhưng hệ thống chỉ có một <code>type='patent'</code>;
+            <strong>Đại học / Sau đại học</strong> là hai bảng giảng dạy riêng nhưng chung một
+            <code>teaching_courses</code>; <strong>lớp ngắn hạn / tập huấn an toàn PTN</strong> là
+            hai danh sách chứng nhận riêng nhưng chung một <code>training_certificates</code>.</p>
+          <p class="where">Đã thêm 4 cột + <b>signed_date</b> (Excel gộp ngày ký vào ô số hợp đồng) · mỗi cột có CHECK và ô chọn trên form</p>
+        </div>
+      </div>
+
+      <div class="finding med">
+        <div class="rank" style="color:var(--forest)">ĐÃ SỬA 6</div>
+        <div class="body">
+          <h3>Danh mục cấp đề tài không phủ hết giá trị thực tế</h3>
+          <p><code>research_project_levels</code> có 6 mã cố định, ràng buộc khoá ngoại RESTRICT.
+            Dòng 13 của Excel ghi cấp là “Chương trình Mô hình giảm nghèo thuộc Chương trình mục
+            tiêu quốc gia giảm nghèo bền vững giai đoạn 2021–2025, Bộ Giáo dục và Đào tạo” — không
+            khớp mã nào và dài hơn <code>VARCHAR(32)</code>. Excel cũng ghi lẫn “Đề tài cấp cơ sở”
+            với “Đề tài cơ sở”, “Đề tài cấp Bộ” với “Bộ GD và DT”.</p>
+          <p class="where">Đã seed thêm 2 mã: <b>national_program</b> (Chương trình mục tiêu quốc gia) và <b>other</b></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= SHEET NCKH ================= -->
+  <section id="nckh">
+    <div class="sechead">
+      <div class="eyebrow">Sheet 1 · 985 dòng · 6 bảng con</div>
+      <h2>NCKH</h2>
+      <p>Sheet nặng nhất, gộp sáu bảng khác nhau vào một trang tính, mỗi bảng có dòng tiêu đề
+        riêng. Trong hệ thống, sáu bảng này rơi vào ba menu: Đề tài NCKH, Bài báo &amp; Sáng chế,
+        Hợp đồng NCKH.</p>
+    </div>
+
+    <!-- 1.1 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.1 · dòng 7</span>
+        <h3>Nhiệm vụ khoa học công nghệ các cấp</h3>
+        <span class="dest">→ <b>research_projects</b> · menu Đề tài NCKH</span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên nhiệm vụ / Dự án</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Nhiệm vụ / dự án cấp?</td><td><span class="fld">level</span> → FK <span class="fld">research_project_levels</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Danh mục 6 mã không phủ hết — xem vấn đề 6</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Chủ nhiệm nhiệm vụ / dự án</td><td><span class="fld">lead_user_id</span> / <span class="fld">lead_external_name</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">CSDL cho phép chủ nhiệm ngoài hệ thống, nhưng <span class="fld">CreateProjectRequest.lead_user_id</span> bắt buộc UUID → chỉ nhập được người nội bộ</td></tr>
+            <tr class="sev-ok"><td class="col">E</td><td>Thành viên nhiệm vụ / dự án</td><td><span class="fld">project_members</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip p">API</span><span class="chip p">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note"><span class="fld">_validate_members(allow_external=False)</span> chặn tên ngoài hệ thống; Excel liệt kê hàng chục người ngoài Viện</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Thời gian thực hiện</td><td><span class="fld">start_date</span> · <span class="fld">end_date</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel ghi “2025-2027”, “6/2022-11/2024” — cần quy tắc chuẩn hoá khi nhập, hoặc thêm <span class="fld">duration_text</span> giữ nguyên văn</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Kinh phí</td><td><span class="fld">budget_amount</span> · <span class="fld">budget_currency</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel ghi “100 triệu”, “803,952 triệu” — CSDL đã chuẩn NUMERIC(14,2); form không có ô nhập</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Chuyển giao?</td><td><span class="fld">is_transferred</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Chỉ hiện ở modal xem chi tiết, không nhập được</td></tr>
+            <tr class="sev-ok"><td class="col">I</td><td>Tên sản phẩm chuyển giao</td><td><span class="fld">transfer_product</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">J</td><td>Link minh chứng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url TEXT</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.2 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.2 · dòng 24</span>
+        <h3>Công bố khoa học — tạp chí trong nước</h3>
+        <span class="dest">→ <b>publications</b> <span style="color:var(--faint)">type=paper, pub_scope=domestic</span></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên bài báo</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Tên tạp chí được đăng</td><td><span class="fld">journal</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">VARCHAR(255) — Excel có chuỗi gộp cả số trang, vẫn vừa</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Tác giả / đồng tác giả <span style="color:var(--faint)">(vai trò)</span></td><td><span class="fld">publication_authors.author_role</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">“Tác giả liên hệ” → <span class="fld">corresponding</span>, “ĐTG” → <span class="fld">co</span>, “TG” → <span class="fld">main</span></td></tr>
+            <tr class="sev-ok"><td class="col">E</td><td>Tên các thành viên</td><td><span class="fld">publication_authors</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel để một chuỗi; hệ thống chuẩn hoá thành nhiều dòng có <span class="fld">author_order</span> — khi xuất báo cáo phải nối lại</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Năm công bố</td><td><span class="fld">year</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Link minh chứng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel chứa URL jad.hcmuaf.edu.vn, doi.org…</td></tr>
+            <tr class="sev-ok"><td class="col">—</td><td><em>Phân biệt trong nước / quốc tế</em></td><td><span class="fld">pub_scope</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Form không đặt → mọi bản ghi mới có scope NULL, không tách được hai bảng</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.3 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.3 · dòng 42</span>
+        <h3>Công bố khoa học — tạp chí quốc tế</h3>
+        <span class="dest">→ <b>publications</b> <span style="color:var(--faint)">pub_scope=international</span></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên bài báo</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Tên tạp chí được đăng</td><td><span class="fld">journal</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel nhét cả URL vào ô này (“Catena ⏎ https://…”) — tách sang <span class="fld">evidence_url</span> khi nhập</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Tác giả / đồng tác giả</td><td><span class="fld">author_role</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Tên các thành viên</td><td><span class="fld">publication_authors</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Năm công bố</td><td><span class="fld">year</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">I</td><td>SCIE / SSCI</td><td><span class="fld">is_scie</span> · <span class="fld">is_ssci</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel gộp một ô “SCIE/SSCI”; CSDL tách hai cờ — đúng hơn, nhưng form không có</td></tr>
+            <tr class="sev-ok"><td class="col">J</td><td>Scopus</td><td><span class="fld">is_scopus</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel đánh dấu “X” / “x”</td></tr>
+            <tr class="sev-ok"><td class="col">K</td><td>ACI</td><td><span class="fld">is_aci</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cột trống trong dữ liệu 2024–2025 nhưng vẫn phải giữ</td></tr>
+            <tr class="sev-ok"><td class="col">—</td><td>Link minh chứng <span style="color:var(--faint)">(nhúng trong cột C)</span></td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.4 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.4 · dòng 59</span>
+        <h3>Bài báo cáo hội nghị / kỷ yếu</h3>
+        <span class="dest">→ <b>publications</b> <span style="color:var(--faint)">type=conference</span></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên bài báo cáo</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Không chọn được loại “Hội nghị” trên form — xem vấn đề 2</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Tên kỷ yếu / hội nghị</td><td><span class="fld">journal</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Form ép <span class="fld">journal = null</span> khi loại ≠ paper → mất dữ liệu ngay cả khi mở được loại</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Tên tác giả / đồng tác giả</td><td><span class="fld">publication_authors</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">—</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Vai trò tác giả</td><td><span class="fld">author_role</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel ghi tự do: “TG”, “ĐTG”, “Dong tac gia”, “Tác giả liên hệ” — cần bảng ánh xạ khi nhập</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Năm báo cáo</td><td><span class="fld">year</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">—</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Link minh chứng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.5 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.5 · dòng 87</span>
+        <h3>Danh mục hợp đồng</h3>
+        <span class="dest">→ <b>research_contracts</b> · menu Hợp đồng NCKH</span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên hợp đồng</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Loại hợp đồng</td><td><span class="fld">contract_type</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đang là text tự do. Excel chỉ dùng 4 giá trị: Nghiên cứu KHCN · Tư vấn KHCN · Tư vấn chuyển giao · Tư vấn → nên chuyển thành danh mục</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Số hợp đồng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">contract_no VARCHAR(128)</span> + <span class="fld">signed_date DATE</span> — Excel gộp “PUR.2024.00618 ký ngày 23/9/2024”</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Giá trị hợp đồng</td><td><span class="fld">value_amount</span> · <span class="fld">currency</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel đã là số thuần (304776000) — khớp NUMERIC(14,2)</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Đơn vị phối hợp</td><td><span class="fld">partner_org</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Thời gian thực hiện</td><td><span class="fld">start_date</span> · <span class="fld">end_date</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Excel ghi “9/2024-10/2024” — cần quy tắc chuẩn hoá về ngày đầu/cuối tháng</td></tr>
+            <tr class="sev-ok"><td class="col">I</td><td>Link minh chứng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 1.6 -->
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 1.6 · dòng 104</span>
+        <h3>Sáng chế · Giải pháp hữu ích · Giống cây trồng</h3>
+        <span class="dest">→ <b>publications</b> <span style="color:var(--faint)">type=patent</span></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">—</td><td>Nhóm I / II / III <span style="color:var(--faint)">(sáng chế · GPHI · giống cây trồng)</span></td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">patent_kind</span> ∈ {invention, utility_solution, plant_variety}</td></tr>
+            <tr class="sev-ok"><td class="col">B</td><td>Tên sáng chế / GPHI / giống cây trồng</td><td><span class="fld">title</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Số bằng</td><td><span class="fld">patent_no</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Có CHECK bắt buộc khi type=patent</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Số đơn, ngày nộp đơn</td><td><span class="fld">application_no</span> · <span class="fld">application_date</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">CSDL tách hai cột (tốt hơn Excel gộp), form không có ô nhập</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Cơ quan, tổ chức cấp văn bằng</td><td><span class="fld">issuing_authority</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Ngày cấp văn bằng</td><td><span class="fld">granted_date</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Chỉ hiện ở modal xem</td></tr>
+            <tr class="sev-ok"><td class="col">I</td><td>Chủ bằng</td><td><span class="fld">patent_holder</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Chỉ hiện ở modal xem</td></tr>
+            <tr class="sev-ok"><td class="col">J</td><td>Tác giả</td><td><span class="fld">publication_authors</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">K</td><td>Link minh chứng</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SHEET ĐÀO TẠO ================= -->
+  <section id="daotao">
+    <div class="sechead">
+      <div class="eyebrow">Sheet 2 · 2 bảng con · Đại học &amp; Sau đại học</div>
+      <h2>Đào tạo</h2>
+      <p>Cấu trúc tiêu đề hai tầng: dòng 6 gộp ô “Số tiết dạy HKI” và “Số tiết dạy HKII”, dòng 7
+        tách “Lý thuyết / Thực hành”. Bảng sau đại học (dòng 33) lặp lại đúng cấu trúc đó.
+        Đây cũng là nơi bổ sung Học kỳ 3.</p>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 2.1 &amp; 2.2 · dòng 6 và 33</span>
+        <h3>Công tác đào tạo — Đại học và Sau đại học</h3>
+        <span class="dest">→ <b>teaching_courses</b> · menu Môn giảng dạy</span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">—</td><td>Đại học / Sau đại học <span style="color:var(--faint)">(hai bảng riêng)</span></td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">training_level</span> ∈ {undergraduate, postgraduate}</td></tr>
+            <tr class="sev-ok"><td class="col">B</td><td>Họ tên</td><td><span class="fld">user_id</span> / <span class="fld">lecturer_external_name</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip p">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">CSDL có XOR nội bộ/ngoài; form chỉ chọn được người nội bộ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Tên môn học được phân công</td><td><span class="fld">course_name</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Số tiết HKI — Lý thuyết</td><td><span class="fld">hk1_theory_hours</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Chỉ nhập được ở màn Báo cáo tháng, không có ở form môn giảng dạy</td></tr>
+            <tr class="sev-ok"><td class="col">E</td><td>Số tiết HKI — Thực hành</td><td><span class="fld">hk1_practice_hours</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Số tiết HKII — Lý thuyết</td><td><span class="fld">hk2_theory_hours</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">G</td><td>Số tiết HKII — Thực hành</td><td><span class="fld">hk2_practice_hours</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">＋</td><td>Số tiết HKIII — Lý thuyết / Thực hành <span style="color:var(--faint)">(yêu cầu mới)</span></td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">hk3_theory_hours</span> · <span class="fld">hk3_practice_hours</span> — chi tiết ở mục dưới</td></tr>
+            <tr class="sev-ok"><td class="col">H</td><td>Ghi chú</td><td><span class="fld">note</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Có trong API, thiếu ô nhập</td></tr>
+            <tr class="sev-ok"><td class="col">I</td><td>Link minh chứng (thời khoá biểu)</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="lbl">Mâu thuẫn thiết kế cần chốt</span>
+      <p style="color:var(--subink);font-size:14px">
+        <code>teaching_courses</code> đang có <em>cả</em> cột <code>semester</code> (chuỗi tự do
+        “HK1”) <em>lẫn</em> bốn cột số tiết theo học kỳ. Một dòng vừa mang nhãn “HK1” vừa có thể
+        điền giờ HK2 — hai cách mô hình hoá chồng lên nhau. Đề xuất giữ mô hình theo cột (một dòng
+        = một môn của một năm học, số tiết trải trên HK1/HK2/HK3) vì khớp Excel, và chuyển
+        <code>semester</code> thành trường suy ra hoặc bỏ khỏi ràng buộc duy nhất
+        <code>uq_tc_user_course_term</code>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= SHEET CÔNG TÁC KHÁC ================= -->
+  <section id="congtackhac">
+    <div class="sechead">
+      <div class="eyebrow">Sheet 3 · 3 khối · Đảng · Công đoàn · VILAS</div>
+      <h2>Công tác khác</h2>
+      <p>Ba khối cùng đúng một cấu trúc hai cột. Hệ thống đã mô hình hoá chuẩn bằng
+        <code>staff_activities.kind</code> — đây là sheet khớp tốt nhất, chỉ thiếu cột minh chứng.</p>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 3.1–3.3 · dòng 5, 12, 29</span>
+        <h3>Công tác Đảng · Công đoàn · VILAS</h3>
+        <span class="dest">→ <b>staff_activities</b> · menu Công tác khác</span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">—</td><td>Khối công tác <span style="color:var(--faint)">(tiêu đề nhóm)</span></td><td><span class="fld">kind</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">CHECK: dang · cong_doan · vilas · khac — phủ đủ ba khối và dư một</td></tr>
+            <tr class="sev-ok"><td class="col">B</td><td>Hoạt động</td><td><span class="fld">content</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">TEXT, giới hạn API 4000 ký tự — dòng dài nhất trong Excel ~300</td></tr>
+            <tr class="sev-bad"><td class="col">C</td><td>Link minh chứng (hình ảnh, khen thưởng, quyết định, chứng nhận)</td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">evidence_url</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SHEET PHỤC VỤ CỘNG ĐỒNG ================= -->
+  <section id="pvcd">
+    <div class="sechead">
+      <div class="eyebrow">Sheet 4 · 3 bảng con</div>
+      <h2>Phục vụ cộng đồng</h2>
+      <p>Sheet này không tương ứng với menu “Phục vụ cộng đồng” trong hệ thống. Bảng 4.1 thuộc
+        nghiệp vụ mẫu (module M2), bảng 4.2 và 4.3 thuộc Chứng nhận đào tạo. Menu
+        <code>community_services</code> hiện có là một nghiệp vụ khác, không có bảng Excel tương ứng.</p>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 4.1 · dòng 6</span>
+        <h3>Công tác phân tích mẫu</h3>
+        <span class="dest">→ <b>samples</b> / <b>test_requests</b> <span style="color:var(--faint)">(module M2)</span></span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">B</td><td>Mã mẫu</td><td><span class="fld">samples.sample_code</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip p">BÁO CÁO</span></td><td class="note">Dữ liệu đã có, chỉ thiếu bản kết xuất theo mẫu này</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Đơn vị gửi mẫu</td><td><span class="fld">customers</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip p">BÁO CÁO</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Số lượng</td><td><span class="fld">test_requests</span> <span style="color:var(--faint)">(đếm mẫu)</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip p">BÁO CÁO</span></td><td class="note">Suy ra bằng đếm, không phải cột riêng</td></tr>
+            <tr class="sev-ok"><td class="col">E</td><td>Chỉ tiêu</td><td><span class="fld">test_parameters</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip p">BÁO CÁO</span></td><td class="note">Như trên</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Ghi chú</td><td><span class="fld">samples.condition_note</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip p">BÁO CÁO</span></td><td class="note">Như trên</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <span class="tag">BẢNG 4.2 &amp; 4.3 · dòng 14 và 19</span>
+        <h3>Học viên lớp ngắn hạn · Sinh viên tập huấn an toàn PTN và PCCC</h3>
+        <span class="dest">→ <b>training_certificates</b> · menu Chứng nhận đào tạo</span>
+      </div>
+      <div class="tscroll">
+        <table>
+          <thead><tr><th class="col"></th><th>Cột Excel</th><th>Trường hệ thống</th><th>Trước · DB · API · Form</th><th>Sau m34</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td class="col">—</td><td>Lớp ngắn hạn / Tập huấn an toàn <span style="color:var(--faint)">(hai danh sách riêng)</span></td><td><span class="none">chưa có</span></td><td><div class="st"><span class="chip n">DB</span><span class="chip n">API</span><span class="chip n">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Cần <span class="fld">cert_kind</span> ∈ {short_course, lab_safety}</td></tr>
+            <tr class="sev-ok"><td class="col">B</td><td>Ngày tháng</td><td><span class="fld">issued_date</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">C</td><td>Số GCN</td><td><span class="fld">certificate_no</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">D</td><td>Tên người được cấp GCN</td><td><span class="fld">recipient_name</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">E</td><td>Lớp học</td><td><span class="fld">course_name</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ</td></tr>
+            <tr class="sev-ok"><td class="col">F</td><td>Ghi chú</td><td><span class="fld">note</span></td><td><div class="st"><span class="chip y">DB</span><span class="chip y">API</span><span class="chip y">FORM</span></div></td><td><span class="chip y">ĐỦ</span></td><td class="note">Đủ — bảng khớp tốt nhất toàn bộ tài liệu</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HK3 ================= -->
+  <section id="hk3">
+    <div class="sechead">
+      <div class="eyebrow">Yêu cầu bổ sung · đã triển khai</div>
+      <h2>Học kỳ 3 trong phần Đào tạo</h2>
+      <p>Hai học kỳ vốn được hard-code ở 12 vị trí trên cả backend lẫn frontend, nên HK3 là thay
+        đổi xuyên suốt chứ không phải một cột đơn lẻ. Đã sửa đủ 11 tệp dưới đây.</p>
+    </div>
+
+    <div class="cols2">
+      <div class="callout">
+        <span class="lbl">Backend — 6 tệp ✓</span>
+        <ul class="tight">
+          <li><strong>Migration mới</strong> — thêm 2 cột <code>hk3_theory_hours</code>, <code>hk3_practice_hours</code> kiểu SMALLINT NULL</li>
+          <li><code>app/models/hr.py</code> — TeachingCourse</li>
+          <li><code>app/schemas/hr.py</code> — Create/UpdateTeachingRequest</li>
+          <li><code>app/schemas/activity_report.py</code> — TeachingEntry</li>
+          <li><code>app/services/research/teaching_service.py</code> — dict trả về, create, update</li>
+          <li><code>app/services/activity_report_service.py</code> — ánh xạ dòng báo cáo tháng</li>
+        </ul>
+      </div>
+      <div class="callout">
+        <span class="lbl">Frontend — 5 tệp ✓</span>
+        <ul class="tight">
+          <li><code>src/types/index.ts</code> — TeachingCourse và kiểu báo cáo tháng</li>
+          <li><code>src/api/research.ts</code> · <code>src/api/activityReport.ts</code></li>
+          <li><code>src/pages/TeachingCourses.tsx</code> — <strong>bổ sung cả 6 ô số tiết</strong> (HK1/2/3 × LT/TH) vì form hiện chưa có ô nào</li>
+          <li><code>src/pages/MonthlyReport.tsx</code> — thêm 2 ô LT/TH (HK3)</li>
+          <li><code>src/pages/ActivityReports.tsx</code> — cột hiển thị tổng giờ</li>
+        </ul>
+      </div>
+    </div>
+
+    <pre><span class="c">-- Đã áp dụng: alembic/versions/1718870400033_m34_excel_activity_mapping.py</span>
+<span class="k">ALTER TABLE</span> teaching_courses
+  <span class="k">ADD COLUMN</span> hk3_theory_hours   SMALLINT,
+  <span class="k">ADD COLUMN</span> hk3_practice_hours SMALLINT,
+  <span class="k">ADD COLUMN</span> training_level     VARCHAR(16),
+  <span class="k">ADD COLUMN</span> evidence_url       TEXT;
+
+<span class="k">ALTER TABLE</span> teaching_courses
+  <span class="k">ADD CONSTRAINT</span> ck_tc_training_level
+  <span class="k">CHECK</span> (training_level <span class="k">IS NULL</span> <span class="k">OR</span> training_level <span class="k">IN</span> ('undergraduate','postgraduate'));
+
+<span class="c">-- Ô "Học kỳ" trên form chuyển từ text tự do sang chọn: HK1 · HK2 · HK3</span>
+<span class="c">-- Cột "Số tiết" trên bảng danh sách: tổng LT = hk1+hk2+hk3, tổng TH tương tự</span></pre>
+  </section>
+
+  <!-- ================= RBAC ================= -->
+  <section id="rbac">
+    <div class="sechead">
+      <div class="eyebrow">Yêu cầu bổ sung</div>
+      <h2>Mở quyền thêm · sửa · xoá cho Quản trị, Văn phòng, Lãnh đạo</h2>
+      <p>Trước m34, Văn phòng bị chặn ghi trên toàn nhóm NCKH bằng một quyết định nghiệp vụ ghi
+        rõ trong code (“QUYẾT ĐỊNH #5”), trong khi đã được ghi ở nhóm hành chính. Nay ba vai trò
+        có quyền ghi ngang nhau trên cả tám menu.</p>
+    </div>
+
+    <div class="card">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>Menu</th><th>Bảng</th><th>Trước m34</th><th>Sau m34</th><th>Chặn ở đâu</th></tr></thead>
+          <tbody>
+            <tr class="sev-ok"><td>Đề tài NCKH</td><td><span class="fld">research_projects</span></td><td>admin · leader · staff <span style="color:var(--clay)">(office bị chặn)</span></td><td>admin · leader · <strong>office</strong> · staff</td><td class="note"><span class="fld">hr_common.assert_research_access</span></td></tr>
+            <tr class="sev-ok"><td>Bài báo &amp; Sáng chế</td><td><span class="fld">publications</span></td><td>admin · leader · staff</td><td>admin · leader · <strong>office</strong> · staff</td><td class="note">như trên</td></tr>
+            <tr class="sev-ok"><td>Hướng dẫn SV</td><td><span class="fld">student_mentorships</span></td><td>admin · leader · staff</td><td>admin · leader · <strong>office</strong></td><td class="note">như trên</td></tr>
+            <tr class="sev-ok"><td>Môn giảng dạy</td><td><span class="fld">teaching_courses</span></td><td>admin · leader · staff</td><td>admin · leader · <strong>office</strong></td><td class="note">như trên</td></tr>
+            <tr class="sev-ok"><td>Phục vụ cộng đồng</td><td><span class="fld">community_services</span></td><td>admin · leader · staff</td><td>admin · leader · <strong>office</strong> · staff</td><td class="note">như trên</td></tr>
+            <tr class="sev-ok"><td>Hợp đồng NCKH</td><td><span class="fld">research_contracts</span></td><td>admin · leader · office</td><td>admin · leader · <strong>office</strong></td><td class="note"><span class="fld">activity_service._assert_can_write</span></td></tr>
+            <tr class="sev-ok"><td>Công tác khác</td><td><span class="fld">staff_activities</span></td><td>admin · leader · office</td><td>admin · leader · <strong>office</strong></td><td class="note">như trên</td></tr>
+            <tr class="sev-ok"><td>Chứng nhận đào tạo</td><td><span class="fld">training_certificates</span></td><td>admin · leader · office</td><td>admin · leader · <strong>office</strong></td><td class="note">như trên</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cols2">
+      <div class="callout">
+        <span class="lbl">Backend — 2 tệp ✓</span>
+        <ul class="tight">
+          <li><code>app/services/hr_common.py</code> — bỏ chặn trong <code>assert_research_access</code>, và thêm <code>'office'</code> vào <code>is_research_all</code> để Văn phòng thao tác được trên bản ghi của mọi người (Văn phòng không có bản ghi “của mình”)</li>
+          <li><code>app/routers/research.py</code> — cập nhật docstring và <code>_guard</code></li>
+          <li>Nhóm NCKH không có dòng nào trong <code>roles_permissions</code> — toàn bộ phân quyền nằm ở tầng ứng dụng, nên <strong>không cần migration</strong></li>
+        </ul>
+      </div>
+      <div class="callout">
+        <span class="lbl">Frontend — 2 tệp ✓</span>
+        <ul class="tight">
+          <li><code>src/lib/rbac.ts</code> — <code>canManageResearch</code> đang trả <code>role !== 'office'</code>; <code>canManageMentorshipTeaching</code> đang là <code>['admin','leader','lab_manager']</code></li>
+          <li><code>src/components/layout/nav.ts</code> — menu đã cho Văn phòng thấy, không cần đổi</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="lbl">Đính chính khi triển khai</span>
+      <p style="color:var(--subink);font-size:14px">
+        Bản phân tích đầu tiên nói hành vi cũ được khoá bằng <code>test_hr_rbac_scope.py</code>.
+        Chạy thật thì <strong>không đúng</strong>: tệp đó chỉ phủ lương và PII, còn việc cấm Văn
+        phòng ghi NCKH <em>chưa từng có test nào</em> — toàn bộ 638 test vẫn xanh sau khi bỏ chặn.
+        Vì vậy đã bổ sung <code>test_excel_activity_mapping.py</code> (16 test), trong đó có ba
+        test chạy song song cho admin / leader / office và hai test chứng minh staff vẫn bị giới
+        hạn trong phạm vi của mình — mở quyền nhưng không mở quá tay.
+      </p>
+      <p style="color:var(--subink);font-size:14px">
+        Quyền đọc lương / hợp đồng lao động / PII của Văn phòng <strong>không</strong> thay đổi:
+        đó là trục quyền độc lập (<code>can_read_salary</code>, <code>can_read_pii</code>).
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= PLAN ================= -->
+  <section id="plan">
+    <div class="sechead">
+      <div class="eyebrow">Triển khai</div>
+      <h2>Đã thực hiện</h2>
+      <p>Bốn bước đã hoàn tất. Bước 1 là một migration duy nhất gom toàn bộ cột mới để chỉ khoá
+        bảng một lần trên production; mọi cột đều NULL-able và không backfill, nên dữ liệu cũ
+        hợp lệ nguyên trạng và <code>downgrade()</code> quay lui được.</p>
+    </div>
+
+    <pre><span class="c">══ BƯỚC 1 ✓ Migration m34 — gom mọi cột còn thiếu ══════════════</span>
+
+<span class="k">ALTER TABLE</span> research_projects     <span class="k">ADD COLUMN</span> evidence_url TEXT;
+<span class="k">ALTER TABLE</span> publications         <span class="k">ADD COLUMN</span> evidence_url TEXT,
+                                          <span class="k">ADD COLUMN</span> patent_kind  VARCHAR(24);
+<span class="k">ALTER TABLE</span> research_contracts   <span class="k">ADD COLUMN</span> evidence_url TEXT,
+                                          <span class="k">ADD COLUMN</span> contract_no  VARCHAR(128),
+                                          <span class="k">ADD COLUMN</span> signed_date  DATE;
+<span class="k">ALTER TABLE</span> teaching_courses     <span class="k">ADD COLUMN</span> evidence_url TEXT,
+                                          <span class="k">ADD COLUMN</span> training_level     VARCHAR(16),
+                                          <span class="k">ADD COLUMN</span> hk3_theory_hours   SMALLINT,
+                                          <span class="k">ADD COLUMN</span> hk3_practice_hours SMALLINT;
+<span class="k">ALTER TABLE</span> staff_activities     <span class="k">ADD COLUMN</span> evidence_url TEXT;
+<span class="k">ALTER TABLE</span> training_certificates <span class="k">ADD COLUMN</span> cert_kind VARCHAR(24);
+<span class="k">ALTER TABLE</span> community_services   <span class="k">ADD COLUMN</span> evidence_url TEXT;
+
+<span class="c">+ 3 CHECK constraint (patent_kind · training_level · cert_kind)</span>
+<span class="c">+ bổ sung mã danh mục research_project_levels: national_program</span>
+
+<span class="c">══ BƯỚC 2 ✓ Model · Schema · Service ═══════════════════════════</span>
+  models/hr.py · schemas/hr.py · schemas/activity.py · schemas/activity_report.py
+  services/research/{project,publication,teaching}_service.py
+  services/activity_service.py · services/activity_report_service.py
+
+<span class="c">══ BƯỚC 3 ✓ Form nhập liệu — phần tốn công nhất ════════════════</span>
+  Publications.tsx    thêm loại "Hội nghị", bỏ ép journal=null, thêm
+                      pub_scope · 4 cờ chỉ mục · patent_kind · số đơn ·
+                      ngày nộp · ngày cấp · chủ bằng · evidence_url
+  ResearchProjects.tsx thêm kinh phí · chuyển giao · sản phẩm chuyển giao ·
+                      năm học · evidence_url · chủ nhiệm ngoài hệ thống
+  TeachingCourses.tsx thêm 6 ô số tiết · bậc đào tạo · ghi chú · evidence_url
+  ResearchContracts.tsx thêm số hợp đồng · ngày ký · evidence_url
+  StaffActivities.tsx · TrainingCertificates.tsx  thêm evidence_url · cert_kind
+
+<span class="c">══ BƯỚC 4 ✓ Phân quyền (kết xuất Excel: CHƯA làm) ══════════════</span>
+  hr_common.py · research.py · rbac.ts
+  + test_excel_activity_mapping.py (16 test mới)
+
+<span class="c">══ CÒN LẠI — chưa làm, nằm ngoài phạm vi yêu cầu ═══════════════</span>
+  Kết xuất Excel đúng 11 bảng của file gốc. research_report_service.py
+  hiện chỉ xuất BẢNG ĐẾM tổng hợp ("Đề tài NCKH: 12"), không xuất danh
+  sách chi tiết theo đúng layout. Dữ liệu đã đủ cột để dựng, chỉ thiếu
+  phần sinh file.</pre>
+  </section>
+
+</div>
+</body>
+</html>

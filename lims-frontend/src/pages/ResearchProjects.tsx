@@ -8,8 +8,18 @@ import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { DescList, DescItem } from '@/components/ui/DescList';
+import {
+  DescList,
+  DescItem,
+  DescLink,
+  DescPeople,
+  DescPeriod,
+  DescSection,
+  DetailHero,
+} from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import {
   ContributorEditor,
   emptyContributor,
@@ -231,6 +241,12 @@ function ProjectDetailModal({
   const p = data ?? project;
   const members = p.members ?? [];
 
+  const people = members.map((m) => ({
+    name: m.name ?? m.external_name ?? 'Không rõ',
+    role: m.role_in_project === 'lead' ? 'Chủ nhiệm' : null,
+    external: !m.user_id,
+  }));
+
   return (
     <Modal
       open
@@ -251,40 +267,62 @@ function ProjectDetailModal({
         </>
       }
     >
-      <DescList>
-        <DescItem label="Cấp đề tài" value={<Badge tone="info">{levelLabel(p.level)}</Badge>} />
-        <DescItem label="Trạng thái" value={<ProjectStatusBadge status={p.status} />} />
-        <DescItem label="Chủ nhiệm" value={p.lead_user_name} />
-        <DescItem label="Phòng ban" value={p.department_name} />
-        <DescItem label="Bắt đầu" value={p.start_date ? formatDate(p.start_date) : null} />
-        <DescItem label="Kết thúc" value={p.end_date ? formatDate(p.end_date) : null} />
-        <DescItem label="Năm học" value={p.academic_year} />
-        <DescItem label="Kinh phí" value={p.budget_amount ? formatMoney(p.budget_amount, p.budget_currency ?? 'VND') : null} />
-        <DescItem label="Chuyển giao" value={p.is_transferred ? (p.transfer_product ?? 'Có') : null} />
-        <DescItem
-          full
-          label={`Thành viên tham gia (${members.length})`}
-          value={
-            loading ? (
-              'Đang tải…'
-            ) : members.length === 0 ? null : (
-              <ul className="mt-1 divide-y divide-hairline overflow-hidden rounded-lg border border-hairline">
-                {members.map((m, i) => (
-                  <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
-                    <span className="text-sm text-ink">
-                      {m.name ?? m.external_name ?? '—'}
-                      {!m.user_id && <span className="ml-1.5 text-xs text-subink">(ngoài hệ thống)</span>}
-                    </span>
-                    <Badge tone={m.role_in_project === 'lead' ? 'success' : 'neutral'}>
-                      {m.role_in_project === 'lead' ? 'Chủ nhiệm' : 'Thành viên'}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )
+      <div className="flex flex-col gap-6">
+        <DetailHero
+          chips={
+            <>
+              <ProjectStatusBadge status={p.status} />
+              <Badge tone="info">{levelLabel(p.level)}</Badge>
+              {p.is_transferred && <Badge tone="success">Có chuyển giao</Badge>}
+            </>
           }
+          metricLabel="Kinh phí"
+          metric={p.budget_amount ? formatMoney(p.budget_amount, p.budget_currency ?? 'VND') : null}
         />
-      </DescList>
+
+        <DescSection title="Chủ trì & thời gian">
+          <DescList>
+            <DescItem
+              label="Chủ nhiệm"
+              value={
+                p.lead_user_name ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Avatar name={p.lead_user_name} size="sm" />
+                    <span>
+                      {p.lead_user_name}
+                      {!p.lead_user_id && (
+                        <span className="ml-1.5 text-xs text-stem">(ngoài hệ thống)</span>
+                      )}
+                    </span>
+                  </span>
+                ) : null
+              }
+            />
+            <DescItem label="Phòng ban" value={p.department_name} />
+            <DescPeriod label="Thời gian thực hiện" from={p.start_date} to={p.end_date} />
+            <DescItem label="Năm học" value={p.academic_year} />
+          </DescList>
+        </DescSection>
+
+        {(p.is_transferred || p.transfer_product) && (
+          <DescSection title="Chuyển giao">
+            <DescList cols={1}>
+              <DescItem label="Sản phẩm chuyển giao" value={p.transfer_product} />
+            </DescList>
+          </DescSection>
+        )}
+
+        <DescSection title="Thành viên & minh chứng">
+          <DescList>
+            {loading ? (
+              <DescItem full label="Thành viên tham gia" value="Đang tải…" />
+            ) : (
+              <DescPeople label="Thành viên tham gia" people={people} />
+            )}
+            <DescLink url={p.evidence_url} />
+          </DescList>
+        </DescSection>
+      </div>
     </Modal>
   );
 }
@@ -308,6 +346,16 @@ function ProjectModal({
   const [start, setStart] = useState(project?.start_date ?? '');
   const [end, setEnd] = useState(project?.end_date ?? '');
   const [status, setStatus] = useState(project?.status ?? 'ongoing');
+  // Chủ nhiệm ngoài hệ thống: Excel có đề tài do người ngoài Viện chủ trì.
+  const [leadMode, setLeadMode] = useState<'internal' | 'external'>(
+    project && !project.lead_user_id ? 'external' : 'internal',
+  );
+  const [leadExternal, setLeadExternal] = useState(project?.lead_external_name ?? '');
+  const [academicYear, setAcademicYear] = useState(project?.academic_year ?? '');
+  const [budgetAmount, setBudgetAmount] = useState(project?.budget_amount ?? '');
+  const [isTransferred, setIsTransferred] = useState(project?.is_transferred ?? false);
+  const [transferProduct, setTransferProduct] = useState(project?.transfer_product ?? '');
+  const [evidenceUrl, setEvidenceUrl] = useState(project?.evidence_url ?? '');
   const [members, setMembers] = useState<ContributorRow[]>(
     project?.members?.length
       ? project.members.map((m) => ({
@@ -327,36 +375,40 @@ function ProjectModal({
   async function submit() {
     if (!title.trim()) return toast.error('Nhập tên đề tài');
     if (!level) return toast.error('Chọn cấp đề tài');
-    if (!leadUserId) return toast.error('Chọn chủ nhiệm');
+    if (leadMode === 'internal' && !leadUserId) return toast.error('Chọn chủ nhiệm');
+    if (leadMode === 'external' && !leadExternal.trim()) return toast.error('Nhập tên chủ nhiệm ngoài hệ thống');
+    if (budgetAmount.trim() && !/^\d+(\.\d{1,2})?$/.test(budgetAmount.trim())) {
+      return toast.error('Kinh phí phải là số, tối đa 2 chữ số thập phân (vd 803952000)');
+    }
     const memberErr = validateContributors(members);
     if (memberErr) return toast.error(memberErr);
+
+    const shared = {
+      title: title.trim(),
+      code: code || null,
+      level,
+      // XOR: gửi đúng một trong hai vế, vế còn lại null.
+      lead_user_id: leadMode === 'internal' ? leadUserId : null,
+      lead_external_name: leadMode === 'external' ? leadExternal.trim() : null,
+      department_id: departmentId || null,
+      start_date: start || null,
+      end_date: end || null,
+      academic_year: academicYear.trim() || null,
+      budget_amount: budgetAmount.trim() || null,
+      is_transferred: isTransferred,
+      transfer_product: isTransferred ? transferProduct.trim() || null : null,
+      evidence_url: evidenceUrl.trim() || null,
+      status,
+    };
+
     setSubmitting(true);
     try {
       if (editing) {
-        await researchApi.updateProject(project!.id, {
-          title: title.trim(),
-          code: code || null,
-          level,
-          lead_user_id: leadUserId,
-          department_id: departmentId || null,
-          start_date: start || null,
-          end_date: end || null,
-          status,
-        });
+        await researchApi.updateProject(project!.id, shared);
         // Cập nhật thành viên qua endpoint riêng (full replace)
         await researchApi.replaceProjectMembers(project!.id, toMembers(members));
       } else {
-        await researchApi.createProject({
-          title: title.trim(),
-          code: code || null,
-          level,
-          lead_user_id: leadUserId,
-          department_id: departmentId || null,
-          start_date: start || null,
-          end_date: end || null,
-          status,
-          members: toMembers(members),
-        });
+        await researchApi.createProject({ ...shared, members: toMembers(members) });
       }
       onSaved();
     } catch (err) {
@@ -372,7 +424,6 @@ function ProjectModal({
       onClose={onClose}
       size="lg"
       title={editing ? 'Cập nhật đề tài' : 'Thêm đề tài NCKH'}
-      description="Chủ nhiệm phải nằm trong danh sách thành viên."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
@@ -384,7 +435,8 @@ function ProjectModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Định danh">
         <Field label="Tên đề tài" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
@@ -401,16 +453,31 @@ function ProjectModal({
             ))}
           </Select>
         </Field>
+        </FormSection>
+
+        <FormSection title="Chủ trì & thành viên">
         <Field label="Chủ nhiệm" required>
-          <Select value={leadUserId} onChange={(e) => setLeadUserId(e.target.value)}>
-            <option value="">— Chọn —</option>
-            {(users?.data ?? []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.full_name}
-              </option>
-            ))}
+          <Select value={leadMode} onChange={(e) => setLeadMode(e.target.value as 'internal' | 'external')}>
+            <option value="internal">Trong hệ thống</option>
+            <option value="external">Ngoài hệ thống</option>
           </Select>
         </Field>
+        {leadMode === 'internal' ? (
+          <Field label="Chọn chủ nhiệm" required>
+            <Select value={leadUserId} onChange={(e) => setLeadUserId(e.target.value)}>
+              <option value="">— Chọn —</option>
+              {(users?.data ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : (
+          <Field label="Họ tên chủ nhiệm" required>
+            <Input value={leadExternal} onChange={(e) => setLeadExternal(e.target.value)} />
+          </Field>
+        )}
         <Field label="Phòng ban">
           <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
             <option value="">— Suy từ chủ nhiệm —</option>
@@ -421,6 +488,9 @@ function ProjectModal({
             ))}
           </Select>
         </Field>
+        </FormSection>
+
+        <FormSection title="Thời gian & kinh phí">
         <Field label="Bắt đầu">
           <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
         </Field>
@@ -434,13 +504,48 @@ function ProjectModal({
             ))}
           </Select>
         </Field>
-        <div className="md:col-span-2">
-          <p className="mb-2 text-sm font-medium text-ink">
-            Thành viên <span className="text-overdue">*</span>
-          </p>
-          <ContributorEditor rows={members} onChange={setMembers} users={users?.data ?? []} variant="member" />
+        <Field label="Năm học">
+          <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" />
+        </Field>
+        <Field label="Kinh phí (VND)" hint="Excel ghi &quot;120 triệu&quot; — nhập số: 120000000">
+          <Input
+            value={budgetAmount}
+            onChange={(e) => setBudgetAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder="120000000"
+          />
+        </Field>
+
+        </FormSection>
+
+        <FormSection title="Chuyển giao & minh chứng">
+        <div className="md:col-span-2 flex flex-col gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-blueberry"
+              checked={isTransferred}
+              onChange={(e) => setIsTransferred(e.target.checked)}
+            />
+            Có chuyển giao sản phẩm
+          </label>
+          {isTransferred && (
+            <Field label="Tên sản phẩm chuyển giao">
+              <Input value={transferProduct} onChange={(e) => setTransferProduct(e.target.value)} />
+            </Field>
+          )}
         </div>
-      </div>
+
+        <Field label="Link minh chứng" className="md:col-span-2">
+          <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
+        </Field>
+
+        </FormSection>
+
+        <FormSection title="Thành viên" cols={1} hint="Chủ nhiệm phải nằm trong danh sách. Người ngoài Viện nhập tên trực tiếp.">
+          <ContributorEditor rows={members} onChange={setMembers} users={users?.data ?? []} variant="member" />
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

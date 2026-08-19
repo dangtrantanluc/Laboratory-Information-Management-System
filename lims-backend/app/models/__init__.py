@@ -45,12 +45,15 @@ from app.models.equipment import (
 
 # --- M4: HR & Research Achievement ---
 from app.models.hr import (
-    ActivityReport,
-    CommunityService,
     Competence,
     ContractType,
     HrNotificationDedup,
     HrProfile,
+    SalaryHistory,
+)
+from app.models.research import (
+    ActivityReport,
+    CommunityService,
     LabRegistration,
     MentorshipType,
     ProjectMember,
@@ -60,7 +63,6 @@ from app.models.hr import (
     ResearchContract,
     ResearchProject,
     ResearchProjectLevel,
-    SalaryHistory,
     StaffActivity,
     StudentMentorship,
     TeachingCourse,

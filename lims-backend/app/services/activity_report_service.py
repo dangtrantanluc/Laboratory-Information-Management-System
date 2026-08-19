@@ -14,11 +14,11 @@ from sqlalchemy.orm import Session
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
-from app.models.hr import (
+from app.models.research import (
     ActivityReport,
+    ProjectMember,
     Publication,
     PublicationAuthor,
-    ProjectMember,
     ResearchContract,
     ResearchProject,
     StaffActivity,
@@ -82,6 +82,8 @@ def create_report(db: Session, *, user: CurrentUser, payload: dict, correlation_
             hk1_practice_hours=_parse_int(t.get("hk1_practice_hours")),
             hk2_theory_hours=_parse_int(t.get("hk2_theory_hours")),
             hk2_practice_hours=_parse_int(t.get("hk2_practice_hours")),
+            hk3_theory_hours=_parse_int(t.get("hk3_theory_hours")),
+            hk3_practice_hours=_parse_int(t.get("hk3_practice_hours")),
             note=t.get("note"), created_by=user.id, updated_by=user.id,
         ))
 
@@ -220,7 +222,8 @@ def get_report(db: Session, *, user: CurrentUser, report_id: uuid.UUID) -> dict:
     d["teaching"] = [
         {"id": t.id, "course_name": t.course_name,
          "hk1_theory_hours": t.hk1_theory_hours, "hk1_practice_hours": t.hk1_practice_hours,
-         "hk2_theory_hours": t.hk2_theory_hours, "hk2_practice_hours": t.hk2_practice_hours}
+         "hk2_theory_hours": t.hk2_theory_hours, "hk2_practice_hours": t.hk2_practice_hours,
+         "hk3_theory_hours": t.hk3_theory_hours, "hk3_practice_hours": t.hk3_practice_hours}
         for t in db.execute(select(TeachingCourse).where(TeachingCourse.report_id == report_id)).scalars()
     ]
     d["projects"] = [

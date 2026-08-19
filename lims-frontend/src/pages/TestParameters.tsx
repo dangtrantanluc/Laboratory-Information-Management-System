@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -272,12 +273,16 @@ function ParameterModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Định danh chỉ tiêu">
         <Field label="Nhóm nền mẫu" required>
           <Select value={f.matrix} onChange={set('matrix')}>
             {MATRICES.map((m) => <option key={m} value={m}>{TEST_MATRIX_LABELS[m]}</option>)}
           </Select>
         </Field>
+        </FormSection>
+
+        <FormSection title="Thực hiện">
         <Field label="Phòng lab thực hiện" hint="Dùng để tự chọn phòng khi chuyển mẫu">
           <Select value={f.department_id} onChange={set('department_id')}>
             <option value="">— Chưa gán —</option>
@@ -293,6 +298,9 @@ function ParameterModal({
         <Field label="Nền mẫu chi tiết" className="md:col-span-2" hint="Dùng cho SHPT: mô/máu/phân…">
           <Input value={f.sample_matrix} onChange={set('sample_matrix')} />
         </Field>
+        </FormSection>
+
+        <FormSection title="Giá & thời gian">
         <Field label="Đơn giá (VNĐ)">
           <Input value={f.unit_price} onChange={set('unit_price')} placeholder="160000" />
         </Field>
@@ -326,7 +334,8 @@ function ParameterModal({
             Đang sử dụng
           </label>
         </div>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

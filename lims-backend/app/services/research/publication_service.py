@@ -15,11 +15,7 @@ from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import (
-    Publication,
-    PublicationAuthor,
-    PublicationCategory,
-)
+from app.models.research import Publication, PublicationAuthor, PublicationCategory
 from app.services import audit_service, hr_common as hc
 from app.services.research._shared import _assert_staff_in_members
 
@@ -63,6 +59,8 @@ def _pub_dict(db: Session, p: Publication) -> dict:
         "application_date": p.application_date.isoformat() if p.application_date else None,
         "granted_date": p.granted_date.isoformat() if p.granted_date else None,
         "patent_holder": p.patent_holder,
+        "patent_kind": p.patent_kind,
+        "evidence_url": p.evidence_url,
         "authors": authors,
         "created_at": p.created_at,
     }
@@ -131,6 +129,14 @@ def _validate_pub_fields(db: Session, payload: dict) -> None:
             raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu patent_no (sáng chế)", 400)
         if not payload.get("issuing_authority"):
             raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu issuing_authority (sáng chế)", 400)
+    elif payload.get("patent_kind"):
+        # Khớp CHECK ck_pub_patent_kind: bắt ở tầng service để trả lỗi nghiệp vụ rõ ràng
+        # thay vì để Postgres ném IntegrityError 500.
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            "patent_kind chỉ áp dụng cho sáng chế/GPHI/giống cây trồng (type=patent)",
+            400,
+        )
 
 
 def list_publications(
@@ -223,6 +229,8 @@ def create_publication(
         application_date=payload.get("application_date") if is_patent else None,
         granted_date=payload.get("granted_date") if is_patent else None,
         patent_holder=payload.get("patent_holder") if is_patent else None,
+        patent_kind=payload.get("patent_kind") if is_patent else None,
+        evidence_url=payload.get("evidence_url"),
         department_id=payload.get("department_id"),
         created_by=user.id,
         updated_by=user.id,
@@ -310,14 +318,36 @@ def update_publication(
         ).scalar_one_or_none()
         if existing is not None:
             raise AppException(ErrorCode.DUPLICATE_PATENT_NO, "Số bằng sáng chế đã tồn tại", 409)
+    # patent_kind chỉ có nghĩa với type='patent' (khớp CHECK ck_pub_patent_kind).
+    if changes.get("patent_kind") and p.type != "patent":
+        raise AppException(
+            ErrorCode.VALIDATION_ERROR,
+            "patent_kind chỉ áp dụng cho sáng chế/GPHI/giống cây trồng (type=patent)",
+            400,
+        )
+    # Danh sách này trước đây chỉ có 8 field, nên pub_scope / 4 cờ chỉ mục / các cột
+    # sáng chế đã tồn tại trong CSDL vẫn không sửa được qua PATCH — bổ sung đủ để
+    # bản ghi khớp mọi cột của file Excel.
     for field in (
         "title",
         "journal",
         "year",
         "doi",
         "category",
+        "pub_scope",
+        "is_scie",
+        "is_ssci",
+        "is_scopus",
+        "is_aci",
+        "academic_year",
         "patent_no",
         "issuing_authority",
+        "application_no",
+        "application_date",
+        "granted_date",
+        "patent_holder",
+        "patent_kind",
+        "evidence_url",
         "department_id",
     ):
         if field in changes:

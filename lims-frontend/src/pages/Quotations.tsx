@@ -9,6 +9,8 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { DescList, DescItem, DescPeriod } from '@/components/ui/DescList';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -248,15 +250,16 @@ function QuotationDetail({
         <div className="py-8 text-center text-sm text-subink">Đang tải…</div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 gap-y-1.5 text-sm">
-            <div><span className="text-subink">Khách hàng:</span> <span className="font-medium text-ink">{q.customer_name}</span></div>
-            <div><span className="text-subink">Trạng thái:</span> <QuotationStatusBadge status={q.status} /></div>
-            <div className="sm:col-span-2"><span className="text-subink">Địa chỉ:</span> {q.customer_address ?? '—'}</div>
-            <div><span className="text-subink">Email:</span> {q.customer_email ?? '—'}</div>
-            <div><span className="text-subink">Điện thoại:</span> {q.customer_phone ?? '—'}</div>
-            <div><span className="text-subink">Ngày lập:</span> {q.issue_date ? formatDate(q.issue_date) : '—'}</div>
-            <div><span className="text-subink">Hiệu lực đến:</span> {q.valid_until ? formatDate(q.valid_until) : '—'}</div>
-          </div>
+          {/* Trước đây là lối viết "Nhãn: giá trị" inline — lối thứ ba trong ứng dụng
+              cho cùng một việc. Gom về DescList để modal xem ở mọi module đọc như một. */}
+          <DescList>
+            <DescItem label="Khách hàng" value={q.customer_name} />
+            <DescItem label="Trạng thái" value={<QuotationStatusBadge status={q.status} />} />
+            <DescItem full label="Địa chỉ" value={q.customer_address} />
+            <DescItem label="Email" value={q.customer_email} />
+            <DescItem label="Điện thoại" value={q.customer_phone} />
+            <DescPeriod label="Hiệu lực" from={q.issue_date} to={q.valid_until} />
+          </DescList>
 
           {/* Bảng chi tiết đúng thứ tự cột mẫu báo giá */}
           <div className="overflow-x-auto rounded-lg border border-hairline scrollbar-thin">
@@ -415,8 +418,8 @@ function QuotationModal({
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Khách hàng">
           <Field label="Tên khách hàng" required className="md:col-span-2">
             <Input value={f.customer_name} onChange={set('customer_name')} placeholder="CÔNG TY TNHH …" />
           </Field>
@@ -425,6 +428,9 @@ function QuotationModal({
           </Field>
           <Field label="Email"><Input value={f.customer_email} onChange={set('customer_email')} /></Field>
           <Field label="Điện thoại"><Input value={f.customer_phone} onChange={set('customer_phone')} /></Field>
+        </FormSection>
+
+        <FormSection title="Hiệu lực & thuế">
           <Field label="Ngày lập"><Input type="date" value={f.issue_date} onChange={set('issue_date')} /></Field>
           <Field label="Hiệu lực đến" hint="Mặc định 1 tháng">
             <Input type="date" value={f.valid_until} onChange={set('valid_until')} />
@@ -432,9 +438,9 @@ function QuotationModal({
           <Field label="VAT (%)" hint="Mặc định 8% — sửa được">
             <Input value={f.vat_rate} onChange={set('vat_rate')} />
           </Field>
-        </div>
+        </FormSection>
 
-        {/* Dòng chi tiết */}
+        {/* Dòng chi tiết — khối riêng, tự quản lý tiêu đề và nút thêm dòng */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold text-ink">Chi tiết báo giá ({rows.length})</span>
@@ -487,10 +493,12 @@ function QuotationModal({
             <span className="text-base font-bold text-ink">{formatMoney(String(subtotal + vat))}</span></div>
         </div>
 
-        <Field label="Ghi chú thêm (in vào báo giá)">
-          <Textarea rows={2} value={f.note} onChange={set('note')} />
-        </Field>
-      </div>
+        <FormSection title="Ghi chú" cols={1}>
+          <Field label="Ghi chú thêm (in vào báo giá)">
+            <Textarea rows={2} value={f.note} onChange={set('note')} />
+          </Field>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

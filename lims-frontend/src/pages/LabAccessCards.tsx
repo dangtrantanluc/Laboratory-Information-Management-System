@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -223,6 +224,7 @@ function CardModal({
     <Modal
       open
       onClose={onClose}
+      size="lg"
       title={editing ? 'Sửa thẻ vào PTN' : 'Thêm thẻ vào PTN'}
       footer={
         <>
@@ -235,7 +237,8 @@ function CardModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Sinh viên">
         <Field label="Họ và tên" required>
           <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} />
         </Field>
@@ -248,6 +251,9 @@ function CardModal({
         <Field label="Email">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
+        </FormSection>
+
+        <FormSection title="Đăng ký sử dụng">
         <Field label="Đăng ký sử dụng PTN" required>
           <Input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="vd: RIBE 306" />
         </Field>
@@ -257,6 +263,9 @@ function CardModal({
         <Field label="Giáo viên hướng dẫn" className="md:col-span-2">
           <Input value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)} />
         </Field>
+        </FormSection>
+
+        <FormSection title="Hiệu lực">
         <Field label="Từ ngày" required>
           <Input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
         </Field>
@@ -266,7 +275,8 @@ function CardModal({
         <Field label="Ghi chú" className="md:col-span-2">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

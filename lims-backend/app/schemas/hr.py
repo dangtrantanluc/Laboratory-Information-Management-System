@@ -15,6 +15,10 @@ CompetenceKind = Literal["degree", "certificate", "authorization"]
 PublicationType = Literal["paper", "patent", "conference"]
 PubScope = Literal["domestic", "international"]
 AuthorRole = Literal["main", "co", "corresponding"]
+# Excel diễn đạt 3 nhóm này bằng tiêu đề dòng (mục I/II/III, hai bảng ĐH/SĐH)
+# thay vì cột — hệ thống cần trường thật mới dựng lại được đúng bảng gốc.
+PatentKind = Literal["invention", "utility_solution", "plant_variety"]
+TrainingLevel = Literal["undergraduate", "postgraduate"]
 
 
 # ===================== Hồ sơ nhân sự =====================
@@ -98,7 +102,10 @@ class CreateProjectRequest(BaseModel):
     code: Optional[str] = Field(default=None, max_length=64)
     title: str = Field(min_length=1, max_length=512)
     level: str = Field(min_length=1, max_length=32)
-    lead_user_id: uuid.UUID
+    # Chủ nhiệm: nội bộ (lead_user_id) HOẶC ngoài hệ thống (lead_external_name).
+    # Excel có chủ nhiệm là người ngoài Viện; ràng buộc XOR kiểm ở service.
+    lead_user_id: Optional[uuid.UUID] = None
+    lead_external_name: Optional[str] = Field(default=None, max_length=255)
     department_id: Optional[uuid.UUID] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -108,6 +115,7 @@ class CreateProjectRequest(BaseModel):
     budget_currency: Optional[str] = Field(default=None, max_length=8)
     is_transferred: Optional[bool] = None
     transfer_product: Optional[str] = Field(default=None, max_length=2000)
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
     members: List[MemberItem] = Field(min_length=1)
 
     model_config = {"extra": "forbid"}
@@ -118,6 +126,7 @@ class UpdateProjectRequest(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=512)
     level: Optional[str] = Field(default=None, max_length=32)
     lead_user_id: Optional[uuid.UUID] = None
+    lead_external_name: Optional[str] = Field(default=None, max_length=255)
     department_id: Optional[uuid.UUID] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -127,6 +136,7 @@ class UpdateProjectRequest(BaseModel):
     budget_currency: Optional[str] = Field(default=None, max_length=8)
     is_transferred: Optional[bool] = None
     transfer_product: Optional[str] = Field(default=None, max_length=2000)
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -168,6 +178,8 @@ class CreatePublicationRequest(BaseModel):
     application_date: Optional[date] = None
     granted_date: Optional[date] = None
     patent_holder: Optional[str] = Field(default=None, max_length=255)
+    patent_kind: Optional[PatentKind] = None
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
     department_id: Optional[uuid.UUID] = None
     authors: List[AuthorItem] = Field(min_length=1)
 
@@ -193,6 +205,8 @@ class UpdatePublicationRequest(BaseModel):
     application_date: Optional[date] = None
     granted_date: Optional[date] = None
     patent_holder: Optional[str] = Field(default=None, max_length=255)
+    patent_kind: Optional[PatentKind] = None
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
     department_id: Optional[uuid.UUID] = None
 
     model_config = {"extra": "forbid"}
@@ -243,16 +257,24 @@ class DecideRegistrationRequest(BaseModel):
 
 # ===================== Giảng dạy =====================
 class CreateTeachingRequest(BaseModel):
-    user_id: uuid.UUID
+    # Giảng viên: nội bộ HOẶC ngoài hệ thống (thỉnh giảng) — XOR kiểm ở service.
+    user_id: Optional[uuid.UUID] = None
+    lecturer_external_name: Optional[str] = Field(default=None, max_length=255)
     course_name: str = Field(min_length=1, max_length=255)
-    semester: str = Field(min_length=1, max_length=32)
+    # semester KHÔNG còn bắt buộc: mô hình theo Excel là 1 dòng = 1 môn của 1 năm
+    # học, số tiết trải trên HK1/HK2/HK3 (dòng 21 sheet ĐÀO TẠO có cả HKI lẫn HKII).
+    semester: Optional[str] = Field(default=None, max_length=32)
     year: int = Field(ge=1900, le=2100)
     academic_year: Optional[str] = Field(default=None, max_length=16)
+    training_level: Optional[TrainingLevel] = None
     hk1_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk1_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     note: Optional[str] = Field(default=None, max_length=2000)
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -262,11 +284,15 @@ class UpdateTeachingRequest(BaseModel):
     semester: Optional[str] = Field(default=None, max_length=32)
     year: Optional[int] = Field(default=None, ge=1900, le=2100)
     academic_year: Optional[str] = Field(default=None, max_length=16)
+    training_level: Optional[TrainingLevel] = None
     hk1_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk1_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     hk2_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_theory_hours: Optional[int] = Field(default=None, ge=0, le=10000)
+    hk3_practice_hours: Optional[int] = Field(default=None, ge=0, le=10000)
     note: Optional[str] = Field(default=None, max_length=2000)
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -277,6 +303,7 @@ class CreateCommunityRequest(BaseModel):
     performed_at: date
     host: Optional[str] = Field(default=None, max_length=255)
     performer_user_id: uuid.UUID
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
 
@@ -285,5 +312,6 @@ class UpdateCommunityRequest(BaseModel):
     content: Optional[str] = Field(default=None, min_length=1, max_length=2000)
     performed_at: Optional[date] = None
     host: Optional[str] = Field(default=None, max_length=255)
+    evidence_url: Optional[str] = Field(default=None, max_length=2000)
 
     model_config = {"extra": "forbid"}
