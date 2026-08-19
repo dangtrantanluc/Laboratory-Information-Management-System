@@ -168,7 +168,13 @@ def run_import(path: str, academic_year: str, dry_run: bool, only=None) -> dict:
 
     # ---- NCKH: nhiệm vụ/đề tài (header r7, data từ r8) ----
     ws = wb["NCKH"]
-    from app.models.hr import Publication, PublicationAuthor, ProjectMember, ResearchContract, ResearchProject
+    from app.models.research import (
+        Publication,
+        PublicationAuthor,
+        ProjectMember,
+        ResearchContract,
+        ResearchProject,
+    )
 
     for r in (range(8, 18) if want("projects") else range(0)):
         title = cell(ws, r, 2)
@@ -252,7 +258,7 @@ def run_import(path: str, academic_year: str, dry_run: bool, only=None) -> dict:
             ))
 
     # ---- ĐÀO TẠO: môn giảng dạy (data r8+, header 2 tầng r6-7) ----
-    from app.models.hr import TeachingCourse
+    from app.models.research import TeachingCourse
 
     wt = wb["ĐÀO TẠO"]
     current_user_name = None
@@ -278,7 +284,7 @@ def run_import(path: str, academic_year: str, dry_run: bool, only=None) -> dict:
             ))
 
     # ---- CÔNG TÁC KHÁC: Đảng/Công đoàn/VILAS ----
-    from app.models.hr import StaffActivity
+    from app.models.research import StaffActivity
 
     wk = wb["CÔNG TÁC KHÁC"]
     kind_by_title = {"đảng": "dang", "công đoàn": "cong_doan", "vilas": "vilas"}
@@ -299,7 +305,7 @@ def run_import(path: str, academic_year: str, dry_run: bool, only=None) -> dict:
                 db.add(StaffActivity(kind=cur_kind, content=str(b).strip(), academic_year=academic_year))
 
     # ---- PHỤC VỤ CỘNG ĐỒNG: cấp GCN (bảng r14+) ----
-    from app.models.hr import TrainingCertificate
+    from app.models.research import TrainingCertificate
 
     wc = wb["PHỤC VỤ CỘNG ĐỒNG"]
     for r in (range(15, wc.max_row + 1) if want("certificates") else range(0)):
