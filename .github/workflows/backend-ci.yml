@@ -63,6 +63,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Redis THẬT, không mock: 6/9 cron service dùng Redis để chống gửi trùng
+      # thông báo, và test_cron_contract.py cố tình gọi hàm ĐÚNG cách scheduler
+      # gọi — thay Redis bằng mock thì đúng đường đã hỏng trên production
+      # (2026-08-07) lại không được đi qua, tức là bỏ mất lý do tồn tại của test.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -76,6 +89,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+psycopg2://lims:lims@localhost:5432/lims_test
           DATABASE_URL: postgresql+psycopg2://lims:lims@localhost:5432/lims_test
+          REDIS_URL: redis://localhost:6379/0
         run: python -m pytest app/tests/integration -v
 
       # Vùng phủ đo trên TOÀN BỘ suite ở job này vì chỉ ở đây mới có Postgres —
@@ -92,6 +106,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+psycopg2://lims:lims@localhost:5432/lims_test
           DATABASE_URL: postgresql+psycopg2://lims:lims@localhost:5432/lims_test
+          REDIS_URL: redis://localhost:6379/0
         run: |
           python -m pytest app/tests \
             --cov --cov-config=.coveragerc \
