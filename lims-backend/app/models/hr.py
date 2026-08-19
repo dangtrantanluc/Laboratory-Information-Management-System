@@ -24,7 +24,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
-    PrimaryKeyConstraint,
     SmallInteger,
     String,
     Text,
