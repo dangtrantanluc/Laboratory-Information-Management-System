@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -163,27 +164,10 @@ function CustomerModal({
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <Field label="Tên khách hàng / đơn vị" required>
-          <Input value={f.name} onChange={set('name')} />
-        </Field>
-        <Field label="Địa chỉ">
-          <Input value={f.address} onChange={set('address')} />
-        </Field>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <Field label="Mã số thuế">
-            <Input value={f.tax_code} onChange={set('tax_code')} />
-          </Field>
-          <Field label="Người liên hệ">
-            <Input value={f.contact_person} onChange={set('contact_person')} />
-          </Field>
-          <Field label="Điện thoại">
-            <Input value={f.phone} onChange={set('phone')} />
-          </Field>
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Email">
-            <Input value={f.email} onChange={set('email')} />
+      <FormBody>
+        <FormSection title="Định danh">
+          <Field label="Tên khách hàng / đơn vị" required className="md:col-span-2">
+            <Input value={f.name} onChange={set('name')} />
           </Field>
           <Field label="Loại">
             <Select value={f.type} onChange={set('type')}>
@@ -193,14 +177,35 @@ function CustomerModal({
               <option value="internal">Nội bộ</option>
             </Select>
           </Field>
-        </div>
-        <Field label="Liên hệ khác" hint="Ô cũ, giữ lại cho dữ liệu trước đây">
-          <Input value={f.contact} onChange={set('contact')} />
-        </Field>
-        <Field label="Ghi chú">
-          <Textarea value={f.note} onChange={set('note')} />
-        </Field>
-      </div>
+          <Field label="Mã số thuế">
+            <Input value={f.tax_code} onChange={set('tax_code')} />
+          </Field>
+          <Field label="Địa chỉ" className="md:col-span-2">
+            <Input value={f.address} onChange={set('address')} />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Liên hệ">
+          <Field label="Người liên hệ">
+            <Input value={f.contact_person} onChange={set('contact_person')} />
+          </Field>
+          <Field label="Điện thoại">
+            <Input value={f.phone} onChange={set('phone')} />
+          </Field>
+          <Field label="Email">
+            <Input value={f.email} onChange={set('email')} />
+          </Field>
+          <Field label="Liên hệ khác" hint="Ô cũ, giữ lại cho dữ liệu trước đây">
+            <Input value={f.contact} onChange={set('contact')} />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Ghi chú" cols={1}>
+          <Field label="Ghi chú">
+            <Textarea value={f.note} onChange={set('note')} />
+          </Field>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

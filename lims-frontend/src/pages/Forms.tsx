@@ -8,6 +8,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/States';
 import { formatDateTime } from '@/lib/format';
@@ -438,14 +439,14 @@ function TemplateModal({
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <Field label="Mã biểu mẫu" required>
-          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="vd BM 6.2.01" />
-        </Field>
-        <Field label="Tên biểu mẫu" required>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <FormBody>
+        <FormSection title="Định danh">
+          <Field label="Mã biểu mẫu" required>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="vd BM 6.2.01" />
+          </Field>
+          <Field label="Tên biểu mẫu" required>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
           <Field label="Điều khoản ISO" required>
             <Input value={clause} onChange={(e) => setClause(e.target.value)} placeholder="6.2" />
           </Field>
@@ -460,14 +461,17 @@ function TemplateModal({
           <Field label="Năm">
             <Input value={year} onChange={(e) => setYear(e.target.value)} placeholder="2026" />
           </Field>
-        </div>
-        <Field label="Tệp mẫu (docx/pdf…)">
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </Field>
-        <Field label="Ghi chú">
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-      </div>
+        </FormSection>
+
+        <FormSection title="Tệp & ghi chú" cols={1}>
+          <Field label="Tệp mẫu (docx/pdf…)">
+            <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          </Field>
+          <Field label="Ghi chú">
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

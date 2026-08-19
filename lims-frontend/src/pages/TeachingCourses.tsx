@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import {
   DescList,
   DescItem,
@@ -442,8 +443,8 @@ function TeachingModal({
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <FormBody>
+        <FormSection title="Môn học & giảng viên">
           {!editing && (
             <>
               <Field label="Giảng viên" required>
@@ -501,10 +502,9 @@ function TeachingModal({
           <Field label="Năm học">
             <Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" />
           </Field>
-        </div>
+        </FormSection>
 
-        <div className="flex flex-col gap-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-subink">Số tiết theo học kỳ</p>
+        <FormSection title="Số tiết theo học kỳ" cols={1}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[360px] border-collapse text-sm">
               <thead>
@@ -541,17 +541,17 @@ function TeachingModal({
               </tbody>
             </table>
           </div>
-        </div>
+        </FormSection>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormSection title="Minh chứng & ghi chú">
           <Field label="Link minh chứng" hint="Thời khoá biểu — Drive, SharePoint…" className="md:col-span-2">
             <Input value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)} placeholder="https://" />
           </Field>
           <Field label="Ghi chú" className="md:col-span-2">
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
-        </div>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

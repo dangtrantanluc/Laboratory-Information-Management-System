@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { DescList, DescItem, DescSection } from '@/components/ui/DescList';
+import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -22,6 +25,7 @@ export function StudentMentorships() {
   const [typeFilter, setTypeFilter] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<StudentMentorship | null>(null);
+  const [viewTarget, setViewTarget] = useState<StudentMentorship | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StudentMentorship | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -106,10 +110,25 @@ export function StudentMentorships() {
           rowKey={(m) => m.id}
           loading={loading}
           pageSize={12}
-          onRowClick={canManage ? (m) => setEditTarget(m) : undefined}
+          // Bấm hàng mở modal XEM, không nhảy thẳng vào form ghi — đồng bộ với
+          // các trang cùng nhóm menu, và người chỉ tra cứu không phải vào chế độ ghi.
+          onRowClick={(m) => setViewTarget(m)}
         />
       </Card>
 
+      {viewTarget && (
+        <MentorshipDetailModal
+          mentorship={viewTarget}
+          typeLabel={typeLabel}
+          canManage={canManage}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => {
+            const m = viewTarget;
+            setViewTarget(null);
+            setEditTarget(m);
+          }}
+        />
+      )}
       {createOpen && (
         <MentorshipModal
           onClose={() => setCreateOpen(false)}
@@ -141,6 +160,62 @@ export function StudentMentorships() {
         loading={deleting}
       />
     </div>
+  );
+}
+
+function MentorshipDetailModal({
+  mentorship: m,
+  typeLabel,
+  canManage,
+  onClose,
+  onEdit,
+}: {
+  mentorship: StudentMentorship;
+  typeLabel: (code: string) => string;
+  canManage: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={m.student_name}
+      description="Sinh viên được hướng dẫn"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Đóng
+          </Button>
+          {canManage && (
+            <Button onClick={onEdit}>
+              <Pencil size={14} /> Chỉnh sửa
+            </Button>
+          )}
+        </>
+      }
+    >
+      {/* Không dùng DetailHero: bản ghi không có số chủ đạo hay trạng thái nào để neo. */}
+      <DescSection title="Hướng dẫn">
+        <DescList>
+          <DescItem label="Loại hướng dẫn" value={<Badge tone="info">{typeLabel(m.type)}</Badge>} />
+          <DescItem label="Năm" value={m.year} />
+          <DescItem
+            label="Người hướng dẫn"
+            value={
+              m.mentor_name ? (
+                <span className="inline-flex items-center gap-2">
+                  <Avatar name={m.mentor_name} size="sm" />
+                  {m.mentor_name}
+                </span>
+              ) : null
+            }
+          />
+          <DescItem label="Phòng ban" value={m.department_name} />
+          <DescItem full label="Đề tài" value={m.topic} />
+        </DescList>
+      </DescSection>
+    </Modal>
   );
 }
 

@@ -9,6 +9,7 @@ import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { NcSeverityBadge, NcStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -272,14 +273,18 @@ function CreateNcModal({ onClose, onCreated }: { onClose: () => void; onCreated:
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Tiêu đề" required className="md:col-span-2">
+      <FormBody>
+        <FormSection title="Nội dung">
+          <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: Kết quả QC vượt giới hạn kiểm soát" />
         </Field>
         <Field label="Mô tả chi tiết" required className="md:col-span-2">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Mô tả sự không phù hợp…" />
         </Field>
-        <Field label="Mức độ">
+        </FormSection>
+
+        <FormSection title="Phân loại & phạm vi">
+          <Field label="Mức độ">
           <Select value={severity} onChange={(e) => setSeverity(e.target.value as NcSeverity)}>
             {(Object.keys(NC_SEVERITY_LABELS) as NcSeverity[]).map((s) => (
               <option key={s} value={s}>
@@ -313,10 +318,14 @@ function CreateNcModal({ onClose, onCreated }: { onClose: () => void; onCreated:
             <Input value={user?.department?.name ?? '—'} disabled />
           </Field>
         )}
-        <Field label="Đánh giá tác động (§7.10.1)" className="md:col-span-2" hint="Mẫu/kết quả bị ảnh hưởng, hành động tức thời…">
+        </FormSection>
+
+        <FormSection title="Đánh giá tác động" cols={1}>
+          <Field label="Đánh giá tác động (§7.10.1)" className="md:col-span-2" hint="Mẫu/kết quả bị ảnh hưởng, hành động tức thời…">
           <Textarea value={impact} onChange={(e) => setImpact(e.target.value)} rows={2} />
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/ui/FilterBar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { EquipmentStatusBadge, CalibrationStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -314,8 +315,9 @@ function CreateEquipmentModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Tên thiết bị" required className="md:col-span-2">
+      <FormBody>
+        <FormSection title="Định danh">
+          <Field label="Tên thiết bị" required className="md:col-span-2">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="vd: Máy đo pH Mettler" />
         </Field>
         <Field label="Vị trí đặt" className="md:col-span-2">
@@ -337,7 +339,10 @@ function CreateEquipmentModal({
             <Input value={user?.department?.name ?? '—'} disabled />
           </Field>
         )}
-        <Field label="Người phụ trách" hint="Phải cùng phòng với thiết bị.">
+        </FormSection>
+
+        <FormSection title="Quản lý & hiệu chuẩn">
+          <Field label="Người phụ trách" hint="Phải cùng phòng với thiết bị.">
           <Select value={responsibleId} onChange={(e) => setResponsibleId(e.target.value)}>
             <option value="">— Chưa chỉ định —</option>
             {(users?.data ?? []).map((u) => (
@@ -385,7 +390,8 @@ function CreateEquipmentModal({
             </Select>
           </div>
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { DocVersionStatusBadge, SecurityLevelBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -274,8 +275,9 @@ function CreateDocumentModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Tiêu đề" required className="md:col-span-2">
+      <FormBody>
+        <FormSection title="Tài liệu">
+          <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: SOP đo pH" />
         </Field>
         <Field label="Loại tài liệu" required>
@@ -310,7 +312,10 @@ function CreateDocumentModal({
             <Input value={user?.department?.name ?? '—'} disabled />
           </Field>
         )}
-        <Field label="Ghi chú phiên bản" className="md:col-span-2" hint="Không bắt buộc cho phiên bản đầu.">
+        </FormSection>
+
+        <FormSection title="Phiên bản đầu">
+          <Field label="Ghi chú phiên bản" className="md:col-span-2" hint="Không bắt buộc cho phiên bản đầu.">
           <Textarea
             value={changeNote}
             onChange={(e) => setChangeNote(e.target.value)}
@@ -320,7 +325,8 @@ function CreateDocumentModal({
         <Field label="Tệp nội dung (v1)" required className="md:col-span-2" hint="PDF, DOCX, XLSX, PNG, JPG · tối đa 20MB">
           <FileDrop file={file} onSelect={setFile} />
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

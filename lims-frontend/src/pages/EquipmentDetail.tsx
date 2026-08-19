@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState, EmptyState } from '@/components/ui/States';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import {
   EquipmentStatusBadge,
   CalibrationStatusBadge,
@@ -579,8 +580,9 @@ function CalibrateModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Ngày hiệu chuẩn" required>
+      <FormBody>
+        <FormSection title="Lần hiệu chuẩn này">
+          <Field label="Ngày hiệu chuẩn" required>
           <Input
             type="date"
             max={today}
@@ -602,7 +604,10 @@ function CalibrateModal({
           />
         </Field>
 
-        <div className="md:col-span-2 rounded-lg border border-hairline bg-plate/30 px-4 py-3">
+        </FormSection>
+
+        <FormSection title="Hạn hiệu chuẩn kế tiếp">
+          <div className="md:col-span-2 rounded-lg border border-hairline bg-plate/30 px-4 py-3">
           <p className="text-xs text-subink">
             {hasCycle
               ? `Hạn kế tiếp tự tính = ngày hiệu chuẩn + ${equipment.calibration_cycle_value} ${equipment.calibration_cycle_unit ? CALIBRATION_CYCLE_UNIT_LABELS[equipment.calibration_cycle_unit] : ''}.`
@@ -650,7 +655,8 @@ function CalibrateModal({
         >
           <FileDrop file={cert} onSelect={setCert} accept={CERT_ACCEPT} />
         </Field>
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

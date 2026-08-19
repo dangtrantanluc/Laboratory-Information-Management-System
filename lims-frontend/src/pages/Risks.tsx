@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/ui/FilterBar';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { RiskKindBadge, RiskStatusBadge, RiskBandBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
@@ -308,50 +309,58 @@ function CreateRiskModal({ onClose, onCreated }: { onClose: () => void; onCreate
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Loại">
-          <Select value={kind} onChange={(e) => setKind(e.target.value as RiskKind)}>
-            {(Object.keys(RISK_KIND_LABELS) as RiskKind[]).map((k) => (
-              <option key={k} value={k}>{RISK_KIND_LABELS[k]}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Tiến trình liên quan">
-          <Input value={processRef} onChange={(e) => setProcessRef(e.target.value)} placeholder="vd: Tiếp nhận mẫu" />
-        </Field>
-        <Field label="Tiêu đề" required className="md:col-span-2">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: Mẫu bị nhiễm chéo khi lưu" />
-        </Field>
-        <Field label="Bối cảnh / mô tả" required className="md:col-span-2">
-          <Textarea value={context} onChange={(e) => setContext(e.target.value)} rows={2} />
-        </Field>
-        <Field label="Khả năng xảy ra (1–5)">
-          <Select value={String(likelihood)} onChange={(e) => setLikelihood(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
-          </Select>
-        </Field>
-        <Field label="Mức tác động (1–5)">
-          <Select value={String(impact)} onChange={(e) => setImpact(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
-          </Select>
-        </Field>
-        <Field label="Mức rủi ro tính được" className="md:col-span-2">
-          <div className={`inline-flex items-center rounded-lg px-3 py-2 text-sm font-bold ${BAND_BG[band]}`}>
-            {level} — {band === 'high' ? 'Cao' : band === 'medium' ? 'Trung bình' : 'Thấp'}
-          </div>
-        </Field>
-        {canPickDept && (
-          <Field label="Phòng ban" className="md:col-span-2">
-            <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-              <option value="">— Mặc định theo người tạo —</option>
-              {(depts?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+      <FormBody>
+        <FormSection title="Nhận diện">
+          <Field label="Loại">
+            <Select value={kind} onChange={(e) => setKind(e.target.value as RiskKind)}>
+              {(Object.keys(RISK_KIND_LABELS) as RiskKind[]).map((k) => (
+                <option key={k} value={k}>{RISK_KIND_LABELS[k]}</option>
+              ))}
             </Select>
           </Field>
-        )}
-        <Field label="Ngày đánh giá lại" className="md:col-span-2">
-          <Input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
-        </Field>
-      </div>
+          <Field label="Tiến trình liên quan">
+            <Input value={processRef} onChange={(e) => setProcessRef(e.target.value)} placeholder="vd: Tiếp nhận mẫu" />
+          </Field>
+          <Field label="Tiêu đề" required className="md:col-span-2">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="vd: Mẫu bị nhiễm chéo khi lưu" />
+          </Field>
+          <Field label="Bối cảnh / mô tả" required className="md:col-span-2">
+            <Textarea value={context} onChange={(e) => setContext(e.target.value)} rows={2} />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Đánh giá mức rủi ro" hint="Mức rủi ro = Khả năng × Tác động, hệ thống tự tính.">
+          <Field label="Khả năng xảy ra (1–5)">
+            <Select value={String(likelihood)} onChange={(e) => setLikelihood(Number(e.target.value))}>
+              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+            </Select>
+          </Field>
+          <Field label="Mức tác động (1–5)">
+            <Select value={String(impact)} onChange={(e) => setImpact(Number(e.target.value))}>
+              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+            </Select>
+          </Field>
+          <Field label="Mức rủi ro tính được" className="md:col-span-2">
+            <div className={`inline-flex items-center rounded-lg px-3 py-2 text-sm font-bold ${BAND_BG[band]}`}>
+              {level} — {band === 'high' ? 'Cao' : band === 'medium' ? 'Trung bình' : 'Thấp'}
+            </div>
+          </Field>
+        </FormSection>
+
+        <FormSection title="Phân công & theo dõi">
+          {canPickDept && (
+            <Field label="Phòng ban">
+              <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+                <option value="">— Mặc định theo người tạo —</option>
+                {(depts?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </Select>
+            </Field>
+          )}
+          <Field label="Ngày đánh giá lại">
+            <Input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} />
+          </Field>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

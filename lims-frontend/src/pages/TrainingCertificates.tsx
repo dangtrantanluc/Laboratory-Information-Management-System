@@ -15,6 +15,7 @@ import {
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAsync } from '@/lib/useAsync';
@@ -196,22 +197,27 @@ function CertModal({ cert, onClose, onSaved }: { cert?: TrainingCertificate; onC
 
   return (
     <Modal open onClose={onClose} size="lg" title={editing ? 'Sửa chứng nhận' : 'Thêm chứng nhận'} footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button onClick={submit} loading={submitting}>{editing ? 'Lưu' : 'Thêm'}</Button></>}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Người được cấp GCN" required className="md:col-span-2"><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
-        <Field label="Số GCN"><Input value={certNo} onChange={(e) => setCertNo(e.target.value)} /></Field>
-        <Field label="Loại danh sách">
-          <Select value={certKind} onChange={(e) => setCertKind(e.target.value)}>
-            <option value="">— Chưa phân loại —</option>
-            {Object.entries(CERT_KIND_LABELS).map(([v, label]) => (
-              <option key={v} value={v}>{label}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Ngày cấp"><Input type="date" value={issuedDate ?? ''} onChange={(e) => setIssuedDate(e.target.value)} /></Field>
-        <Field label="Lớp học / khóa"><Input value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
-        <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
-        <Field label="Ghi chú" className="md:col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-      </div>
+      <FormBody>
+        <FormSection title="Người được cấp">
+          <Field label="Người được cấp GCN" required className="md:col-span-2"><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} /></Field>
+          <Field label="Số GCN"><Input value={certNo} onChange={(e) => setCertNo(e.target.value)} /></Field>
+          <Field label="Loại danh sách">
+            <Select value={certKind} onChange={(e) => setCertKind(e.target.value)}>
+              <option value="">— Chưa phân loại —</option>
+              {Object.entries(CERT_KIND_LABELS).map(([v, label]) => (
+                <option key={v} value={v}>{label}</option>
+              ))}
+            </Select>
+          </Field>
+        </FormSection>
+
+        <FormSection title="Khoá học">
+          <Field label="Lớp học / khóa" className="md:col-span-2"><Input value={course} onChange={(e) => setCourse(e.target.value)} /></Field>
+          <Field label="Ngày cấp"><Input type="date" value={issuedDate ?? ''} onChange={(e) => setIssuedDate(e.target.value)} /></Field>
+          <Field label="Năm học"><Input value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} placeholder="2024-2025" /></Field>
+          <Field label="Ghi chú" className="md:col-span-2"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }

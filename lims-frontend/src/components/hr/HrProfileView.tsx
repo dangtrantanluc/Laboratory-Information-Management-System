@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/States';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
+import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { CompetenceKindBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
 import { useAsync } from '@/lib/useAsync';
@@ -702,8 +703,9 @@ function CompetenceModal({
         </>
       }
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Loại" required>
+      <FormBody>
+        <FormSection title="Năng lực">
+          <Field label="Loại" required>
           <Select value={kind} onChange={(e) => setKind(e.target.value as CompetenceKind)}>
             <option value="degree">Bằng cấp</option>
             <option value="certificate">Chứng chỉ</option>
@@ -716,7 +718,10 @@ function CompetenceModal({
         <Field label="Tên năng lực" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Thạc sĩ Hóa phân tích" />
         </Field>
-        <Field label="Ngày cấp">
+        </FormSection>
+
+        <FormSection title="Hiệu lực">
+          <Field label="Ngày cấp">
           <Input type="date" value={issued} onChange={(e) => setIssued(e.target.value)} />
         </Field>
         <Field label="Ngày hết hạn">
@@ -739,7 +744,8 @@ function CompetenceModal({
             </Field>
           </>
         )}
-      </div>
+        </FormSection>
+      </FormBody>
     </Modal>
   );
 }
