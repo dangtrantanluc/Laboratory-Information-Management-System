@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Lộ trình khắc phục LIMS VILAB — 14 hạng mục P0→P3 chia 4 đợt, kèm file, migration, test và điều kiện nghiệm thu.">
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Lộ trình khắc phục VILAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root{
+    --paper:#F5F7F5; --surface:#FFFFFF; --surface-2:#EDF2EE;
+    --ink:#141C18; --ink-2:#3D4B44; --ink-3:#6B7A72;
+    --hairline:#D7DFD9; --hairline-2:#C0CCC5;
+    --accent:#0F5C4A; --accent-soft:#E1EDE7;
+    --p0:#A8231C; --p0-bg:#F7E6E4;
+    --p1:#95530B; --p1-bg:#F9ECDE;
+    --p2:#736013; --p2-bg:#F4EFDB;
+    --p3:#33607D; --p3-bg:#E5EEF4;
+    --ok:#22684B; --ok-bg:#E0EEE7;
+    --q:#57457A; --q-bg:#ECE7F3;
+    --shadow:0 1px 2px rgba(20,28,24,.05), 0 8px 24px -16px rgba(20,28,24,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+      --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+      --hairline:#27322D; --hairline-2:#35433C;
+      --accent:#4FBF98; --accent-soft:#12302A;
+      --p0:#F0908A; --p0-bg:#331A1A;
+      --p1:#E3A863; --p1-bg:#322614;
+      --p2:#D3C167; --p2-bg:#2C2A16;
+      --p3:#93BDD8; --p3-bg:#182831;
+      --ok:#6FCFA3; --ok-bg:#12291F;
+      --q:#B6A5D9; --q-bg:#221D2E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+    --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+    --hairline:#27322D; --hairline-2:#35433C;
+    --accent:#4FBF98; --accent-soft:#12302A;
+    --p0:#F0908A; --p0-bg:#331A1A;
+    --p1:#E3A863; --p1-bg:#322614;
+    --p2:#D3C167; --p2-bg:#2C2A16;
+    --p3:#93BDD8; --p3-bg:#182831;
+    --ok:#6FCFA3; --ok-bg:#12291F;
+    --q:#B6A5D9; --q-bg:#221D2E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.62; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+
+  h1,h2,h3,h4{font-family:Spectral,Georgia,serif; text-wrap:balance; margin:0}
+  h1{font-size:2.6rem; line-height:1.12; font-weight:700; letter-spacing:-.015em}
+  h2{font-size:1.62rem; line-height:1.22; font-weight:600}
+  h3{font-size:1.16rem; line-height:1.3; font-weight:600; font-family:"IBM Plex Sans",sans-serif}
+  h4{font-size:.95rem; font-family:"IBM Plex Sans",sans-serif; font-weight:600}
+  p{margin:0 0 .85em}
+  .prose{max-width:70ch}
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+  code,.mono{font-family:"IBM Plex Mono",monospace; font-size:.855em}
+  code{background:var(--surface-2); padding:.1em .34em; border-radius:3px; color:var(--ink-2)}
+  a{color:var(--accent)}
+  a:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+  .mast{border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px}
+  .mast .eyebrow{display:block; margin-bottom:14px}
+  .mast p.lede{font-family:Spectral,Georgia,serif; font-size:1.2rem; line-height:1.55; color:var(--ink-2); max-width:64ch; margin:18px 0 0; font-style:italic}
+  .mast-meta{display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:24px; font-family:"IBM Plex Mono",monospace; font-size:.76rem; color:var(--ink-3)}
+  .mast-meta b{color:var(--ink-2); font-weight:500}
+
+  section{margin:0 0 58px; scroll-margin-top:20px}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px; border-bottom:1px solid var(--hairline); padding-bottom:10px}
+  .sec-head .letter{font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--accent); letter-spacing:.08em; padding-top:.35em; white-space:nowrap}
+  .sec-sub{color:var(--ink-3); font-size:.9rem; margin:0 0 22px; max-width:72ch}
+
+  .chip{font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600; letter-spacing:.07em; padding:2.5px 8px; border-radius:99px; white-space:nowrap; display:inline-block}
+  .c0{background:var(--p0-bg); color:var(--p0)}
+  .c1{background:var(--p1-bg); color:var(--p1)}
+  .c2{background:var(--p2-bg); color:var(--p2)}
+  .c3{background:var(--p3-bg); color:var(--p3)}
+  .cq{background:var(--q-bg);  color:var(--q)}
+  .cok{background:var(--ok-bg); color:var(--ok)}
+  .cn{background:var(--surface-2); color:var(--ink-3)}
+
+  /* ── Gate / quyết định chặn ─────────────── */
+  .gates{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; margin-bottom:14px}
+  .gate{background:var(--surface); border:1px solid var(--q); border-left:4px solid var(--q); border-radius:3px; padding:16px 20px}
+  .gate .gid{font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:600; color:var(--q); letter-spacing:.08em}
+  .gate .gq{font-weight:600; font-size:.95rem; margin:5px 0 7px; line-height:1.35}
+  .gate .gb{font-size:.83rem; color:var(--ink-3); line-height:1.5}
+  .gate .gb b{color:var(--ink-2); font-weight:600}
+
+  /* ── Đợt ────────────────────────────────── */
+  .wave{margin-bottom:46px}
+  .wave-head{
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    background:var(--surface-2); border-radius:4px; padding:13px 20px; margin-bottom:16px;
+    border-left:4px solid var(--accent);
+  }
+  .wave-head .wn{font-family:"IBM Plex Mono",monospace; font-size:.72rem; font-weight:600; color:var(--accent); letter-spacing:.1em}
+  .wave-head h3{flex:1; min-width:220px; font-size:1.08rem}
+  .wave-head .meta{font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--ink-3)}
+  .wave.blocked .wave-head{border-left-color:var(--q)}
+  .wave.blocked .wave-head .wn{color:var(--q)}
+
+  /* ── Work item ──────────────────────────── */
+  .wi{background:var(--surface); border:1px solid var(--hairline); border-left:4px solid var(--hairline-2); border-radius:3px; padding:18px 22px; margin-bottom:11px}
+  .wi.s0{border-left-color:var(--p0)}
+  .wi.s1{border-left-color:var(--p1)}
+  .wi.s2{border-left-color:var(--p2)}
+  .wi.s3{border-left-color:var(--p3)}
+  .wi-head{display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-bottom:9px}
+  .wi-head .wid{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:.82rem; color:var(--ink); background:var(--surface-2); padding:2px 8px; border-radius:3px}
+  .wi-head h4{flex:1; min-width:230px; font-size:1rem}
+  .wi-why{font-size:.895rem; color:var(--ink-2); max-width:84ch; margin-bottom:12px}
+  .wi-why p{margin:0 0 .55em}
+  .wi-why p:last-child{margin-bottom:0}
+
+  .spec{display:grid; grid-template-columns:104px 1fr; gap:0; border-top:1px solid var(--hairline); font-size:.83rem}
+  .spec dt{
+    font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-3); padding:7px 12px 7px 0; border-bottom:1px solid var(--hairline); font-weight:600;
+  }
+  .spec dd{margin:0; padding:7px 0; border-bottom:1px solid var(--hairline); color:var(--ink-2); min-width:0; overflow-wrap:anywhere}
+  .spec dt:last-of-type,.spec dd:last-of-type{border-bottom:none}
+  .spec code{font-size:.8rem}
+  .spec ul{margin:0; padding-left:1.1em}
+  .spec li{margin-bottom:.2em}
+
+  .done{background:var(--accent-soft); border-radius:3px; padding:9px 13px; margin-top:11px; font-size:.845rem; color:var(--ink-2)}
+  .done b{color:var(--accent)}
+
+  /* ── Bảng ───────────────────────────────── */
+  .scroller{overflow-x:auto; border:1px solid var(--hairline); border-radius:4px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.85rem; min-width:640px}
+  th,td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--hairline); vertical-align:top}
+  thead th{background:var(--surface-2); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-3); font-weight:600; white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{text-align:right; font-variant-numeric:tabular-nums; font-family:"IBM Plex Mono",monospace; white-space:nowrap}
+  .row-th{font-weight:600; color:var(--ink); white-space:nowrap}
+  tfoot td{background:var(--surface-2); font-weight:600; border-top:2px solid var(--hairline-2)}
+
+  .note{border-left:3px solid var(--accent); background:var(--surface); padding:13px 18px; font-size:.87rem; color:var(--ink-2); margin:18px 0; border-radius:0 3px 3px 0}
+  .note.warn{border-left-color:var(--p0)}
+  .note.warn b{color:var(--p0)}
+  ul.tight{margin:.4em 0; padding-left:1.15em}
+  ul.tight li{margin-bottom:.3em}
+  ol.tight{margin:.4em 0; padding-left:1.3em}
+  ol.tight li{margin-bottom:.3em}
+
+  .rails{display:grid; gap:9px}
+  .rail{display:grid; grid-template-columns:auto 1fr; gap:14px; background:var(--surface); border:1px solid var(--hairline); border-radius:3px; padding:13px 18px}
+  .rail .rn{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--accent); font-size:.78rem; padding-top:.15em; white-space:nowrap}
+  .rail .rt{font-weight:600; font-size:.92rem; margin-bottom:3px}
+  .rail .rd{font-size:.845rem; color:var(--ink-2)}
+
+  @media (max-width:820px){
+    .wrap{padding:0 18px 64px}
+    h1{font-size:2rem}
+    .spec{grid-template-columns:1fr}
+    .spec dt{padding-bottom:0; border-bottom:none}
+    .spec dd{padding-top:2px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <span class="eyebrow">Kế hoạch thi công · Hồ sơ đi kèm bản kiểm toán</span>
+  <h1>Lộ trình khắc phục VILAB</h1>
+  <p class="lede">14 hạng mục thi công xếp theo P0 → P3, kèm file phải sửa, migration phải viết, test phải thêm và điều kiện nghiệm thu cho từng hạng mục.</p>
+  <div class="mast-meta">
+    <span>Nguồn: <b>Kiểm toán luồng nghiệp vụ VILAB</b></span>
+    <span>Alembic head: <b>1718870400035 (m36)</b></span>
+    <span>Tổng công: <b>~31 ngày-người</b></span>
+    <span>Đợt: <b>4</b></span>
+  </div>
+</header>
+
+<!-- ══════════════ 0 ══════════════ -->
+<section id="constraints">
+  <div class="sec-head"><span class="letter">§0</span><h2>Ràng buộc thi công bắt buộc</h2></div>
+  <p class="sec-sub">Sáu ràng buộc rút ra từ chính codebase. Vi phạm bất kỳ điều nào là CI đỏ hoặc lỗi âm thầm trên production — kiểm tra trước khi mở editor.</p>
+
+  <div class="note warn">
+    <b>R1 — RBAC cache không bao giờ được xóa.</b> <code>core/rbac.py:62 invalidate_role_cache()</code> được định nghĩa nhưng <b>không được gọi ở bất kỳ đâu trong toàn bộ backend</b>. Quyền cache trong Redis với TTL 300s. Nghĩa là mọi migration đổi quyền — kể cả m36 đã deploy — chỉ có hiệu lực sau tối đa 5 phút, và trong 5 phút đó hệ thống vẫn cấp quyền cũ. Mọi hạng mục đụng tới <code>roles_permissions</code> đều phải kèm bước xóa cache trong quy trình deploy. Đây là điều kiện tiên quyết của cả W4 và W10.
+  </div>
+
+  <div class="rails">
+    <div class="rail"><div class="rn">R2</div><div>
+      <div class="rt">Migration nối tiếp từ <code>1718870400035</code></div>
+      <div class="rd">Head hiện tại là m36. Mọi migration mới đặt <code>down_revision</code> theo đúng chuỗi, không nhánh song song — repo này dùng chuỗi tuyến tính từ m1.</div>
+    </div></div>
+    <div class="rail"><div class="rn">R3</div><div>
+      <div class="rt">Quyền mới phải seed <code>permissions</code> trước <code>roles_permissions</code></div>
+      <div class="rd"><code>roles_permissions</code> có <code>ForeignKeyConstraint(["resource","action"] → permissions)</code>. Chèn thẳng một cặp <code>(resource, action)</code> chưa tồn tại trong bảng <code>permissions</code> sẽ nổ lỗi khoá ngoại giữa lúc migrate.</div>
+    </div></div>
+    <div class="rail"><div class="rn">R4</div><div>
+      <div class="rt">Endpoint mới bắt buộc khai <code>response_model</code></div>
+      <div class="rd"><code>tests/architecture/test_response_contract.py</code> đối chiếu với danh sách miễn trừ <code>response_model_legacy.txt</code>. Endpoint mới không có trong danh sách đó nên phải khai schema tường minh.</div>
+    </div></div>
+    <div class="rail"><div class="rn">R5</div><div>
+      <div class="rt">Mã lỗi phải lấy từ enum <code>ErrorCode</code></div>
+      <div class="rd"><code>tests/architecture/test_error_codes.py</code> quét AST và chặn mọi chuỗi thô truyền vào factory lỗi. Mã lỗi mới phải thêm vào enum trước khi dùng.</div>
+    </div></div>
+    <div class="rail"><div class="rn">R6</div><div>
+      <div class="rt">Trần kích thước file chỉ được hạ, không được nới</div>
+      <div class="rd"><code>scripts/check-file-size.mjs</code>: trần chung 800 dòng. <code>SampleFlow.tsx</code> đang được miễn trừ ở mức 1208 và <b>giảm hơn 100 dòng mà quên hạ trần cũng báo lỗi</b>. Mọi giao diện mới của luồng nhận mẫu phải nằm trong file component riêng, không được thêm vào <code>SampleFlow.tsx</code>.</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════ 1 ══════════════ -->
+<section id="gates">
+  <div class="sec-head"><span class="letter">§1</span><h2>Hai quyết định chặn tiến độ</h2></div>
+  <p class="sec-sub">Đợt 0 chạy được ngay. Đợt 1 trở đi cần câu trả lời. Đưa hai câu này cho chủ nghiệp vụ <b>trước</b> khi sprint bắt đầu — không phải giữa sprint.</p>
+
+  <div class="gates">
+    <div class="gate">
+      <div class="gid">GATE A · chặn W4, W6</div>
+      <div class="gq">Ai chịu trách nhiệm nhập kết quả thử nghiệm?</div>
+      <div class="gb">
+        <b>Nếu là phòng lab</b> → W4 chạy, trả lại quyền, thay <code>can_bo</code> bằng danh tính tài khoản.<br>
+        <b>Nếu vẫn là Phòng nhận mẫu</b> → W4 hủy, nhưng phải lập văn bản chấp nhận rủi ro: hệ thống không truy xuất được người thực hiện phép thử, cần chuẩn bị giải trình cho kỳ đánh giá VILAS.<br>
+        Không có phương án thứ ba — để nguyên mà không quyết là tiếp tục sinh hồ sơ không truy xuất được.
+      </div>
+    </div>
+    <div class="gate">
+      <div class="gid">GATE B · chặn W5, W6, W7</div>
+      <div class="gq">Module M1 (<code>samples</code>, <code>test_requests</code>, <code>sample_results</code>) còn dùng không?</div>
+      <div class="gb">
+        <b>Giữ và nối vào</b> → W6 dùng lại <code>sample_assignments</code> + <code>sample_results</code> đã có versioning và tách nhập–duyệt. Công lớn hơn nhưng không phải viết lại phần khó.<br>
+        <b>Bỏ</b> → W5 viết KPI mới trên <code>sample_intakes</code>, và toàn bộ cơ chế duyệt kết quả phải xây lại từ đầu ở luồng thật.<br>
+        <b>Không được để nguyên</b>: hiện M1 đang cấp số liệu sai cho mọi dashboard.
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Khuyến nghị của audit:</b> GATE A → phòng lab. GATE B → giữ và nối vào. Lý do: phần khó nhất của một LIMS (versioning bất biến, tách nhập–duyệt, lý do sửa bắt buộc, chuỗi giám hộ) đã được viết đúng trong M1. Bỏ đi rồi xây lại là trả giá hai lần cho cùng một thứ.
+  </div>
+</section>
+
+<!-- ══════════════ ĐỢT 0 ══════════════ -->
+<section id="wave0">
+  <div class="sec-head"><span class="letter">§2</span><h2>Đợt 0 — Chặn máu</h2></div>
+  <p class="sec-sub">Không phụ thuộc bất kỳ quyết định nghiệp vụ nào. Bắt đầu được ngay hôm nay, song song với việc chờ trả lời hai gate.</p>
+
+  <div class="wave">
+    <div class="wave-head">
+      <span class="wn">ĐỢT 0</span>
+      <h3>Vá lỗ hổng đang mở + nợ kỹ thuật rẻ</h3>
+      <span class="meta">4 hạng mục · ~4 ngày · không gate</span>
+    </div>
+
+    <div class="wi s0">
+      <div class="wi-head"><span class="wid">W1</span><h4>Bịt rò rỉ PII qua tệp đính kèm</h4><span class="chip c0">P0-3</span><span class="chip cn">Bảo mật</span></div>
+      <div class="wi-why">
+        <p>Guard đọc tệp chỉ kiểm quyền <code>intake:read</code> — mà <code>staff</code> và <code>lab_manager</code> đều có scope <code>all</code> — nên không hề tham chiếu cơ chế che PII của m26. Tệp đính kèm của phiếu chính là bản scan BM 7.1.01 đã điền, chứa đúng những trường vừa bị che.</p>
+        <p><b>Ghi chú quan trọng:</b> chặn đường này <em>không</em> làm mất tính năng nào của phòng lab. Việc gắn tệp lên phiếu chuyển mẫu đòi quyền <code>intake:manage</code> mà khối lab không có, nên lab chưa bao giờ upload được tệp lên đây. Sau khi yêu cầu xem thông tin được duyệt thì họ vẫn đọc được bình thường.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>Không — chạy được ngay</dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>services/attachment_authz.py</code> — <code>_read_intake()</code> gọi thêm <code>customer_info_service.has_access(db, user, owner_id)</code>; <code>_read_dispatch()</code> phân giải <code>dispatch.intake_id</code> rồi kiểm tương tự</li>
+            <li><code>services/customer_info_service.py</code> — <code>mask_intake()</code> và <code>mask_dispatch()</code> xóa luôn khoá <code>files</code>, cùng cơ chế đang dùng cho <code>PII_ID_FIELDS</code></li>
+          </ul>
+        </dd>
+        <dt>Migration</dt><dd>Không</dd>
+        <dt>Frontend</dt><dd>Không — danh sách tệp rỗng hiển thị bình thường</dd>
+        <dt>Test</dt><dd><code>tests/security/test_attachment_authz.py</code> — lớp mới: staff của phòng có chỉ tiêu lấy <code>files[].id</code> từ phiếu bị che rồi gọi <code>GET /attachments/{id}</code> → <b>403</b>; sau khi duyệt info-request → <b>200</b>. Test hiện tại chỉ kiểm guard <em>có tồn tại</em>, không kiểm luật.</dd>
+        <dt>Công</dt><dd>0,5 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> tài khoản <code>staff</code> chưa được duyệt không tải được tệp của phiếu thuộc phòng mình, và tải được ngay sau khi Phòng nhận mẫu duyệt yêu cầu.</div>
+    </div>
+
+    <div class="wi s2">
+      <div class="wi-head"><span class="wid">W2</span><h4>Bịt oracle dò tên khách qua tham số tìm kiếm</h4><span class="chip c2">P2-3</span><span class="chip cn">Bảo mật</span></div>
+      <div class="wi-why">
+        <p><code>list_intakes()</code> áp bộ lọc <code>customer_name.ilike(q)</code> <b>trước</b> khi che dữ liệu, nên gửi <code>?q=&lt;tên công ty&gt;</code> và xem phiếu nào trả về là suy ra được chủ mẫu dù mọi trường đều hiển thị dấu che.</p>
+        <p>Đi cùng W1 vì cùng một mục tiêu bảo mật và cùng một vùng code — tách ra làm hai lần review là lãng phí.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>Không</dd>
+        <dt>Sửa</dt><dd><code>services/sample_flow_service.py — list_intakes()</code>: nếu <code>customer_info_service.is_masked_role(user)</code> thì <code>q</code> chỉ khớp <code>SampleIntake.code</code>, bỏ nhánh <code>customer_name</code></dd>
+        <dt>Đánh đổi</dt><dd>Khối lab mất khả năng tìm theo tên khách kể cả với phiếu đã được duyệt xem. Chấp nhận được — đúng ý đồ m26 là nhận diện bằng <b>mã phiếu</b>.</dd>
+        <dt>Migration</dt><dd>Không</dd>
+        <dt>Test</dt><dd>staff gửi <code>?q=&lt;tên khách&gt;</code> → 0 kết quả; <code>?q=&lt;mã phiếu&gt;</code> → trả đúng phiếu; reception gửi cùng query → vẫn tìm được theo tên</dd>
+        <dt>Công</dt><dd>0,25 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> không có tổ hợp tham số nào cho phép vai trò bị che phân biệt hai phiếu dựa trên thông tin khách hàng.</div>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W3</span><h4>Khóa báo giá đã gửi, bỏ xóa cứng, tự hết hiệu lực</h4><span class="chip c1">P1-5</span><span class="chip cn">Báo giá</span></div>
+      <div class="wi-why">
+        <p>Báo giá ở trạng thái <code>sent</code> — đã gửi cho khách — vẫn sửa được đơn giá, danh sách chỉ tiêu và thông tin khách hàng, không lưu phiên bản. <code>delete_quotation()</code> dùng <code>db.delete()</code>, xóa cứng cả dòng chi tiết theo cascade. Chứng từ thương mại biến mất khỏi hệ thống.</p>
+        <p>Nằm ở đợt 0 vì hoàn toàn độc lập với hai gate, và là hạng mục P1 rẻ nhất trong toàn bộ lộ trình.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>Không</dd>
+        <dt>Migration</dt><dd><code>m37 · 1718870400036_m37_quotation_lock_softdelete</code><ul>
+          <li><code>quotations.deleted_at TIMESTAMPTZ NULL</code></li>
+          <li>bảng <code>quotation_versions(id, quotation_id, version, snapshot JSONB, created_by, created_at)</code></li>
+          <li>index từng phần <code>WHERE deleted_at IS NULL</code></li>
+        </ul></dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>services/quotation_service.py</code> — <code>update_quotation()</code>: rời <code>draft</code> thì mỗi lần sửa phải chụp bản cũ vào <code>quotation_versions</code> và tăng <code>version</code>; <code>delete_quotation()</code> đổi sang gán <code>deleted_at</code>; <code>list/get</code> lọc <code>deleted_at IS NULL</code></li>
+            <li>cron hết hiệu lực: <code>valid_until &lt; today AND status='sent'</code> → <code>expired</code>, theo đúng khuôn <code>*_cron_service.py</code> đã có</li>
+            <li><code>models/quotation.py</code> — model <code>QuotationVersion</code></li>
+          </ul>
+        </dd>
+        <dt>Frontend</dt><dd><code>pages/Quotations.tsx</code> — hiện lịch sử phiên bản; nút xóa đổi nhãn thành “Thu hồi”</dd>
+        <dt>Test</dt><dd>sửa báo giá <code>sent</code> → sinh version mới, bản cũ đọc lại được nguyên vẹn; xóa → biến mất khỏi danh sách nhưng còn trong DB; cron đặt <code>expired</code> đúng ngày</dd>
+        <dt>Công</dt><dd>1,5 ngày</dd>
+        <dt>Rủi ro</dt><dd>Trung bình — chạm luồng đang dùng hằng ngày</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> không có đường nào làm mất nội dung một báo giá đã gửi khách, và mọi thay đổi sau khi gửi đều tra ngược được.</div>
+    </div>
+
+    <div class="wi s3">
+      <div class="wi-head"><span class="wid">W4</span><h4>Dọn nợ P3 + bổ sung xóa cache RBAC vào quy trình deploy</h4><span class="chip c3">P3-1·2·3</span><span class="chip c0">R1</span></div>
+      <div class="wi-why">
+        <p>Bốn việc nhỏ gom một lần review. Việc thứ tư là điều kiện tiên quyết cho mọi hạng mục đổi quyền ở đợt sau, nên phải xong trước W6 và W12.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>Không</dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>models/sample_flow.py</code> — <code>ck_intake_status</code> đang khai <code>('open','dispatched','closed')</code>, sửa cho khớp 7 giá trị thật sau m28</li>
+            <li><code>models/user.py</code> — <code>ck_users_status</code> thiếu <code>'pending'</code> mà m30 đã thêm</li>
+            <li><code>sample_flow_service._next_intake_code()</code> và <code>sample_common._next_code()</code> — bỏ <code>COUNT(*)+1</code>, chuyển sang <code>MAX(seq)+1</code> có retry, hoặc sequence riêng</li>
+            <li><b>Xóa cache RBAC:</b> gọi <code>invalidate_role_cache()</code> ở cuối mỗi migration quyền, hoặc thêm bước vào <code>DEPLOY.md</code> + lệnh quản trị. Hiện hàm này chưa từng được gọi ở đâu.</li>
+          </ul>
+        </dd>
+        <dt>Migration</dt><dd>Không bắt buộc — CHECK trong model là mã chết vì test dựng schema bằng alembic, nhưng đang gây hiểu sai cho người đọc</dd>
+        <dt>Test</dt><dd>test khẳng định <code>VALID_INTAKE_STATUS</code> khớp CHECK trong model; test sinh mã sau khi xóa bản ghi không trùng</dd>
+        <dt>Công</dt><dd>1 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> chạy một migration quyền trên môi trường staging và quyền có hiệu lực <b>ngay lập tức</b>, không phải chờ 5 phút.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ ĐỢT 1 ══════════════ -->
+<section id="wave1">
+  <div class="sec-head"><span class="letter">§3</span><h2>Đợt 1 — Trả lab về đúng vai trò</h2></div>
+
+  <div class="wave blocked">
+    <div class="wave-head">
+      <span class="wn">ĐỢT 1 · CHỜ GATE A</span>
+      <h3>Phòng lab ghi kết quả của chính mình</h3>
+      <span class="meta">2 hạng mục · ~4 ngày</span>
+    </div>
+
+    <div class="wi s0">
+      <div class="wi-head"><span class="wid">W5</span><h4>Tách quyền ghi kết quả khỏi quyền sửa phiếu</h4><span class="chip c0">P0-1</span><span class="chip cn">Lab</span></div>
+      <div class="wi-why">
+        <p>Nguyên nhân kỹ thuật khiến m36 phải cắt quyền của cả khối lab là <b>một endpoint duy nhất</b> <code>PATCH /dispatches/{id}</code> gánh cả cột hành chính lẫn cột kết quả. Docstring của m36 đã ghi rõ điều này: <em>“Cả hai đi qua cùng một endpoint nên không tách được bằng quyền.”</em></p>
+        <p>Cách sửa không phải là hoàn tác m36, mà là <b>gỡ bỏ ràng buộc kỹ thuật đã buộc phải ra quyết định đó</b>: tách endpoint thì mỗi bên giữ đúng phần của mình, và yêu cầu nghiệp vụ ban đầu — chỉ Phòng nhận mẫu sửa nội dung hành chính của phiếu — vẫn được tôn trọng nguyên vẹn.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">GATE A</span> · và W4 (xóa cache RBAC)</dd>
+        <dt>Migration</dt><dd><code>m38 · 1718870400037_m38_dispatch_result_role</code><ul>
+          <li><b>trước tiên</b> <code>INSERT INTO permissions (resource, action)</code> cặp <code>('dispatch','result')</code> — ràng buộc R3</li>
+          <li>rồi cấp <code>('staff','dispatch','result','department')</code> và <code>('lab_manager','dispatch','result','department')</code></li>
+          <li><code>sample_dispatches.performed_by UUID REFERENCES users(id)</code>, <code>performed_at TIMESTAMPTZ</code></li>
+          <li>giữ nguyên cột <code>can_bo</code> để phiếu cũ không mất dữ liệu; điền song song ở bản ghi mới</li>
+        </ul></dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>routers/sample_flow.py</code> — endpoint mới <code>PATCH /dispatches/{id}/result</code> với <code>require_permission("dispatch","result")</code> và <code>response_model</code> tường minh (R4)</li>
+            <li><code>schemas/sample_flow.py</code> — <code>UpdateDispatchResultRequest</code> chỉ gồm <code>status, ket_qua, don_vi, phuong_phap</code>; bỏ <code>ket_qua</code>/<code>can_bo</code> khỏi <code>UpdateDispatchRequest</code> cũ</li>
+            <li><code>services/sample_flow_service.py</code> — <code>update_dispatch_result()</code> gán <code>performed_by = user.id</code> từ tài khoản đăng nhập, giữ scope “chỉ phòng mình”</li>
+            <li><code>models/sample_flow.py</code> — <code>DISPATCH_NEXT</code> state machine: <code>sent → received → in_progress → done</code>, cho <code>returned</code> từ mọi bước, chặn quay lui từ <code>done</code></li>
+          </ul>
+        </dd>
+        <dt>Frontend</dt><dd><code>api/sampleFlow.ts</code> thêm <code>updateDispatchResult()</code>; <code>components/sampleFlow/DispatchResultModal.tsx</code> chuyển sang endpoint mới; <code>lib/rbac.ts</code> thêm <code>canEnterDispatchResult()</code>. <b>Không thêm dòng nào vào <code>SampleFlow.tsx</code></b> (R6)</dd>
+        <dt>Test</dt><dd>cập nhật <code>test_dispatch_update_roles.py</code> (ma trận đổi); mới <code>test_dispatch_result_entry.py</code>: staff phòng đúng ghi được kết quả và <code>performed_by</code> tự điền; staff phòng khác → 403; staff không sửa được cột hành chính; reception không còn ghi đè <code>performed_by</code>; chặn <code>done → sent</code></dd>
+        <dt>Công</dt><dd>3 ngày</dd>
+        <dt>Rủi ro</dt><dd>Trung bình — đổi ma trận quyền, bắt buộc xóa cache khi deploy</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> mọi kết quả mới ghi vào hệ thống đều truy xuất được về một tài khoản người dùng cụ thể, và Phòng nhận mẫu không còn ghi đè được danh tính đó.</div>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W6</span><h4>State machine cho phiếu chuyển; chặn thêm chỉ tiêu vào phiếu đã đóng</h4><span class="chip c1">P1-4</span><span class="chip c0">P0-2</span></div>
+      <div class="wi-why">
+        <p>Hai lỗ hổng cùng một gốc là thiếu kiểm tra trạng thái. <code>add_dispatch()</code> không kiểm trạng thái phiếu, nên dòng chỉ tiêu vẫn được tạo trên phiếu <code>cancelled</code> và phòng lab vẫn nhận thông báo “Mẫu mới được chuyển đến phòng”.</p>
+        <p>Đồng thời khóa cột kết quả sau khi phiếu chuyển sang <code>completed</code> — hiện phiếu đã ở trạng thái “Đã trả kết quả” vẫn sửa được kết quả không giới hạn.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>W5 (dùng chung <code>DISPATCH_NEXT</code>)</dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>add_dispatch()</code> và <code>add_dispatches_batch()</code> — từ chối khi <code>it.status in ('cancelled','completed')</code> với mã lỗi <code>INVALID_STATE</code></li>
+            <li><code>update_dispatch_result()</code> — từ chối khi phiếu đã <code>completed</code>, gợi ý dùng đường tạo phiên bản sửa</li>
+            <li>endpoint xóa dòng chỉ tiêu chuyển nhầm: <code>DELETE /dispatches/{id}</code> chỉ khi <code>status='sent'</code>, quyền <code>intake:manage</code></li>
+          </ul>
+        </dd>
+        <dt>Migration</dt><dd>Không</dd>
+        <dt>Test</dt><dd>thêm chỉ tiêu vào phiếu <code>cancelled</code> → 409 và <b>không</b> sinh thông báo; sửa kết quả sau <code>completed</code> → 409; xóa dòng đã <code>received</code> → 409</dd>
+        <dt>Công</dt><dd>1 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> không có đường nào tạo việc cho phòng lab trên một phiếu đã hủy, và không sửa được kết quả đã trả cho khách.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ ĐỢT 2 ══════════════ -->
+<section id="wave2">
+  <div class="sec-head"><span class="letter">§4</span><h2>Đợt 2 — Nối hai thế giới dữ liệu</h2></div>
+  <p class="sec-sub">Đợt lớn nhất và rủi ro nhất. Nên là một sprint riêng, không trộn với hạng mục khác.</p>
+
+  <div class="wave blocked">
+    <div class="wave-head">
+      <span class="wn">ĐỢT 2 · CHỜ GATE B</span>
+      <h3>Tách đơn hàng khỏi phiếu giao việc; dashboard đọc đúng nguồn</h3>
+      <span class="meta">3 hạng mục · ~12 ngày</span>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W7</span><h4>Tách “chỉ tiêu khách đặt” khỏi “phiếu giao lab”</h4><span class="chip c1">P1-1</span><span class="chip cn">Kiến trúc</span></div>
+      <div class="wi-why">
+        <p>Bảng <code>sample_dispatches</code> đang gánh hai khái niệm: <em>chỉ tiêu khách đặt</em> (để báo giá, tính tiền) và <em>phiếu giao việc cho lab</em> (để theo dõi thực hiện). Vì gộp làm một nên <code>create_from_intake()</code> buộc phải yêu cầu đã có dispatch mới lập được báo giá — mà tạo dispatch lại đẩy phiếu thẳng sang <code>dispatched</code> và bắn thông báo cho lab.</p>
+        <p>Hệ quả: ba trạng thái <code>quoted → quote_accepted → paid</code> của thiết kế m28 là mã chết trên đường đi tự nhiên. Tách bảng là điều kiện cần để luồng báo giá hoạt động đúng như đã thiết kế.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">GATE B</span></dd>
+        <dt>Migration</dt><dd><code>m39 · 1718870400038_m39_intake_items</code><ul>
+          <li>bảng <code>intake_items(id, intake_id, test_parameter_id, parameter_name, method, unit, quantity, unit_price, sample_name, sort_order)</code></li>
+          <li><code>sample_dispatches.intake_item_id UUID REFERENCES intake_items(id)</code></li>
+          <li><b>backfill:</b> mỗi <code>sample_dispatches</code> hiện có sinh một <code>intake_items</code> tương ứng rồi trỏ ngược lại — phải viết và thử trên bản sao dữ liệu thật trước</li>
+        </ul></dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>quotation_service.create_from_intake()</code> — đọc <code>intake_items</code> thay vì <code>sample_dispatches</code>, bỏ lỗi <code>NO_ITEMS</code> gắn với dispatch</li>
+            <li>endpoint mới <code>POST /intakes/{id}/items</code> — thêm chỉ tiêu khách đặt mà <b>không</b> chuyển lab, không đổi trạng thái phiếu</li>
+            <li><code>add_dispatch()</code> — nhận <code>intake_item_id</code>, chỉ đặt <code>status='dispatched'</code> khi đây là lượt chuyển đầu tiên</li>
+            <li><code>quotation_service.change_status()</code> — bỏ điều kiện <code>it.status in ('received','quoted')</code> đang khiến đồng bộ chết sau khi phiếu đã <code>dispatched</code></li>
+          </ul>
+        </dd>
+        <dt>Frontend</dt><dd>Tab “Chỉ tiêu yêu cầu” tách khỏi tab “Chuyển lab” — <b>file component mới</b>, không nới <code>SampleFlow.tsx</code> (R6)</dd>
+        <dt>Test</dt><dd>lập báo giá khi <b>chưa</b> chuyển lab; đi trọn <code>received → quoted → quote_accepted → paid → dispatched</code>; một chỉ tiêu giao cho hai phòng; backfill giữ nguyên số dòng và tổng tiền</dd>
+        <dt>Công</dt><dd>6 ngày</dd>
+        <dt>Rủi ro</dt><dd><b>Cao</b> — migration có backfill dữ liệu production. Bắt buộc diễn tập trên bản sao và có kịch bản hoàn tác.</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> nhân viên quầy lập được báo giá, gửi khách, nhận tiền, rồi mới chuyển mẫu — đúng thứ tự thanh tiến trình 6 bước đang vẽ trên giao diện.</div>
+    </div>
+
+    <div class="wi s0">
+      <div class="wi-head"><span class="wid">W8</span><h4>Dashboard đọc đúng bảng; bổ sung KPI vận hành thật</h4><span class="chip c0">P0-4</span><span class="chip cn">Lãnh đạo</span></div>
+      <div class="wi-why">
+        <p>Ô KPI của Phòng nhận mẫu ghi “Phiếu chờ chuyển lab” nhưng lấy số từ <code>samples.by_status.received</code>, rồi bấm vào lại điều hướng sang <code>/sample-flow</code> đọc bảng khác. Con số và màn hình đích không cùng nguồn dữ liệu.</p>
+        <p><b>Cạm bẫy phải xử lý trước:</b> <code>sample_intakes.due_date</code> là <code>VARCHAR(30)</code> text tự do (giao diện gợi ý “dd/mm/yyyy”). Không tính được “quá hạn” trên kiểu này, nên phải thêm cột ngày thật và backfill trước khi viết KPI.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">GATE B</span></dd>
+        <dt>Migration</dt><dd><code>m40 · 1718870400039_m40_intake_due_date</code> — thêm <code>due_date_at DATE</code>, backfill từ chuỗi <code>due_date</code> theo định dạng <code>dd/mm/yyyy</code>, ghi lại các dòng không phân giải được để xử lý tay</dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>services/dashboard_service.py</code> — <code>_kpi_intakes()</code> đếm <code>sample_intakes</code> theo <code>status</code>; <code>_kpi_dispatches()</code> đếm theo trạng thái thực hiện; quá hạn tính trên <code>due_date_at</code></li>
+            <li>KPI mới: tỷ lệ mẫu bị từ chối (sau W10), thời gian xử lý trung bình, doanh thu báo giá đã chấp nhận</li>
+            <li><code>pages/dashboards/</code> — <code>ReceptionDashboard</code>, <code>LeaderDashboard</code>, <code>LabManagerDashboard</code>, <code>DashCharts</code></li>
+          </ul>
+        </dd>
+        <dt>Nếu GATE B = giữ M1</dt><dd>Giữ nguyên khối <code>samples</code> và <b>thêm</b> khối intake bên cạnh, dán nhãn phân biệt rõ hai nguồn</dd>
+        <dt>Nếu GATE B = bỏ M1</dt><dd>Gỡ hẳn khối <code>samples</code> khỏi mọi dashboard, không để hai nguồn cùng một nhãn</dd>
+        <dt>Test</dt><dd>tạo 10 phiếu ở các trạng thái khác nhau → mọi ô KPI khớp đúng số đếm; số trên tile bằng số dòng ở màn hình mà tile đó dẫn tới</dd>
+        <dt>Công</dt><dd>3 ngày</dd>
+        <dt>Rủi ro</dt><dd>Trung bình — backfill ngày từ text tự do sẽ có dòng hỏng</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> mỗi con số trên dashboard bấm vào ra đúng danh sách bản ghi tạo nên con số đó.</div>
+    </div>
+
+    <div class="wi s0">
+      <div class="wi-head"><span class="wid">W9</span><h4>Nối kết quả vào cơ chế duyệt bất biến</h4><span class="chip c0">P0-2</span><span class="chip cn">Kiến trúc</span></div>
+      <div class="wi-why">
+        <p>Chỉ thực hiện nếu <b>GATE B = giữ M1</b>. Nối phiếu giao việc vào <code>sample_assignments</code> → <code>sample_results</code>, dùng lại nguyên phần đã viết đúng: versioning bất biến, <code>is_current</code>, CHECK bắt buộc <code>revision_reason</code>, chặn tự duyệt.</p>
+        <p>Nếu <b>GATE B = bỏ M1</b> thì hạng mục này phồng lên thành xây mới toàn bộ bảng phiên bản kết quả và luồng duyệt — ước tính gấp đôi công, và là lý do chính khiến audit khuyến nghị giữ M1.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">GATE B</span> · W5 · W7</dd>
+        <dt>Migration</dt><dd><code>m41</code> — nối <code>sample_dispatches</code> ↔ <code>sample_assignments</code>; hoặc bảng <code>dispatch_results</code> sao khuôn <code>sample_results</code> nếu bỏ M1</dd>
+        <dt>Sửa</dt><dd>bước kiểm tra (trưởng phòng lab trả lại kèm lý do) và bước phê duyệt (người duyệt ≠ người nhập), tái dùng <code>result_service.approve_result()</code> / <code>return_result()</code> / <code>revise_result()</code></dd>
+        <dt>Test</dt><dd>người nhập không tự duyệt được; sau duyệt phải tạo phiên bản mới kèm lý do; phiên bản cũ đọc lại nguyên vẹn</dd>
+        <dt>Công</dt><dd>3 ngày nếu giữ M1 · 6–7 ngày nếu bỏ</dd>
+        <dt>Rủi ro</dt><dd>Cao</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> một kết quả đã phê duyệt không sửa được tại chỗ, và mọi lần sửa đều sinh phiên bản mới có lý do và người chịu trách nhiệm.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ ĐỢT 3 ══════════════ -->
+<section id="wave3">
+  <div class="sec-head"><span class="letter">§5</span><h2>Đợt 3 — Hoàn thiện nghiệp vụ quầy</h2></div>
+  <p class="sec-sub">Chạy song song được với đợt 2 nếu có đủ người, vì đụng vùng code khác nhau.</p>
+
+  <div class="wave">
+    <div class="wave-head">
+      <span class="wn">ĐỢT 3</span>
+      <h3>Chấp nhận mẫu · vai trò liên hệ · quyền khách hàng · chống trùng</h3>
+      <span class="meta">5 hạng mục · ~11 ngày</span>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W10</span><h4>Bước chấp nhận / từ chối mẫu, tình trạng và số lượng mẫu</h4><span class="chip c1">P1-3</span><span class="chip cq">Q6</span></div>
+      <div class="wi-why">
+        <p>Form nhận mẫu không có ô nào cho tình trạng mẫu, số lượng mẫu, bao bì hay nhiệt độ bảo quản — đúng những việc đầu tiên nhân viên quầy làm với mẫu vật lý. Trạng thái phiếu chỉ có <code>cancelled</code> và lý do là tùy chọn, trong khi “hủy” khác hẳn “từ chối tiếp nhận vì mẫu không đạt”.</p>
+        <p>Khuôn CHECK đã có sẵn để sao lại: <code>models/sample.py</code> — <code>ck_smp_condition</code> buộc <code>condition_note</code> khác rỗng khi <code>condition_status='not_acceptable'</code>.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">Q6</span> — từ chối hẳn, hay nhận có bảo lưu?</dd>
+        <dt>Migration</dt><dd><code>m42</code> — <code>sample_intakes</code> thêm <code>sample_count INT</code>, <code>condition_status</code>, <code>condition_note</code>, <code>rejected_reason</code>, <code>decided_by</code>, <code>decided_at</code>; thêm <code>'rejected'</code> vào CHECK trạng thái + <code>INTAKE_NEXT</code>; CHECK buộc có lý do khi từ chối</dd>
+        <dt>Frontend</dt><dd><code>IntakeCreateModal.tsx</code> — <code>FormSection</code> mới “Tình trạng &amp; số lượng mẫu”; <code>IntakeWorkflow.tsx</code> — nút “Từ chối mẫu” mở modal bắt buộc nhập lý do</dd>
+        <dt>Test</dt><dd>từ chối không lý do → 400; phiếu <code>rejected</code> không chuyển lab được; audit ghi đủ người + thời điểm + lý do</dd>
+        <dt>Công</dt><dd>3 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> mẫu không đạt điều kiện tiếp nhận có đường xử lý trong hệ thống, ghi đủ lý do, người quyết định và thời điểm.</div>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W11</span><h4>Vai trò cho người liên hệ trên phiếu</h4><span class="chip c1">P1-2</span><span class="chip cq">Q4</span></div>
+      <div class="wi-why">
+        <p>Phiếu chỉ có ba ô phẳng <code>contact_person</code>, <code>phone</code>, <code>email</code>, và chọn một người trong danh bạ sẽ ghi đè cả ba. Không biểu diễn được: người mang mẫu ≠ người nhận kết quả ≠ người thanh toán. Hệ thống không lưu được “ai đã gửi mẫu nào”.</p>
+        <p>Giữ nguyên nguyên tắc <b>snapshot</b> đang làm đúng: phiếu chụp giá trị chứ không giữ khóa ngoại tới danh bạ.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">Q4</span> — bốn vai trò có tách rời không, một người giữ nhiều vai được không?</dd>
+        <dt>Migration</dt><dd><code>m43</code> — <code>customer_contacts.roles TEXT[]</code> (hoặc bảng nối); <code>sample_intakes</code> thêm bộ ô chụp cho từng vai trò: <code>courier_*</code>, <code>result_recipient_*</code>, <code>billing_contact_*</code>; giữ <code>contact_person</code> cũ để phiếu đã in không đổi</dd>
+        <dt>Frontend</dt><dd><code>IntakeCreateModal.tsx</code> — mỗi vai trò một dòng chọn từ danh bạ, mặc định lấy liên hệ chính, sửa tay được; <code>CustomerContactsPanel.tsx</code> — gán vai trò</dd>
+        <dt>Test</dt><dd>ba vai trò khác nhau trên cùng phiếu lưu độc lập; đổi danh bạ sau đó không làm đổi phiếu cũ</dd>
+        <dt>Công</dt><dd>4 ngày</dd>
+        <dt>Rủi ro</dt><dd>Trung bình</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> tra một phiếu bất kỳ biết được ai mang mẫu tới và kết quả phải giao cho ai, kể cả khi đó là hai người khác nhau.</div>
+    </div>
+
+    <div class="wi s1">
+      <div class="wi-head"><span class="wid">W12</span><h4>Sắp lại quyền khách hàng: Văn phòng vào, KTV ra</h4><span class="chip c1">P1-6</span><span class="chip cn">Phân quyền</span></div>
+      <div class="wi-why">
+        <p><code>write_roles = ("admin","staff","reception")</code> cho phép kỹ thuật viên phòng lab sửa tên pháp nhân, mã số thuế và toàn bộ danh bạ, kể cả xóa cứng một dòng liên hệ. Cùng lúc <code>office</code> — bộ phận có trách nhiệm nghiệp vụ với khách hàng — bị chặn khỏi cả đọc lẫn ghi, dù vẫn đọc được đúng dữ liệu đó qua màn hình Báo giá.</p>
+        <p>Cắt quyền <code>staff</code> vừa sửa lệch vai trò vừa thu hẹp phạm vi tiếp xúc PII, nên làm cùng lúc với đợt bảo mật là hợp lý.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd>Xác nhận vai trò Văn phòng · W4 (xóa cache RBAC)</dd>
+        <dt>Kiểm trước</dt><dd><b>Bắt buộc:</b> truy vấn <code>audit_logs</code> lọc <code>action IN ('CUSTOMER_CREATE','CUSTOMER_UPDATE','CUSTOMER_CONTACT_*')</code> nhóm theo vai trò người thực hiện. Nếu <code>staff</code> đang dùng thật thì phải chuyển giao trước khi cắt, không cắt thẳng.</dd>
+        <dt>Sửa</dt><dd><code>routers/customers.py</code> — <code>read_roles</code> bỏ <code>staff</code>/<code>lab_manager</code>, thêm <code>office</code>; <code>write_roles</code> bỏ <code>staff</code>, thêm <code>office</code>. <code>lib/rbac.ts</code> — <code>canViewCustomers</code>, <code>canManageCustomers</code> sửa khớp. <code>nav.ts</code> — chuyển mục “Khách hàng” từ nhóm Quản trị sang nhóm Vận hành</dd>
+        <dt>Test</dt><dd>ma trận vai trò cho cả 4 endpoint khách hàng + 4 endpoint danh bạ</dd>
+        <dt>Công</dt><dd>0,5 ngày + thời gian kiểm dữ liệu</dd>
+        <dt>Rủi ro</dt><dd>Trung bình — siết quyền là người dùng báo ngay</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> Văn phòng tự quản lý được hồ sơ khách hàng, và không vai trò phòng lab nào còn sửa được mã số thuế.</div>
+    </div>
+
+    <div class="wi s2">
+      <div class="wi-head"><span class="wid">W13</span><h4>Chống trùng khách hàng và tìm kiếm đa trường</h4><span class="chip c2">P2-1</span><span class="chip cq">Q3</span></div>
+      <div class="wi-why">
+        <p>Không có ràng buộc duy nhất hay chỉ mục nào trên <code>tax_code</code>, và <code>list_customers()</code> chỉ lọc theo <code>name</code>. Khách đọc mã số thuế qua điện thoại, nhân viên gõ vào ô tìm kiếm không ra gì, bấm “thêm vào sổ” — sinh khách trùng ngay tại quầy.</p>
+        <p>Phụ thuộc Q3: nếu “khách hàng” là <b>pháp nhân</b> thì MST là duy nhất; nếu là <b>địa điểm/nhà máy</b> thì nhiều bản ghi cùng MST là hợp lệ và cần thêm thực thể địa điểm.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">Q3</span> — khách hàng là pháp nhân hay địa điểm?</dd>
+        <dt>Migration</dt><dd><code>m44</code> — index <code>tax_code</code>; nếu Q3 = pháp nhân thì thêm unique từng phần <code>WHERE tax_code IS NOT NULL AND deleted_at IS NULL</code>. <b>Phải dọn dữ liệu trùng hiện có trước</b> nếu không migration sẽ thất bại</dd>
+        <dt>Sửa</dt><dd><code>customer_service.list_customers()</code> — mở rộng sang <code>or_(name, tax_code, phone, email, contact_person)</code>; endpoint kiểm trùng gọi khi rời ô MST; <code>IntakeCreateModal.createCustomerFromForm()</code> — cảnh báo trùng trước khi tạo</dd>
+        <dt>Test</dt><dd>tìm theo MST/điện thoại/email ra đúng khách; tạo khách trùng MST → cảnh báo (hoặc 409 tùy Q3)</dd>
+        <dt>Công</dt><dd>1,5 ngày</dd>
+        <dt>Rủi ro</dt><dd>Trung bình — cần dọn dữ liệu trùng sẵn có</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> gõ mã số thuế hoặc số điện thoại vào ô tìm khách ra đúng khách đã có, và không tạo được bản ghi trùng mà không thấy cảnh báo.</div>
+    </div>
+
+    <div class="wi s2">
+      <div class="wi-head"><span class="wid">W14</span><h4>Khóa phiếu sau khi hoàn tất · audit lưu giá trị cũ · hạn quyền xem PII</h4><span class="chip c2">P2-2·4·5·6</span><span class="chip cq">Q7</span></div>
+      <div class="wi-why">
+        <p>Ba việc củng cố giá trị pháp lý của hồ sơ, gom một lần review. Nguyên tắc snapshot đang được thực hiện đúng — phiếu chụp giá trị, không giữ khóa ngoại tới danh bạ — nhưng bản chụp lại không được bảo vệ khỏi chỉnh sửa trực tiếp: <code>_UPDATABLE_INTAKE_FIELDS</code> cho sửa cả <code>customer_name</code>, <code>tax_code</code> và <code>code</code> ở mọi trạng thái, kể cả <code>completed</code>.</p>
+      </div>
+      <dl class="spec">
+        <dt>Chặn bởi</dt><dd><span class="chip cq">Q7</span> — sau khi trả kết quả còn sửa được trường nào?</dd>
+        <dt>Sửa</dt><dd>
+          <ul>
+            <li><code>update_intake()</code> — khi <code>status in ('completed','cancelled','rejected')</code> chỉ cho ghi <code>note</code>; <code>code</code> khóa ngay khi có lượt chuyển lab đầu tiên (nhãn đã dán lên mẫu)</li>
+            <li><code>audit_service.log_action()</code> — thêm <code>before</code> vào <code>detail</code>; helper diff dùng chung cho intake / dispatch / customer / quotation</li>
+            <li><code>customer_info_requests</code> thêm <code>expires_at</code>; <code>has_access()</code> kiểm hạn (migration <code>m45</code>)</li>
+            <li><code>routers/audit_logs.py</code> — cân nhắc thêm <code>qms</code> vào <code>audit_roles</code> (§8.4 kiểm soát hồ sơ)</li>
+          </ul>
+        </dd>
+        <dt>Test</dt><dd>sửa phiếu <code>completed</code> → 409; audit chứa cả <code>before</code> và <code>after</code>; quyền xem PII hết hạn thì trả lại trạng thái che</dd>
+        <dt>Công</dt><dd>2 ngày</dd>
+        <dt>Rủi ro</dt><dd>Thấp</dd>
+      </dl>
+      <div class="done"><b>Xong khi:</b> tái dựng được chính xác nội dung một phiếu tại thời điểm in cho khách, từ dữ liệu nhật ký kiểm toán.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ Tổng hợp ══════════════ -->
+<section id="summary">
+  <div class="sec-head"><span class="letter">§6</span><h2>Tổng hợp công &amp; thứ tự migration</h2></div>
+
+  <div class="scroller" style="margin-bottom:26px">
+    <table>
+      <thead><tr><th>Đợt</th><th>Hạng mục</th><th>Finding</th><th>Gate</th><th class="num">Công</th><th>Rủi ro</th></tr></thead>
+      <tbody>
+        <tr><td class="row-th">0</td><td>W1 · Bịt rò rỉ PII tệp đính kèm</td><td><span class="chip c0">P0-3</span></td><td>—</td><td class="num">0,5</td><td>Thấp</td></tr>
+        <tr><td class="row-th">0</td><td>W2 · Bịt oracle tìm kiếm</td><td><span class="chip c2">P2-3</span></td><td>—</td><td class="num">0,25</td><td>Thấp</td></tr>
+        <tr><td class="row-th">0</td><td>W3 · Khóa &amp; version báo giá</td><td><span class="chip c1">P1-5</span></td><td>—</td><td class="num">1,5</td><td>TB</td></tr>
+        <tr><td class="row-th">0</td><td>W4 · Nợ P3 + xóa cache RBAC</td><td><span class="chip c3">P3</span></td><td>—</td><td class="num">1,0</td><td>Thấp</td></tr>
+        <tr><td class="row-th">1</td><td>W5 · Tách quyền ghi kết quả</td><td><span class="chip c0">P0-1</span></td><td><span class="chip cq">A</span></td><td class="num">3,0</td><td>TB</td></tr>
+        <tr><td class="row-th">1</td><td>W6 · State machine phiếu chuyển</td><td><span class="chip c1">P1-4</span></td><td>—</td><td class="num">1,0</td><td>Thấp</td></tr>
+        <tr><td class="row-th">2</td><td>W7 · Tách đơn hàng / phiếu giao việc</td><td><span class="chip c1">P1-1</span></td><td><span class="chip cq">B</span></td><td class="num">6,0</td><td>Cao</td></tr>
+        <tr><td class="row-th">2</td><td>W8 · Dashboard đúng nguồn</td><td><span class="chip c0">P0-4</span></td><td><span class="chip cq">B</span></td><td class="num">3,0</td><td>TB</td></tr>
+        <tr><td class="row-th">2</td><td>W9 · Nối cơ chế duyệt bất biến</td><td><span class="chip c0">P0-2</span></td><td><span class="chip cq">B</span></td><td class="num">3,0</td><td>Cao</td></tr>
+        <tr><td class="row-th">3</td><td>W10 · Chấp nhận / từ chối mẫu</td><td><span class="chip c1">P1-3</span></td><td><span class="chip cq">Q6</span></td><td class="num">3,0</td><td>Thấp</td></tr>
+        <tr><td class="row-th">3</td><td>W11 · Vai trò người liên hệ</td><td><span class="chip c1">P1-2</span></td><td><span class="chip cq">Q4</span></td><td class="num">4,0</td><td>TB</td></tr>
+        <tr><td class="row-th">3</td><td>W12 · Sắp lại quyền khách hàng</td><td><span class="chip c1">P1-6</span></td><td>—</td><td class="num">0,5</td><td>TB</td></tr>
+        <tr><td class="row-th">3</td><td>W13 · Chống trùng khách</td><td><span class="chip c2">P2-1</span></td><td><span class="chip cq">Q3</span></td><td class="num">1,5</td><td>TB</td></tr>
+        <tr><td class="row-th">3</td><td>W14 · Khóa phiếu + audit + hạn PII</td><td><span class="chip c2">P2-2·4·5·6</span></td><td><span class="chip cq">Q7</span></td><td class="num">2,0</td><td>Thấp</td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="4">Tổng — chưa tính review, QA và triển khai</td><td class="num">30,25</td><td>ngày-người</td></tr></tfoot>
+    </table>
+  </div>
+
+  <h3 style="margin:0 0 10px">Chuỗi migration</h3>
+  <p class="sec-sub">Head hiện tại <code>1718870400035</code> (m36). Chuỗi tuyến tính, mỗi migration nối tiếp migration trước — không tạo nhánh song song.</p>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Rev</th><th>Tên</th><th>Nội dung</th><th>Hạng mục</th><th>Backfill</th></tr></thead>
+      <tbody>
+        <tr><td class="row-th">…036</td><td>m37_quotation_lock_softdelete</td><td><code>deleted_at</code> + bảng <code>quotation_versions</code></td><td>W3</td><td>Không</td></tr>
+        <tr><td class="row-th">…037</td><td>m38_dispatch_result_role</td><td>Quyền <code>dispatch:result</code> + <code>performed_by/at</code></td><td>W5</td><td>Không</td></tr>
+        <tr><td class="row-th">…038</td><td>m39_intake_items</td><td>Bảng <code>intake_items</code> + khóa ngoại từ dispatch</td><td>W7</td><td><span class="chip c0">CÓ — rủi ro cao</span></td></tr>
+        <tr><td class="row-th">…039</td><td>m40_intake_due_date</td><td><code>due_date_at DATE</code></td><td>W8</td><td><span class="chip c1">CÓ — parse text</span></td></tr>
+        <tr><td class="row-th">…040</td><td>m41_dispatch_result_versions</td><td>Nối vào cơ chế duyệt bất biến</td><td>W9</td><td>Có</td></tr>
+        <tr><td class="row-th">…041</td><td>m42_intake_acceptance</td><td>Tình trạng, số lượng, từ chối mẫu</td><td>W10</td><td>Không</td></tr>
+        <tr><td class="row-th">…042</td><td>m43_contact_roles</td><td>Vai trò liên hệ + ô chụp trên phiếu</td><td>W11</td><td>Không</td></tr>
+        <tr><td class="row-th">…043</td><td>m44_customer_taxcode_unique</td><td>Index + unique từng phần MST</td><td>W13</td><td><span class="chip c1">Dọn trùng trước</span></td></tr>
+        <tr><td class="row-th">…044</td><td>m45_info_request_expiry</td><td><code>expires_at</code> cho quyền xem PII</td><td>W14</td><td>Không</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════ Deploy ══════════════ -->
+<section id="deploy" style="margin-bottom:0">
+  <div class="sec-head"><span class="letter">§7</span><h2>Quy trình triển khai từng đợt</h2></div>
+  <p class="sec-sub">Áp dụng cho mọi đợt. Ba bước in đậm là những bước codebase hiện chưa có và đã gây ra vấn đề thật.</p>
+
+  <div class="rails">
+    <div class="rail"><div class="rn">1</div><div>
+      <div class="rt">Diễn tập migration trên bản sao dữ liệu thật</div>
+      <div class="rd">Bắt buộc với m39 và m40 vì có backfill. Ghi lại số dòng trước/sau và các dòng không phân giải được.</div>
+    </div></div>
+    <div class="rail"><div class="rn">2</div><div>
+      <div class="rt">CI phải xanh cả bốn cổng</div>
+      <div class="rd"><code>test_response_contract</code> · <code>test_error_codes</code> · <code>check-file-size.mjs</code> · bộ test bảo mật. Ba cổng đầu là kiến trúc, hỏng nghĩa là thiết kế sai chứ không phải test khó tính.</div>
+    </div></div>
+    <div class="rail"><div class="rn">3</div><div>
+      <div class="rt"><b>Xóa cache RBAC ngay sau khi migrate</b></div>
+      <div class="rd">Bắt buộc với W5 và W12. Không làm thì quyền cũ vẫn được cấp thêm tối đa 5 phút sau khi deploy — đủ để một tài khoản vừa bị thu hồi quyền vẫn ghi được dữ liệu.</div>
+    </div></div>
+    <div class="rail"><div class="rn">4</div><div>
+      <div class="rt"><b>Kiểm audit log trước khi siết quyền</b></div>
+      <div class="rd">Với W12: đếm thao tác thật theo vai trò trong 90 ngày. Siết quyền một vai trò đang dùng thật mà không báo trước là sự cố vận hành, không phải bản vá.</div>
+    </div></div>
+    <div class="rail"><div class="rn">5</div><div>
+      <div class="rt"><b>Kịch bản hoàn tác cho migration có backfill</b></div>
+      <div class="rd">m39 và m40 phải có <code>downgrade()</code> đã thử chạy, không chỉ viết cho đủ. Backfill sai trên dữ liệu production không có nút hoàn tác nào khác.</div>
+    </div></div>
+    <div class="rail"><div class="rn">6</div><div>
+      <div class="rt">Thông báo người dùng trước với mọi thay đổi quyền</div>
+      <div class="rd">W5 và W12 đổi việc người ta làm hằng ngày. m36 là ví dụ: quyền bị cắt trong im lặng và hệ quả chỉ hiện ra khi phòng lab không nhập được kết quả.</div>
+    </div></div>
+  </div>
+
+  <div class="note" style="margin-top:26px">
+    <b>Thứ tự khởi động đề xuất.</b> Hôm nay: gửi GATE A và GATE B cho chủ nghiệp vụ, đồng thời bắt đầu W1 và W2 — hai hạng mục này vá lỗ hổng đang mở và không chờ ai. Tuần này: W3, W4. Khi có câu trả lời GATE A: mở đợt 1. Khi có GATE B: mở đợt 2 thành sprint riêng, không trộn. Đợt 3 chạy song song đợt 2 nếu đủ người, vì hai đợt đụng vùng code khác nhau.
+  </div>
+</section>
+
+</div>
+</body>
+</html>
