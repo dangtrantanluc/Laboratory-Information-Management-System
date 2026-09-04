@@ -37,6 +37,9 @@ reportlab==4.2.5
 
 # Excel generation (M2 FR-013/014 — nhật ký nhập/xuất + báo cáo tiêu hao)
 openpyxl==3.1.5
+# openpyxl cần Pillow để NHÚNG ẢNH — 2 logo trên măng-sét bảng báo giá (m29).
+# Thiếu gói này thì file vẫn xuất được nhưng mất logo (xem quotation_export_service).
+Pillow==11.1.0
 
 # Web Push (M20 — popup thông báo desktop qua VAPID)
 pywebpush==2.0.3
