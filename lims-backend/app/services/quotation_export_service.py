@@ -69,6 +69,7 @@ def build_xlsx(quotation: dict) -> bytes:
     for label, key in (
         ("Kính gửi:", "customer_name"),
         ("Địa chỉ:", "customer_address"),
+        ("Mã số thuế:", "customer_tax_code"),
         ("Email:", "customer_email"),
         ("Tel:", "customer_phone"),
     ):

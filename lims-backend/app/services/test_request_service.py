@@ -123,7 +123,7 @@ def get_request_detail(db: Session, request_id: uuid.UUID) -> dict:
         "id": req.id,
         "request_code": req.request_code,
         "customer": (
-            {"id": customer.id, "name": customer.name, "contact": customer.contact}
+            {"id": customer.id, "name": customer.name, "contact": customer.contact_person}
             if customer
             else None
         ),

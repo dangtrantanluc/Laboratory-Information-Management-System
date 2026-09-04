@@ -38,8 +38,10 @@ docker run -d --name "$DB" --network "$NET" \
     postgres:15-alpine >/dev/null
 docker run -d --name "$REDIS" --network "$NET" redis:7-alpine >/dev/null
 
-# Build image test nếu chưa có (hoặc REBUILD=1). Mã nguồn được mount lúc chạy nên
-# sửa test không cần build lại — chỉ build khi requirements đổi.
+# Build image test nếu chưa có (hoặc REBUILD=1). app/ VÀ alembic/ đều được mount lúc
+# chạy nên sửa test hay thêm migration đều không cần build lại — chỉ build khi
+# requirements đổi. (alembic/ phải mount: conftest dựng schema bằng `alembic upgrade
+# head`, thiếu mount thì migration mới nằm ngoài container và bảng mới không tồn tại.)
 if [ "${REBUILD:-0}" = "1" ] || ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
     echo "→ build image test"
     docker build -q -f lims-backend/Dockerfile.test -t "$IMAGE" lims-backend >/dev/null
@@ -54,6 +56,7 @@ done
 echo "→ pytest"
 docker run --rm --network "$NET" \
     -v "$PWD/lims-backend/app:/app/app:ro" \
+    -v "$PWD/lims-backend/alembic:/app/alembic:ro" \
     -v "$PWD/lims-backend/.coveragerc:/app/.coveragerc:ro" \
     -e DATABASE_URL="postgresql+psycopg2://lims:lims@$DB:5432/lims_test" \
     -e TEST_DATABASE_URL="postgresql+psycopg2://lims:lims@$DB:5432/lims_test" \

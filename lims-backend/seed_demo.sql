@@ -38,12 +38,27 @@ UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000a9' WHERE
 UPDATE departments SET lead_user_id='00000000-0000-0000-0000-0000000000aa' WHERE id='00000000-0000-0000-0000-0000000000f2' AND lead_user_id IS NULL;
 
 -- ── Customers ──────────────────────────────────────────────────────────────
-INSERT INTO customers (id, name, contact, type, note, created_by) VALUES
- ('00000000-0000-0000-0000-000000010001','Công ty CP Dược Hậu Giang','Ms. Lan — 0292 389 0000','organization','Khách hàng thường xuyên, mẫu dược phẩm','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000010002','Viện Kiểm nghiệm ATVSTP Quốc gia','contact@nifc.gov.vn','organization','Hợp tác kiểm nghiệm chéo','00000000-0000-0000-0000-0000000000a2'),
- ('00000000-0000-0000-0000-000000010003','Nguyễn Văn Khách','0905 123 456','individual','Cá nhân gửi mẫu nước sinh hoạt','00000000-0000-0000-0000-0000000000a3'),
- ('00000000-0000-0000-0000-000000010004','Khoa Hóa — Nội bộ','noibo@lims.local','internal','Yêu cầu nội bộ giữa các khoa','00000000-0000-0000-0000-0000000000a1'),
- ('00000000-0000-0000-0000-000000010005','Công ty TNHH Thủy sản Minh Phú','qa@minhphu.com','organization','Mẫu thủy sản xuất khẩu — kim loại nặng','00000000-0000-0000-0000-0000000000a5')
+-- m35 đã bỏ cột `contact` tự do; thông tin liên hệ tách thành contact_person/phone/email.
+INSERT INTO customers (id, name, contact_person, phone, email, tax_code, address, type, note, created_by) VALUES
+ ('00000000-0000-0000-0000-000000010001','Công ty CP Dược Hậu Giang','Ms. Lan','0292 389 0000','lan.qa@dhgpharma.com.vn','1800156801','288 Bis Nguyễn Văn Cừ, Q. Ninh Kiều, TP. Cần Thơ','organization','Khách hàng thường xuyên, mẫu dược phẩm','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000010002','Viện Kiểm nghiệm ATVSTP Quốc gia','Phòng Hợp tác',NULL,'contact@nifc.gov.vn','0100112233','65 Phạm Thận Duật, Q. Cầu Giấy, TP. Hà Nội','organization','Hợp tác kiểm nghiệm chéo','00000000-0000-0000-0000-0000000000a2'),
+ ('00000000-0000-0000-0000-000000010003','Nguyễn Văn Khách','Nguyễn Văn Khách','0905 123 456',NULL,NULL,'12 Lê Lợi, Q.1, TP. Hồ Chí Minh','individual','Cá nhân gửi mẫu nước sinh hoạt','00000000-0000-0000-0000-0000000000a3'),
+ ('00000000-0000-0000-0000-000000010004','Khoa Hóa — Nội bộ','ThS. Trần Văn Nội',NULL,'noibo@lims.local',NULL,'Nhà A2, Trường ĐH Nông Lâm TP.HCM','internal','Yêu cầu nội bộ giữa các khoa','00000000-0000-0000-0000-0000000000a1'),
+ ('00000000-0000-0000-0000-000000010005','Công ty TNHH Thủy sản Minh Phú','Bộ phận QA','0290 3612 8', 'qa@minhphu.com','2000103546','KCN Khánh An, H. U Minh, Tỉnh Cà Mau','organization','Mẫu thủy sản xuất khẩu — kim loại nặng','00000000-0000-0000-0000-0000000000a5')
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Customer contacts (m35) — khách có NHIỀU người liên hệ ─────────────────
+-- Dược Hậu Giang có 3 người để thấy ô "Chọn người liên hệ" trên phiếu nhận mẫu;
+-- các khách còn lại 1 người (trường hợp phổ biến — quầy tự điền, không phải bấm).
+INSERT INTO customer_contacts (id, customer_id, full_name, job_title, email, phone, is_primary, is_active) VALUES
+ ('00000000-0000-0000-0000-000000170001','00000000-0000-0000-0000-000000010001','Ms. Lan','Trưởng phòng QA','lan.qa@dhgpharma.com.vn','0292 389 0000', true,  true),
+ ('00000000-0000-0000-0000-000000170002','00000000-0000-0000-0000-000000010001','Trần Quốc Bảo','Chuyên viên R&D','bao.rd@dhgpharma.com.vn','0913 445 776', false, true),
+ ('00000000-0000-0000-0000-000000170003','00000000-0000-0000-0000-000000010001','Đỗ Thị Hiền','Kế toán trưởng','ketoan@dhgpharma.com.vn','0292 389 0011', false, true),
+ -- Đã nghỉ việc: TẮT chứ không xoá — phiếu cũ đã in tên người này.
+ ('00000000-0000-0000-0000-000000170004','00000000-0000-0000-0000-000000010001','Lê Minh Tuấn','Nhân viên QA (đã nghỉ)','tuan.cu@dhgpharma.com.vn','0938 111 222', false, false),
+ ('00000000-0000-0000-0000-000000170005','00000000-0000-0000-0000-000000010002','Phòng Hợp tác','Đầu mối','contact@nifc.gov.vn',NULL, true, true),
+ ('00000000-0000-0000-0000-000000170006','00000000-0000-0000-0000-000000010003','Nguyễn Văn Khách',NULL,NULL,'0905 123 456', true, true),
+ ('00000000-0000-0000-0000-000000170007','00000000-0000-0000-0000-000000010005','Bộ phận QA','Quản lý chất lượng','qa@minhphu.com','0290 3612 8', true, true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Test requests ──────────────────────────────────────────────────────────
@@ -186,7 +201,9 @@ INSERT INTO project_members (project_id, user_id, role_in_project) VALUES
  ('00000000-0000-0000-0000-0000000d0003','00000000-0000-0000-0000-0000000000a2','member'),
  ('00000000-0000-0000-0000-0000000d0004','00000000-0000-0000-0000-0000000000a2','lead'),
  ('00000000-0000-0000-0000-0000000d0004','00000000-0000-0000-0000-0000000000a8','member')
-ON CONFLICT (project_id, user_id) DO NOTHING;
+-- uq_pm_project_user là index TỪNG PHẦN (WHERE user_id IS NOT NULL); ON CONFLICT
+-- phải lặp lại đúng vị ngữ đó, nếu không Postgres không khớp được index nào.
+ON CONFLICT (project_id, user_id) WHERE user_id IS NOT NULL DO NOTHING;
 
 -- ── Publications ───────────────────────────────────────────────────────────
 INSERT INTO publications (id, title, journal, year, doi, category, type, patent_no, issuing_authority, department_id, created_by) VALUES

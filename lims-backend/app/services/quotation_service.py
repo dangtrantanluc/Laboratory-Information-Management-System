@@ -3,6 +3,7 @@
 Quyền: Phòng nhận mẫu + Quản trị + Ban lãnh đạo (theo chốt nghiệp vụ).
 Tiền LUÔN tính ở server bằng Decimal: amount = qty × unit_price; VAT theo vat_rate (mặc định 8%).
 """
+import json
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -15,9 +16,9 @@ from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException, not_found
 from app.models.quotation import (
-    QUOTATION_NEXT, QUOTATION_STATUS_LABELS, Quotation, QuotationItem,
+    QUOTATION_NEXT, QUOTATION_STATUS_LABELS, Quotation, QuotationItem, QuotationVersion,
 )
-from app.models.sample_flow import SampleDispatch, SampleIntake, TestParameter
+from app.models.sample_flow import IntakeItem, SampleIntake, TestParameter
 from app.models.user import User
 from app.services import audit_service
 
@@ -102,6 +103,7 @@ def _serialize(db: Session, q: Quotation, with_items: bool = True) -> dict:
         "customer_name": q.customer_name,
         "customer_address": q.customer_address,
         "customer_email": q.customer_email,
+        "customer_tax_code": q.customer_tax_code,
         "customer_phone": q.customer_phone,
         "issue_date": q.issue_date,
         "valid_until": q.valid_until,
@@ -111,6 +113,7 @@ def _serialize(db: Session, q: Quotation, with_items: bool = True) -> dict:
         "total": str(q.total),
         "status": q.status,
         "status_label": QUOTATION_STATUS_LABELS.get(q.status, q.status),
+        "version": q.version,
         "next_statuses": list(QUOTATION_NEXT.get(q.status, ())),
         "note": q.note,
         "created_by_name": creator.full_name if creator else None,
@@ -131,7 +134,7 @@ def list_quotations(
     db: Session, *, user: CurrentUser, q: Optional[str], status: Optional[str],
     intake_id: Optional[uuid.UUID], page: int, limit: int,
 ) -> tuple[list[dict], int]:
-    conds = []
+    conds = [Quotation.deleted_at.is_(None)]
     if q:
         like = f"%{q.strip()}%"
         conds.append(or_(Quotation.code.ilike(like), Quotation.customer_name.ilike(like)))
@@ -150,11 +153,51 @@ def list_quotations(
     return [_serialize(db, r, with_items=False) for r in rows], total
 
 
-def get_quotation(db: Session, *, quotation_id: uuid.UUID) -> dict:
+def _get_alive_or_404(db: Session, quotation_id: uuid.UUID) -> Quotation:
+    """Báo giá chưa bị thu hồi. Xoá mềm (m41) = coi như không tồn tại với người dùng."""
     q = db.get(Quotation, quotation_id)
-    if q is None:
+    if q is None or q.deleted_at is not None:
         raise not_found("Không tìm thấy báo giá")
-    return _serialize(db, q)
+    return q
+
+
+def get_quotation(db: Session, *, quotation_id: uuid.UUID) -> dict:
+    return _serialize(db, _get_alive_or_404(db, quotation_id))
+
+
+def _snapshot_version(db: Session, q: Quotation, *, user: CurrentUser, reason: Optional[str]) -> None:
+    """Chụp TOÀN VĂN bản hiện tại trước khi ghi đè (m41).
+
+    Chỉ chụp khi báo giá đã rời 'draft' — bản nháp chưa gửi ai thì sửa thoải mái,
+    lưu lịch sử của nó chỉ tạo nhiễu. Từ 'sent' trở đi, mỗi lần sửa là một lần khách
+    có thể đang cầm bản khác trong tay.
+    """
+    if q.status == "draft":
+        return
+    # JSONB không nhận UUID/date/Decimal — `default=str` ép chúng về chuỗi, đúng
+    # dạng mà _serialize đã dùng cho tiền (str) nên bản chụp đọc lại y hệt payload.
+    snapshot = json.loads(json.dumps(_serialize(db, q), default=str))
+    db.add(QuotationVersion(
+        quotation_id=q.id,
+        version=q.version,
+        snapshot=snapshot,
+        reason=(reason or None),
+        created_by=user.id,
+    ))
+    q.version = (q.version or 1) + 1
+
+
+def list_versions(db: Session, *, quotation_id: uuid.UUID) -> list[dict]:
+    q = _get_alive_or_404(db, quotation_id)
+    rows = db.execute(
+        select(QuotationVersion).where(QuotationVersion.quotation_id == q.id)
+        .order_by(QuotationVersion.version.desc())
+    ).scalars().all()
+    return [
+        {"id": r.id, "version": r.version, "reason": r.reason,
+         "created_at": r.created_at, "snapshot": r.snapshot}
+        for r in rows
+    ]
 
 
 def _apply_items(db: Session, q: Quotation, items: list[dict]) -> None:
@@ -198,6 +241,7 @@ def create_quotation(
         customer_name=name,
         customer_address=fields.get("customer_address"),
         customer_email=fields.get("customer_email"),
+        customer_tax_code=fields.get("customer_tax_code"),
         customer_phone=fields.get("customer_phone"),
         issue_date=fields.get("issue_date") or today,
         # Mẫu báo giá: "có giá trị trong vòng 1 tháng"
@@ -230,28 +274,34 @@ def create_from_intake(
     if it is None:
         raise not_found("Không tìm thấy phiếu nhận mẫu")
 
-    dispatches = db.execute(
-        select(SampleDispatch).where(SampleDispatch.intake_id == intake_id)
-        .order_by(SampleDispatch.dispatched_at)
+    # m38 — nguồn là ĐƠN HÀNG (intake_items), không còn là phiếu giao việc cho lab.
+    #
+    # Trước đây hàm này đọc `sample_dispatches`, nghĩa là muốn báo giá thì phải giao
+    # việc cho phòng lab trước — mà giao việc lại đẩy phiếu sang 'dispatched' và bắn
+    # thông báo cho lab. Kết quả là ba bước 'quoted → quote_accepted → paid' của m28
+    # không bao giờ đi qua được, dù giao diện vẫn vẽ đủ thanh tiến trình 6 bước.
+    rows = db.execute(
+        select(IntakeItem).where(IntakeItem.intake_id == intake_id)
+        .order_by(IntakeItem.sort_order, IntakeItem.created_at)
     ).scalars().all()
-    if not dispatches:
+    if not rows:
         raise AppException(
             ErrorCode.NO_ITEMS,
-            "Phiếu chưa có chỉ tiêu nào — hãy phân chỉ tiêu trước khi lập báo giá",
+            "Phiếu chưa có chỉ tiêu nào — thêm chỉ tiêu khách đặt trước khi lập báo giá",
             400,
         )
     items = [
         {
-            "sort_order": i,
-            "sample_name": d.sample_name or it.description,
-            "test_parameter_id": d.test_parameter_id,
-            "parameter_name": d.chi_tieu,
-            "method": d.phuong_phap,
-            "unit": d.don_vi,
-            "quantity": d.quantity or 1,
-            "unit_price": str(d.unit_price) if d.unit_price is not None else None,
+            "sort_order": r.sort_order,
+            "sample_name": r.sample_name or it.description,
+            "test_parameter_id": r.test_parameter_id,
+            "parameter_name": r.parameter_name,
+            "method": r.method,
+            "unit": r.unit,
+            "quantity": r.quantity or 1,
+            "unit_price": str(r.unit_price) if r.unit_price is not None else None,
         }
-        for i, d in enumerate(dispatches)
+        for r in rows
     ]
     return create_quotation(
         db, user=user,
@@ -260,6 +310,7 @@ def create_from_intake(
             "customer_name": it.customer_name,
             "customer_address": it.address,
             "customer_email": it.email,
+            "customer_tax_code": it.tax_code,
             "customer_phone": it.phone,
             "items": items,
         },
@@ -272,13 +323,15 @@ def update_quotation(
     correlation_id: Optional[str], ip: Optional[str],
 ) -> dict:
     _assert_manage(user)
-    q = db.get(Quotation, quotation_id)
-    if q is None:
-        raise not_found("Không tìm thấy báo giá")
+    q = _get_alive_or_404(db, quotation_id)
     if q.status == "accepted":
         raise AppException(ErrorCode.LOCKED, "Báo giá đã được khách đồng ý — không sửa được", 409)
+    # m41 — đã gửi khách thì bản cũ phải giữ lại được. Trước đây chỉ 'accepted' mới
+    # khoá, nên bản 'sent' sửa đè thoải mái và không tái dựng được thứ khách đã nhận.
+    _snapshot_version(db, q, user=user, reason=changes.pop("revision_reason", None))
 
     for f in ("customer_name", "customer_address", "customer_email", "customer_phone",
+              "customer_tax_code",
               "issue_date", "valid_until", "note", "intake_id"):
         if f in changes:
             setattr(q, f, changes[f])
@@ -305,9 +358,7 @@ def change_status(
 ) -> dict:
     """draft → sent → accepted/rejected/expired (state machine)."""
     _assert_manage(user)
-    q = db.get(Quotation, quotation_id)
-    if q is None:
-        raise not_found("Không tìm thấy báo giá")
+    q = _get_alive_or_404(db, quotation_id)
     allowed = QUOTATION_NEXT.get(q.status, ())
     if new_status not in allowed:
         raise AppException(
@@ -348,15 +399,16 @@ def delete_quotation(
     correlation_id: Optional[str], ip: Optional[str],
 ) -> None:
     _assert_manage(user)
-    q = db.get(Quotation, quotation_id)
-    if q is None:
-        raise not_found("Không tìm thấy báo giá")
+    q = _get_alive_or_404(db, quotation_id)
     if q.status == "accepted":
         raise AppException(ErrorCode.LOCKED, "Báo giá đã được khách đồng ý — không xóa được", 409)
     code = q.code
-    db.delete(q)  # items CASCADE
+    # m41 — XOÁ MỀM. Trước đây `db.delete(q)` cascade luôn dòng chi tiết, nên một
+    # chứng từ đã gửi khách biến mất khỏi hệ thống, chỉ còn một dòng nhật ký.
+    q.deleted_at = datetime.now(timezone.utc)
+    q.updated_by = user.id
     audit_service.log_action(
-        db, action="QUOTATION_DELETE", resource="quotation", user_id=user.id,
+        db, action="QUOTATION_REVOKE", resource="quotation", user_id=user.id,
         resource_id=quotation_id, correlation_id=correlation_id, ip=ip, detail={"code": code},
     )
     db.commit()

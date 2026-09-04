@@ -67,12 +67,22 @@ export function canManageUsers(user: CurrentUser | null): boolean {
 export function canViewAudit(user: CurrentUser | null): boolean {
   return hasPermission(user, 'audit', 'read');
 }
+/**
+ * W12 — hồ sơ khách hàng thuộc về Phòng nhận mẫu và VĂN PHÒNG (hợp đồng, hoá đơn).
+ *
+ * Trước đây `staff` — kỹ thuật viên phòng lab — sửa được tên pháp nhân, mã số thuế
+ * và cả danh bạ, trong khi `office` (bộ phận thực sự phụ trách khách hàng) bị chặn
+ * hoàn toàn. Khối lab không mất gì trong phần việc của họ: thông tin khách của từng
+ * phiếu vẫn tới được qua luồng xin/duyệt m26.
+ *
+ * Giữ khớp với read_roles/write_roles trong backend routers/customers.py — lệch hai
+ * phía thì menu hiện mà bấm vào 403.
+ */
 export function canManageCustomers(user: CurrentUser | null): boolean {
-  // Khách hàng thuộc nghiệp vụ Phòng nhận mẫu (GĐ2).
-  return user?.role === 'admin' || user?.role === 'staff' || user?.role === 'reception';
+  return !!user && ['admin', 'reception', 'office'].includes(user.role);
 }
 export function canViewCustomers(user: CurrentUser | null): boolean {
-  return !!user && !isOffice(user);
+  return !!user && ['admin', 'leader', 'reception', 'office'].includes(user.role);
 }
 
 // ── M4: Nhân sự (HR) ────────────────────────────────────────────
@@ -316,9 +326,23 @@ export function canViewIntake(user: CurrentUser | null): boolean {
 export function canManageIntake(user: CurrentUser | null): boolean {
   return hasPermission(user, 'intake', 'manage') || user?.role === 'admin' || user?.role === 'reception';
 }
-/** Đổi trạng thái phiếu chuyển (phòng lab: KTV/trưởng phòng). */
+/**
+ * Sửa NỘI DUNG HÀNH CHÍNH của phiếu chuyển — ghi chú, tên mẫu, số lượng
+ * (admin/leader/reception). KHÔNG còn bao gồm cột kết quả: xem canEnterDispatchResult.
+ */
 export function canUpdateDispatch(user: CurrentUser | null): boolean {
   return hasPermission(user, 'dispatch', 'update') || user?.role === 'admin';
+}
+/**
+ * Ghi KẾT QUẢ + trạng thái thực hiện (m37) — quyền của người làm phép thử:
+ * KTV và trưởng phòng lab, trong phạm vi phòng mình (backend enforce phạm vi).
+ *
+ * Tách khỏi canUpdateDispatch vì m36 đã cho thấy hậu quả của việc gộp: để thực thi
+ * "chỉ Phòng nhận mẫu sửa phiếu", quyền ghi kết quả của chính người thực hiện phép
+ * thử bị cắt theo.
+ */
+export function canEnterDispatchResult(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'dispatch', 'result') || user?.role === 'admin';
 }
 
 // ── m25: Báo cáo hoạt động hàng tháng ───────────────────────────

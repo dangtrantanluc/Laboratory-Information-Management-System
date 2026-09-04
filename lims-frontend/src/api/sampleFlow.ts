@@ -3,9 +3,9 @@
  * - Phiếu nhận (intake): reception tạo/sửa; đính kèm form qua /attachments owner 'sample_intake'.
  * - Phiếu chuyển (dispatch): reception thêm chỉ tiêu + phòng lab → notify lab; lab đổi status → notify reception.
  */
-import { apiDelete, apiGet, apiGetPaged, apiPatch, apiPost, apiUploadForm } from '@/lib/api';
+import { apiDelete, apiGet, apiGetPaged, apiPatch, apiPost, apiPut, apiUploadForm } from '@/lib/api';
 import type {
-  CustomerInfoRequest, DispatchStatus, IntakeStatus, PaymentStatus,
+  CustomerInfoRequest, DispatchStatus, IntakeContact, IntakeStatus, PaymentStatus,
   SampleDispatch, SampleIntake, TestParameter,
 } from '@/types';
 
@@ -22,10 +22,11 @@ export function getIntake(id: string) {
   return apiGet<SampleIntake>(`/intakes/${id}`);
 }
 export interface IntakeBody {
+  /** Mã số mẫu do nhân viên nhận mẫu tự đặt; bỏ trống thì backend sinh mã dự phòng. */
+  code?: string | null;
   /** m33 — id khách trong sổ; null = khách vãng lai (các ô dưới vẫn là bản chụp). */
   customer_id?: string | null;
   customer_name: string;
-  contact?: string | null;
   description?: string | null;
   note?: string | null;
   address?: string | null;
@@ -38,6 +39,10 @@ export interface IntakeBody {
   return_method?: string | null;
   fee_note?: string | null;
   other_request?: string | null;
+  /** m42 — tình trạng & số lượng mẫu ghi ngay lúc nhận. */
+  sample_count?: number | null;
+  condition_status?: string | null;
+  condition_note?: string | null;
 }
 export function createIntake(body: IntakeBody) {
   return apiPost<SampleIntake>('/intakes', body);
@@ -99,19 +104,91 @@ export function listDispatches(f: { status?: string; page?: number; limit?: numb
 export function getDispatch(id: string) {
   return apiGet<SampleDispatch>(`/dispatches/${id}`);
 }
-export interface DispatchUpdate {
-  status?: DispatchStatus;
-  /** m28 — BM 7.1.02 */
+/**
+ * m37 — hai nhóm field, hai endpoint, hai quyền.
+ *
+ * Trước đây tất cả đi chung `PATCH /dispatches/{id}`, và chính vì gộp chung mà m36
+ * phải cắt quyền ghi kết quả của cả khối lab để thực thi được yêu cầu "chỉ Phòng
+ * nhận mẫu sửa nội dung phiếu". Backend đã tách; client phải gửi đúng chỗ.
+ */
+export interface DispatchAdminUpdate {
+  /** BM 7.1.02 — phần hành chính, quyền dispatch:update (admin/leader/reception). */
   sample_name?: string | null;
   quantity?: number | null;
   note?: string | null;
+}
+export interface DispatchResultUpdate {
+  /** Phần của người thực hiện phép thử, quyền dispatch:result (admin/lab). */
+  status?: DispatchStatus;
   don_vi?: string | null;
   phuong_phap?: string | null;
   ket_qua?: string | null;
-  can_bo?: string | null;
 }
-export function updateDispatch(id: string, body: DispatchUpdate) {
+
+export function updateDispatch(id: string, body: DispatchAdminUpdate) {
   return apiPatch<SampleDispatch>(`/dispatches/${id}`, body);
+}
+export function updateDispatchResult(id: string, body: DispatchResultUpdate) {
+  return apiPatch<SampleDispatch>(`/dispatches/${id}/result`, body);
+}
+/**
+ * m40 — gửi kết quả đi DUYỆT. Từ đây kết quả đi theo luật của module M1: có phiên
+ * bản, bản đã duyệt là bất biến, người duyệt phải khác người nhập. Duyệt/trả lại/
+ * tạo phiên bản sửa dùng các endpoint /results/{id}/... sẵn có.
+ */
+export function submitDispatchResult(id: string, note?: string) {
+  return apiPost<{ id: string; version: number; approval_status: string }>(
+    `/dispatches/${id}/result/submit`, { note: note ?? null },
+  );
+}
+
+/** Xoá dòng chuyển nhầm — backend chỉ cho khi phòng lab CHƯA tiếp nhận. */
+export function deleteDispatch(id: string) {
+  return apiDelete(`/dispatches/${id}`);
+}
+
+/**
+ * Form chi tiết chỉ tiêu hiển thị cả hai nhóm field, nên khi lưu phải tách ra gửi
+ * tới hai endpoint. Đặt ở đây thay vì trong component: luật "field nào đi đâu" thuộc
+ * về tầng API, và có hai màn hình cùng dùng.
+ *
+ * Gửi tuần tự chứ không song song: hai request cùng ghi một hàng, chạy song song thì
+ * bản trả về của request chậm hơn sẽ thiếu thay đổi của request kia.
+ */
+export async function saveDispatchEdit(
+  id: string,
+  body: DispatchAdminUpdate & DispatchResultUpdate,
+  can: { admin: boolean; result: boolean },
+): Promise<SampleDispatch | null> {
+  let latest: SampleDispatch | null = null;
+  if (can.admin) {
+    latest = await updateDispatch(id, {
+      sample_name: body.sample_name, quantity: body.quantity, note: body.note,
+    });
+  }
+  if (can.result) {
+    latest = await updateDispatchResult(id, {
+      status: body.status, don_vi: body.don_vi,
+      phuong_phap: body.phuong_phap, ket_qua: body.ket_qua,
+    });
+  }
+  return latest;
+}
+
+/** m42 — tình trạng & số lượng mẫu lúc tiếp nhận (BM 7.1.01). */
+export function recordIntakeCondition(
+  id: string,
+  body: { sample_count?: number | null; condition_status?: string | null; condition_note?: string | null },
+) {
+  return apiPatch<SampleIntake>(`/intakes/${id}/condition`, body);
+}
+
+/** m43 — người liên hệ theo vai trò trên phiếu (đặt lại CẢ BỘ). */
+export function listIntakeContacts(id: string) {
+  return apiGet<IntakeContact[]>(`/intakes/${id}/contacts`);
+}
+export function setIntakeContacts(id: string, contacts: IntakeContact[]) {
+  return apiPut<IntakeContact[]>(`/intakes/${id}/contacts`, { contacts });
 }
 
 /** Đính kèm file (phiếu nhận/chuyển) qua endpoint generic /attachments. */

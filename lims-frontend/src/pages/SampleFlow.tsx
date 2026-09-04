@@ -16,7 +16,7 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { EmptyState } from '@/components/ui/States';
-import { canManageIntake, canUpdateDispatch } from '@/lib/rbac';
+import { canEnterDispatchResult, canManageIntake, canUpdateDispatch } from '@/lib/rbac';
 import {
   DISPATCH_STATUS_LABELS,
   INFO_REQUEST_STATUS_LABELS,
@@ -34,10 +34,13 @@ import * as flowApi from '@/api/sampleFlow';
 import * as quoApi from '@/api/quotation';
 import * as usersApi from '@/api/users';
 import { printIntake, printDispatch } from '@/lib/samplePdf';
+import { printResult } from '@/lib/resultPdf';
+import { DispatchResultModal } from '@/components/sampleFlow/DispatchResultModal';
 import {
   IntakeWorkflow, IntakeStatusBadge, PaymentBadge,
 } from '@/components/sampleFlow/IntakeWorkflow';
 import { IntakeCreateModal } from '@/components/sampleFlow/IntakeCreateModal';
+import { IntakeContactsPanel } from '@/components/sampleFlow/IntakeContactsPanel';
 
 const DISPATCH_TONE: Record<DispatchStatus, BadgeTone> = {
   sent: 'neutral',
@@ -324,6 +327,13 @@ function IntakeDetailModal({
             <Button variant="secondary" size="sm" onClick={() => printDispatch(intake)}>
               <FileDown size={14} /> Xuất phiếu chuyển (PDF)
             </Button>
+            {/* BM 7.8/01 — chỉ có nghĩa khi đã có ít nhất một kết quả; hiện nút khi
+                chưa có gì thì in ra một phiếu trống mang chữ ký lãnh đạo. */}
+            {(intake.dispatches ?? []).some((d) => d.ket_qua) && (
+              <Button variant="secondary" size="sm" onClick={() => printResult(intake)}>
+                <FileDown size={14} /> Xuất phiếu kết quả (PDF)
+              </Button>
+            )}
             {canManage && (
               <Button
                 variant="secondary"
@@ -366,8 +376,19 @@ function IntakeDetailModal({
 
           <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 gap-y-2 text-sm">
             <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake.due_date ? formatDate(intake.due_date) : '—'}</div>
+            <div><span className="text-subink">Số lượng mẫu:</span> {intake.sample_count ?? '—'}</div>
             <div className="sm:col-span-2"><span className="text-subink">Mô tả mẫu:</span> {intake.description ?? '—'}</div>
           </div>
+
+          {/* m43 — người gửi mẫu ≠ người nhận kết quả ≠ người trả tiền. */}
+          <details className="rounded-lg border border-hairline">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-ink">
+              Người liên hệ theo vai trò
+            </summary>
+            <div className="border-t border-hairline p-3">
+              <IntakeContactsPanel intakeId={intake.id} canEdit={canManage} />
+            </div>
+          </details>
 
           {intake.files.length > 0 && (
             <div>
@@ -637,14 +658,16 @@ function IntakeDetailModal({
 function DispatchesTab() {
   const { user } = useAuth();
   const toast = useToast();
-  const canUpdate = canUpdateDispatch(user);
+  // m37 — đổi trạng thái thực hiện và nhập kết quả là việc của NGƯỜI LÀM PHÉP THỬ,
+  // không phải của người sửa nội dung hành chính phiếu.
+  const canUpdate = canEnterDispatchResult(user);
   const [editing, setEditing] = useState<SampleDispatch | null>(null);
   const [detail, setDetail] = useState<SampleDispatch | null>(null);
   const { data, loading, reload } = useAsync(() => flowApi.listDispatches({ limit: 100 }), []);
 
   async function changeStatus(d: SampleDispatch, status: DispatchStatus) {
     try {
-      await flowApi.updateDispatch(d.id, { status });
+      await flowApi.updateDispatchResult(d.id, { status });
       toast.success('Đã cập nhật trạng thái — phòng nhận mẫu sẽ được thông báo');
       reload();
     } catch (err) {
@@ -678,8 +701,10 @@ function DispatchesTab() {
       render: (d) =>
         canUpdate ? (
           <div onClick={(e) => e.stopPropagation()}>
+            {/* Chỉ liệt kê bước hợp lệ kế tiếp (m37) — trước đây cho chọn mọi
+                trạng thái rồi để backend từ chối, gồm cả lùi từ "Đã hoàn thành". */}
             <Select value={d.status} onChange={(e) => changeStatus(d, e.target.value as DispatchStatus)} className="w-full sm:w-auto sm:min-w-[150px]">
-              {(Object.keys(DISPATCH_STATUS_LABELS) as DispatchStatus[]).map((s) => (
+              {[d.status, ...(d.next_statuses ?? [])].map((s) => (
                 <option key={s} value={s}>{DISPATCH_STATUS_LABELS[s]}</option>
               ))}
             </Select>
@@ -728,75 +753,6 @@ function DispatchesTab() {
         />
       )}
     </Card>
-  );
-}
-
-function DispatchResultModal({
-  dispatch, onClose, onDone,
-}: {
-  dispatch: SampleDispatch; onClose: () => void; onDone: () => void;
-}) {
-  const toast = useToast();
-  const [v, setV] = useState({
-    don_vi: dispatch.don_vi ?? '', phuong_phap: dispatch.phuong_phap ?? '',
-    ket_qua: dispatch.ket_qua ?? '', can_bo: dispatch.can_bo ?? '',
-  });
-  const [file, setFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((p) => ({ ...p, [k]: e.target.value }));
-
-  async function save() {
-    setSaving(true);
-    try {
-      await flowApi.updateDispatch(dispatch.id, {
-        don_vi: v.don_vi || null, phuong_phap: v.phuong_phap || null,
-        ket_qua: v.ket_qua || null, can_bo: v.can_bo || null,
-      });
-      if (file) await flowApi.uploadIntakeFile('sample_dispatch', dispatch.id, file);
-      onDone();
-    } catch (err) {
-      toast.error(describeError(err).title);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      open onClose={onClose} title={`Kết quả — ${dispatch.chi_tieu}`}
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>Hủy</Button>
-          <Button onClick={save} loading={saving}>Lưu kết quả</Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Đơn vị"><Input value={v.don_vi} onChange={set('don_vi')} /></Field>
-          <Field label="Cán bộ phân tích"><Input value={v.can_bo} onChange={set('can_bo')} /></Field>
-        </div>
-        <Field label="Phương pháp thử"><Textarea value={v.phuong_phap} onChange={set('phuong_phap')} /></Field>
-        <Field label="Kết quả"><Textarea value={v.ket_qua} onChange={set('ket_qua')} /></Field>
-
-        {dispatch.files.length > 0 && (
-          <div>
-            <div className="mb-1 text-sm font-semibold text-ink">Tệp đính kèm</div>
-            <div className="flex flex-col gap-1">
-              {dispatch.files.map((f) => (
-                <button key={f.id} className="flex items-center gap-1 text-sm text-blueberry hover:underline"
-                  onClick={() => flowApi.openFile(f.id).catch((e) => toast.error(describeError(e).title))}>
-                  <Download size={13} /> {f.file_name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        <Field label="Đính kèm kết quả (báo cáo, ảnh, số liệu thô…)">
-          <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </Field>
-      </div>
-    </Modal>
   );
 }
 
@@ -1087,13 +1043,15 @@ function DispatchEditModal({
   dispatch: SampleDispatch; canEdit: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const canAdmin = canUpdateDispatch(user);
+  const canResult = canEnterDispatchResult(user);
   const [f, setF] = useState({
     sample_name: dispatch.sample_name ?? '',
     quantity: String(dispatch.quantity ?? 1),
     don_vi: dispatch.don_vi ?? '',
     phuong_phap: dispatch.phuong_phap ?? '',
     ket_qua: dispatch.ket_qua ?? '',
-    can_bo: dispatch.can_bo ?? '',
     note: dispatch.note ?? '',
     status: dispatch.status,
   });
@@ -1104,16 +1062,17 @@ function DispatchEditModal({
   async function save() {
     setSaving(true);
     try {
-      await flowApi.updateDispatch(dispatch.id, {
+      // m37 — hai nhóm field đi hai endpoint theo hai quyền; saveDispatchEdit
+      // định tuyến và bỏ qua nhóm mà người dùng không có quyền ghi.
+      await flowApi.saveDispatchEdit(dispatch.id, {
         sample_name: f.sample_name.trim() || null,
         quantity: Number(f.quantity) || 1,
+        note: f.note.trim() || null,
         don_vi: f.don_vi.trim() || null,
         phuong_phap: f.phuong_phap.trim() || null,
         ket_qua: f.ket_qua.trim() || null,
-        can_bo: f.can_bo.trim() || null,
-        note: f.note.trim() || null,
         status: f.status as DispatchStatus,
-      });
+      }, { admin: canAdmin, result: canResult });
       toast.success('Đã cập nhật chỉ tiêu');
       onSaved();
     } catch (err) {
@@ -1155,35 +1114,37 @@ function DispatchEditModal({
           <div><span className="text-subink">Hoàn thành:</span> {dispatch.completed_at ? formatDateTime(dispatch.completed_at) : '—'}</div>
         </div>
 
-        {/* Các cột BM 7.1.02 sửa được */}
+        {/* Các cột BM 7.1.02. m37 — hai nhóm quyền khác nhau trong cùng một form:
+            hành chính (Phòng nhận mẫu) và kết quả (người thực hiện phép thử). */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Loại / Tên mẫu" className="md:col-span-2">
-            <Input value={f.sample_name} onChange={set('sample_name')} disabled={!canEdit} />
+            <Input value={f.sample_name} onChange={set('sample_name')} disabled={!canAdmin} />
           </Field>
           <Field label="Số lượng">
-            <Input type="number" min={1} value={f.quantity} onChange={set('quantity')} disabled={!canEdit} />
+            <Input type="number" min={1} value={f.quantity} onChange={set('quantity')} disabled={!canAdmin} />
           </Field>
           <Field label="Đơn vị">
-            <Input value={f.don_vi} onChange={set('don_vi')} disabled={!canEdit} placeholder="mg/L, CFU/g…" />
+            <Input value={f.don_vi} onChange={set('don_vi')} disabled={!canResult} placeholder="mg/L, CFU/g…" />
           </Field>
           <Field label="Phương pháp thử nghiệm" className="md:col-span-2">
-            <Input value={f.phuong_phap} onChange={set('phuong_phap')} disabled={!canEdit} />
+            <Input value={f.phuong_phap} onChange={set('phuong_phap')} disabled={!canResult} />
           </Field>
           <Field label="Kết quả">
-            <Input value={f.ket_qua} onChange={set('ket_qua')} disabled={!canEdit} />
+            <Input value={f.ket_qua} onChange={set('ket_qua')} disabled={!canResult} />
           </Field>
+          {/* Chỉ hiển thị: danh tính người thực hiện do backend ghi từ tài khoản. */}
           <Field label="Cán bộ phân tích">
-            <Input value={f.can_bo} onChange={set('can_bo')} disabled={!canEdit} />
+            <Input value={dispatch.performed_by_name ?? dispatch.can_bo ?? ''} readOnly disabled />
           </Field>
           <Field label="Trạng thái">
-            <Select value={f.status} onChange={set('status')} disabled={!canEdit}>
-              {(Object.keys(DISPATCH_STATUS_LABELS) as DispatchStatus[]).map((s) => (
+            <Select value={f.status} onChange={set('status')} disabled={!canResult}>
+              {[dispatch.status, ...(dispatch.next_statuses ?? [])].map((s) => (
                 <option key={s} value={s}>{DISPATCH_STATUS_LABELS[s]}</option>
               ))}
             </Select>
           </Field>
           <Field label="Ghi chú" className="md:col-span-2">
-            <Textarea rows={2} value={f.note} onChange={set('note')} disabled={!canEdit} />
+            <Textarea rows={2} value={f.note} onChange={set('note')} disabled={!canAdmin} />
           </Field>
         </div>
 

@@ -21,16 +21,25 @@ export function LeaderDashboard() {
   const data = dashQ.data?.data as any;
   const charts = chartsQ.data?.data as any;
   const s = data?.samples;
+  const it = data?.intakes;  // m39 — luồng nhận mẫu đang chạy thật
   const c = data?.chemicals;
   const e = data?.equipments;
   const hr = data?.hr;
   const doc = data?.documents;
 
   const tiles: KpiSpec[] = [];
-  if (s?.available) {
-    tiles.push({ icon: <ClipboardList size={20} />, tone: 'info', label: 'Tổng mẫu', value: n(s.total), to: '/samples' });
-    tiles.push({ icon: <AlertTriangle size={20} />, tone: 'overdue', label: 'Mẫu quá hạn', value: n(s.overdue), to: '/samples?status=overdue' });
-    tiles.push({ icon: <CheckCircle2 size={20} />, tone: 'success', label: 'Đã chốt', value: n(s.by_status?.done) });
+  // m39 — luồng nhận mẫu đang chạy thật (sample_intakes) đứng TRƯỚC, vì đó là thứ
+  // quầy ghi vào hằng ngày. Khối `samples` của module M1 giữ song song bên dưới với
+  // nhãn riêng: hai bảng đếm hai thứ khác nhau và không có khoá ngoại nối nhau, nên
+  // gộp chung một nhãn là tạo ra đúng nhầm lẫn mà m39 sinh ra để sửa.
+  if (it?.available) {
+    tiles.push({ icon: <ClipboardList size={20} />, tone: 'info', label: 'Tổng phiếu nhận', value: n(it.total), to: '/sample-flow' });
+    tiles.push({ icon: <AlertTriangle size={20} />, tone: 'overdue', label: 'Quá hạn trả kết quả', value: n(it.overdue), to: '/sample-flow' });
+    tiles.push({ icon: <CheckCircle2 size={20} />, tone: 'success', label: 'Đã trả kết quả', value: n(it.by_status?.completed), to: '/sample-flow' });
+  }
+  if (s?.available && n(s.total) > 0) {
+    tiles.push({ icon: <ClipboardList size={20} />, tone: 'info', label: 'Mẫu M1 (module cũ)', value: n(s.total), to: '/samples' });
+    tiles.push({ icon: <AlertTriangle size={20} />, tone: 'overdue', label: 'Mẫu M1 quá hạn', value: n(s.overdue), to: '/samples?status=overdue' });
   }
   if (e?.available) tiles.push({ icon: <Wrench size={20} />, tone: 'overdue', label: 'Thiết bị quá hạn hiệu chuẩn', value: n(e.calibration_overdue), to: '/equipment' });
   if (c?.available) {
@@ -71,7 +80,7 @@ export function LeaderDashboard() {
             <AlertList
               title="Cảnh báo tổng hợp"
               rows={[
-                { label: 'Mẫu quá hạn', value: n(s?.overdue), tone: 'overdue', to: '/samples?status=overdue' },
+                { label: 'Phiếu quá hạn trả kết quả', value: n(it?.overdue), tone: 'overdue', to: '/sample-flow' },
                 { label: 'Thiết bị quá hạn hiệu chuẩn', value: n(e?.calibration_overdue), tone: 'overdue', to: '/equipment' },
                 { label: 'Hóa chất tồn thấp', value: n(c?.low_stock), tone: 'warning', to: '/chemicals' },
                 { label: 'Tài liệu chờ ban hành', value: n(doc?.pending_review), tone: 'pending', to: '/documents/pending' },

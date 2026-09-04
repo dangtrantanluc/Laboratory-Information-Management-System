@@ -30,6 +30,7 @@ from app.db.database import get_db
 from app.schemas.quotation import (
     ChangeQuotationStatusRequest,
     CreateQuotationRequest,
+    QuotationVersionListResponse,
     UpdateQuotationRequest,
 )
 from app.services import quotation_export_service as export_svc
@@ -71,6 +72,19 @@ def get_quotation(
     db: Session = Depends(get_db),
 ):
     return ok(svc.get_quotation(db, quotation_id=quotation_id))
+
+
+@router.get(
+    "/quotations/{quotation_id}/versions",
+    response_model=QuotationVersionListResponse,
+)
+def list_quotation_versions(
+    quotation_id: uuid.UUID,
+    user: CurrentUser = Depends(quotation_read),
+    db: Session = Depends(get_db),
+):
+    """Lịch sử các bản đã gửi khách (m41) — mỗi bản là toàn văn tại thời điểm đó."""
+    return ok(svc.list_versions(db, quotation_id=quotation_id))
 
 
 @router.get(

@@ -79,6 +79,9 @@ class User(Base):
             "'reception', 'qms', 'lab_manager')",
             name="ck_users_role",
         ),
-        CheckConstraint("status IN ('active', 'disabled')", name="ck_users_status"),
+        # m30 đã thêm 'pending' (tự đăng ký, chờ duyệt) vào DB nhưng quên cập nhật ở đây.
+        CheckConstraint(
+            "status IN ('active', 'disabled', 'pending')", name="ck_users_status"
+        ),
         CheckConstraint("position('@' IN email) > 1", name="ck_users_email"),
     )

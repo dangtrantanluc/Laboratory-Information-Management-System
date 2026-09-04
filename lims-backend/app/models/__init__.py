@@ -89,8 +89,11 @@ from app.models.risk import (
 from app.models.form import FormTemplate, FormSubmission
 
 # --- GĐ2b: Nhận & Chuyển mẫu (reception → lab) ---
-from app.models.quotation import Quotation, QuotationItem
-from app.models.sample_flow import SampleIntake, SampleDispatch, CustomerInfoRequest, TestParameter
+from app.models.quotation import Quotation, QuotationItem, QuotationVersion
+from app.models.sample_flow import (
+    CustomerInfoRequest, IntakeContact, IntakeItem, SampleDispatch, SampleIntake,
+    TestParameter,
+)
 
 # --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
 from app.models.lab_access import LabAccessCard
@@ -169,11 +172,14 @@ __all__ = [
     "FormSubmission",
     # GĐ2b
     "SampleIntake",
+    "IntakeItem",
+    "IntakeContact",
     "SampleDispatch",
     "CustomerInfoRequest",
     "TestParameter",
     "Quotation",
     "QuotationItem",
+    "QuotationVersion",
     # M19
     "LabAccessCard",
     # M20

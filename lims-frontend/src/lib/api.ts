@@ -323,6 +323,9 @@ export async function apiPost<T>(
 export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return (await request<T>(path, { method: 'PATCH', body })).data;
 }
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  return (await request<T>(path, { method: 'PUT', body })).data;
+}
 export async function apiDelete(path: string): Promise<void> {
   await request<void>(path, { method: 'DELETE' });
 }

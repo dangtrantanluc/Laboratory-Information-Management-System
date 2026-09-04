@@ -7,7 +7,7 @@ Nghiệp vụ:
   cho (phiếu đó × phòng của người xin).
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -26,7 +26,7 @@ MASKED_ROLES = ("staff", "lab_manager")
 # Vai trò được duyệt yêu cầu (Phòng nhận mẫu + quản trị).
 APPROVER_ROLES = ("reception", "admin")
 # Các field PII bị ẩn.
-PII_FIELDS = ("customer_name", "contact", "address", "tax_code", "contact_person", "phone", "email")
+PII_FIELDS = ("customer_name", "address", "tax_code", "contact_person", "phone", "email")
 # m33 — khoá ngoại tới master data: KHÔNG che thì khối lab lấy id gọi GET /customers/{id}
 # (staff và lab_manager đều nằm trong read_roles của router customers) là đọc lại được
 # đúng những field vừa che ở trên. Xoá hẳn khỏi payload thay vì gắn placeholder vì đây
@@ -34,6 +34,9 @@ PII_FIELDS = ("customer_name", "contact", "address", "tax_code", "contact_person
 PII_ID_FIELDS = ("customer_id",)
 
 MASK_PLACEHOLDER = "••• Đã ẩn •••"
+
+# m45 — thời hạn mặc định của một lượt duyệt xem thông tin khách hàng.
+GRANT_TTL_DAYS = 90
 
 
 def _forbidden(msg: str = "Bạn không có quyền thực hiện thao tác này") -> AppException:
@@ -50,11 +53,17 @@ def has_access(db: Session, user: CurrentUser, intake_id: uuid.UUID) -> bool:
         return True
     if user.department_id is None:
         return False
+    now = datetime.now(timezone.utc)
     row = db.execute(
         select(CustomerInfoRequest.id).where(
             CustomerInfoRequest.intake_id == intake_id,
             CustomerInfoRequest.department_id == user.department_id,
             CustomerInfoRequest.status == "approved",
+            # m45 — quyền có thời hạn và thu hồi được. NULL = vĩnh viễn (bản ghi cũ,
+            # cố ý không backfill để không cắt quyền của phòng đang làm dở).
+            CustomerInfoRequest.revoked_at.is_(None),
+            (CustomerInfoRequest.expires_at.is_(None))
+            | (CustomerInfoRequest.expires_at > now),
         ).limit(1)
     ).first()
     return row is not None
@@ -88,6 +97,12 @@ def mask_intake(db: Session, user: CurrentUser, data: dict) -> dict:
     for f in PII_ID_FIELDS:
         if f in data:
             data[f] = None
+    # Tệp đính kèm của phiếu là bản scan BM 7.1.01 ĐÃ ĐIỀN — nó chứa đúng những
+    # trường vừa che ở trên. Trả danh sách id ra là trao sẵn khoá cho đường vòng
+    # GET /attachments/{id}. Guard trong attachment_authz chặn lượt tải, còn đây
+    # chặn từ đầu: không đưa id thì không có gì để thử.
+    if "files" in data:
+        data["files"] = []
     data["customer_info_masked"] = True
     pending = _pending_request(db, intake_id, user.department_id) if intake_id else None
     data["customer_info_request_status"] = "pending" if pending else None
@@ -101,6 +116,10 @@ def mask_dispatch(db: Session, user: CurrentUser, data: dict) -> dict:
         return data
     if data.get("customer_name"):
         data["customer_name"] = MASK_PLACEHOLDER
+    # CỐ Ý không xoá `files` ở đây, khác với mask_intake(). Tệp của LƯỢT CHUYỂN là sản
+    # phẩm của chính phòng lab — số liệu thô, ảnh, báo cáo họ vừa đính kèm khi nhập
+    # kết quả. Ẩn đi là chặn họ đọc lại việc của mình. Tệp chứa PII khách hàng là bản
+    # scan BM 7.1.01, và nó gắn vào PHIẾU NHẬN chứ không phải lượt chuyển.
     data["customer_info_masked"] = True
     return data
 
@@ -124,6 +143,8 @@ def _serialize(db: Session, r: CustomerInfoRequest) -> dict:
         "decided_by_name": decider.full_name if decider else None,
         "decided_at": r.decided_at,
         "decide_note": r.decide_note,
+        "expires_at": r.expires_at,
+        "revoked_at": r.revoked_at,
         "created_at": r.created_at,
     }
 
@@ -226,6 +247,10 @@ def decide_request(
     r.status = "approved" if approve else "rejected"
     r.decided_by = user.id
     r.decided_at = datetime.now(timezone.utc)
+    if approve:
+        # 90 ngày: đủ dài cho một phiếu chạy hết vòng đời, đủ ngắn để quyền không
+        # tồn tại mãi sau khi người xin đã chuyển việc.
+        r.expires_at = r.decided_at + timedelta(days=GRANT_TTL_DAYS)
     r.decide_note = note or None
     r.updated_at = datetime.now(timezone.utc)
 
