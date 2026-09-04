@@ -18,6 +18,7 @@ import { describeError } from '@/lib/errors';
 import { canManageCustomers } from '@/lib/rbac';
 import { CUSTOMER_TYPE_LABELS, type Customer } from '@/types';
 import * as customersApi from '@/api/customers';
+import { CustomerContactsPanel } from '@/components/customers/CustomerContactsPanel';
 
 export function Customers() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export function Customers() {
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Tên', sortValue: (c) => c.name, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
     { key: 'contact_person', priority: 1, header: 'Người liên hệ', render: (c) => c.contact_person ?? '—' },
-    { key: 'phone', priority: 1, header: 'Điện thoại', render: (c) => c.phone ?? c.contact ?? '—' },
+    { key: 'phone', priority: 1, header: 'Điện thoại', render: (c) => c.phone ?? '—' },
     {
       key: 'type',
       priority: 1,
@@ -107,7 +108,6 @@ function CustomerModal({
   const toast = useToast();
   const [f, setF] = useState({
     name: customer?.name ?? '',
-    contact: customer?.contact ?? '',
     // 'external' = mặc định của backend (schemas/customer.py) và của DB (server_default).
     type: customer?.type ?? 'external',
     address: customer?.address ?? '',
@@ -127,7 +127,6 @@ function CustomerModal({
     try {
       const body = {
         name: f.name.trim(),
-        contact: f.contact || null,
         type: f.type,
         address: f.address || null,
         tax_code: f.tax_code || null,
@@ -185,7 +184,7 @@ function CustomerModal({
           </Field>
         </FormSection>
 
-        <FormSection title="Liên hệ">
+        <FormSection title="Liên hệ chính (in lên phiếu)">
           <Field label="Người liên hệ">
             <Input value={f.contact_person} onChange={set('contact_person')} />
           </Field>
@@ -195,10 +194,18 @@ function CustomerModal({
           <Field label="Email">
             <Input value={f.email} onChange={set('email')} />
           </Field>
-          <Field label="Liên hệ khác" hint="Ô cũ, giữ lại cho dữ liệu trước đây">
-            <Input value={f.contact} onChange={set('contact')} />
-          </Field>
         </FormSection>
+
+        {/* Danh bạ chỉ hiện khi SỬA: khách chưa lưu thì chưa có id để treo liên hệ vào. */}
+        {customer && (
+          <FormSection
+            title="Danh bạ liên hệ"
+            hint="Một khách có thể có nhiều người gửi mẫu. Người đánh dấu “Mặc định” là người được tự điền vào phiếu nhận mẫu."
+            cols={1}
+          >
+            <CustomerContactsPanel customerId={customer.id} />
+          </FormSection>
+        )}
 
         <FormSection title="Ghi chú" cols={1}>
           <Field label="Ghi chú">

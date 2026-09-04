@@ -28,6 +28,9 @@ from app.models.nonconformity import Nonconformity
 from app.models.notification import Notification
 from app.models.risk import Improvement, Risk
 from app.models.sample import Sample, VALID_SAMPLE_STATUS
+from app.models.sample_flow import (
+    VALID_DISPATCH_STATUS, VALID_INTAKE_STATUS, SampleDispatch, SampleIntake,
+)
 from app.services import report_common as rc
 
 logger = logging.getLogger("lims.dashboard")
@@ -58,6 +61,80 @@ def _kpi_samples(db: Session, dept: Optional[uuid.UUID]) -> dict:
         "total": total,
         "overdue": overdue,
         "deep_link": deep,
+    }
+
+
+# ---------------- KPI khối: phiếu nhận mẫu (GĐ2b) ----------------
+def _kpi_intakes(db: Session) -> dict:
+    """Đếm PHIẾU NHẬN MẪU — luồng mà quầy thực sự dùng hằng ngày (m39).
+
+    VÌ SAO KHỐI NÀY TỒN TẠI
+    `_kpi_samples` bên dưới đếm bảng `samples` của module M1. Quầy nhận mẫu ghi vào
+    `sample_intakes`, và hai bảng không có khoá ngoại nào nối nhau. Nên ô "Phiếu chờ
+    chuyển lab" trên dashboard Phòng nhận mẫu vừa lấy số từ `samples`, vừa bấm vào
+    lại dẫn sang /sample-flow đọc `sample_intakes` — con số và màn hình đích không
+    cùng nguồn dữ liệu.
+
+    Hai khối được giữ SONG SONG và dán nhãn khác nhau, không gộp: chúng đếm hai thứ
+    khác nhau, và gộp lại dưới một nhãn là cách tạo ra đúng loại nhầm lẫn vừa nói.
+
+    Không áp scope phòng ban: phiếu nhận mẫu thuộc về quầy, không thuộc phòng lab
+    nào — phạm vi phòng nằm ở khối dispatches.
+    """
+    rows = db.execute(
+        select(SampleIntake.status, func.count()).group_by(SampleIntake.status)
+    ).all()
+    by_status = {s: 0 for s in VALID_INTAKE_STATUS}
+    total = 0
+    for status_val, cnt in rows:
+        by_status[status_val] = cnt
+        total += cnt
+
+    # Quá hạn = đã hẹn ngày, ngày đó đã qua, và phiếu chưa đóng. Dựa trên due_date_at
+    # (m39) chứ không phải ô text `due_date` — text không so sánh được với hôm nay.
+    today = datetime.now(timezone.utc).date()
+    overdue = db.execute(
+        select(func.count()).select_from(SampleIntake).where(
+            SampleIntake.due_date_at.isnot(None),
+            SampleIntake.due_date_at < today,
+            SampleIntake.status.notin_(("completed", "cancelled")),
+        )
+    ).scalar_one()
+
+    return {
+        "available": True,
+        "by_status": by_status,
+        "total": total,
+        "awaiting_dispatch": by_status.get("received", 0),
+        "overdue": overdue,
+        # Tỷ lệ hủy — chỉ số chất lượng vận hành đầu tiên đo được từ luồng thật.
+        "cancelled": by_status.get("cancelled", 0),
+        "deep_link": "/sample-flow",
+    }
+
+
+def _kpi_dispatches(db: Session, dept: Optional[uuid.UUID]) -> dict:
+    """Đếm LƯỢT CHUYỂN tới phòng lab — hàng đợi công việc thật của khối lab."""
+    conds = []
+    if dept:
+        conds.append(SampleDispatch.target_department_id == dept)
+    rows = db.execute(
+        select(SampleDispatch.status, func.count()).where(*conds)
+        .group_by(SampleDispatch.status)
+    ).all()
+    by_status = {s: 0 for s in VALID_DISPATCH_STATUS}
+    total = 0
+    for status_val, cnt in rows:
+        by_status[status_val] = cnt
+        total += cnt
+    return {
+        "available": True,
+        "by_status": by_status,
+        "total": total,
+        "waiting": by_status.get("sent", 0),
+        "in_progress": by_status.get("received", 0) + by_status.get("in_progress", 0),
+        "done": by_status.get("done", 0),
+        "deep_link": "/sample-flow",
     }
 
 
@@ -328,6 +405,10 @@ def get_dashboard(
             lambda: _kpi_notifications(db, user.id), "notifications"
         )
     else:
+        # Luồng nhận mẫu đang chạy thật — nguồn của mọi con số về "mẫu" ở quầy.
+        data["intakes"] = _safe(lambda: _kpi_intakes(db), "intakes")
+        data["dispatches"] = _safe(lambda: _kpi_dispatches(db, dept), "dispatches")
+        # Module M1 — giữ song song, nhãn riêng (xem docstring _kpi_intakes).
         data["samples"] = _safe(lambda: _kpi_samples(db, dept), "samples")
         data["chemicals"] = _safe(
             lambda: _kpi_chemicals(db, dept, due_within_days, can_cost), "chemicals"

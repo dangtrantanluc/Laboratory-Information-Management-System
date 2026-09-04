@@ -144,6 +144,9 @@ _JOBS = [
     ("risk-review-due", "CRON-8 risk-review-due", {"hour": 6, "minute": 30}, "risk_cron_service", "run_risk_review_due"),
     # R9.6 — 3h sáng, ngoài giờ làm việc: xoá theo lô vẫn tạo tải I/O trên Postgres.
     ("data-cleanup", "CRON-9 data-cleanup", {"hour": 3, "minute": 0}, "cleanup_cron_service", "run_cleanup"),
+    # m41 — 6h45, sau các cron nhắc việc: đổi trạng thái chứng từ, không gửi thông báo.
+    ("quotation-expiry", "CRON-10 quotation-expiry", {"hour": 6, "minute": 45},
+     "quotation_cron_service", "run_quotation_expiry"),
 ]
 
 
@@ -194,7 +197,7 @@ def start_scheduler() -> None:
     sched.start()
     _scheduler = sched
     logger.info(
-        "APScheduler started (CRON-1..8: M1/M2/M4/M5 + M8 CRON-7 + M10 CRON-8)"
+        "APScheduler started (CRON-1..10: M1/M2/M4/M5 + M8 CRON-7 + M10 CRON-8 + m41 CRON-10)"
     )
 
 

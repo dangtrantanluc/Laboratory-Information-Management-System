@@ -91,3 +91,27 @@ def log_action(
         },
     )
     return entry
+
+
+def diff_detail(obj, changes: dict, *, extra: Optional[dict] = None) -> dict:
+    """Chi tiết nhật ký gồm CẢ giá trị trước và sau (W14).
+
+    Trước đây `detail` chỉ chứa giá trị MỚI, nên không tái dựng được nội dung hồ sơ
+    tại thời điểm in cho khách — mà đó chính là lúc cần chứng minh khi có tranh chấp.
+
+    Chỉ ghi những khoá THỰC SỰ đổi: một PATCH gửi 15 trường mà sửa 1 trường thì ghi
+    14 cặp giống nhau chỉ làm nhật ký khó đọc.
+    """
+    before, after = {}, {}
+    for k, new in (changes or {}).items():
+        if not hasattr(obj, k):
+            continue
+        old = getattr(obj, k)
+        if old == new:
+            continue
+        before[k] = str(old) if old is not None else None
+        after[k] = str(new) if new is not None else None
+    out: dict = {"before": before, "after": after}
+    if extra:
+        out.update(extra)
+    return out

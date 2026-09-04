@@ -312,36 +312,100 @@ def _assert_intake_permission(db: Session, user: CurrentUser, action: str) -> No
         raise AppException(ErrorCode.FORBIDDEN, "Bạn không có quyền trên phiếu nhận mẫu", 403)
 
 
-def _read_intake(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
+def _assert_customer_info_visible(
+    db: Session, user: CurrentUser, intake_id: uuid.UUID
+) -> None:
+    """Tệp của phiếu chịu CÙNG luật che thông tin khách hàng như payload phiếu (m26).
+
+    LỖ HỔNG ĐƯỢC BỊT Ở ĐÂY
+    m26 che customer_name/address/tax_code/contact_person/phone/email với khối lab, và
+    đã cẩn thận xoá cả `customer_id` để chặn đường vòng GET /customers/{id}. Nhưng
+    guard này trước đây chỉ kiểm quyền `intake:read` — mà staff và lab_manager đều có
+    với scope 'all' — nên KHÔNG hề tham chiếu cơ chế che.
+
+    Tệp đính kèm của phiếu chính là bản scan BM 7.1.01 ĐÃ ĐIỀN: nó chứa đúng những
+    trường vừa bị che. Đường tấn công chỉ gồm hai lệnh gọi:
+        GET /intakes/{id}      → lấy files[].id
+        GET /attachments/{id}  → presigned URL → tải về → đọc lại toàn bộ PII
+
+    Một biện pháp kiểm soát chỉ mạnh bằng đường vòng yếu nhất của nó.
+    """
+    from app.services import customer_info_service
+
+    if not customer_info_service.has_access(db, user, intake_id):
+        raise AppException(
+            ErrorCode.FORBIDDEN,
+            "Thông tin khách hàng của phiếu này đang được ẩn với phòng bạn. "
+            "Gửi yêu cầu xem thông tin khách hàng để mở tệp đính kèm.",
+            403,
+        )
+
+
+def _get_intake_or_404(db: Session, owner_id: uuid.UUID):
     from app.models.sample_flow import SampleIntake
 
-    _assert_intake_permission(db, user, "read")
-    if db.get(SampleIntake, owner_id) is None:
+    it = db.get(SampleIntake, owner_id)
+    if it is None:
         raise not_found("Không tìm thấy phiếu nhận mẫu")
+    return it
+
+
+def _get_dispatch_or_404(db: Session, owner_id: uuid.UUID):
+    from app.models.sample_flow import SampleDispatch
+
+    d = db.get(SampleDispatch, owner_id)
+    if d is None:
+        raise not_found("Không tìm thấy phiếu chuyển mẫu")
+    return d
+
+
+def _read_intake(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
+    _assert_intake_permission(db, user, "read")
+    _get_intake_or_404(db, owner_id)
+    _assert_customer_info_visible(db, user, owner_id)
 
 
 def _write_intake(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
-    from app.models.sample_flow import SampleIntake
-
     _assert_intake_permission(db, user, "manage")
-    if db.get(SampleIntake, owner_id) is None:
-        raise not_found("Không tìm thấy phiếu nhận mẫu")
+    _get_intake_or_404(db, owner_id)
 
 
 def _read_dispatch(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
-    from app.models.sample_flow import SampleDispatch
+    """Tệp của lượt chuyển = sản phẩm của phòng thực hiện (số liệu thô, ảnh, báo cáo).
 
+    Phòng ĐANG THỰC HIỆN luôn đọc được tệp của mình — chặn ở đây là chặn họ xem lại
+    việc của chính mình. Người ngoài phòng đó, nếu thuộc khối bị che PII, phải được
+    duyệt như với phiếu nhận: tệp của phòng khác không phải việc của họ.
+    """
+    d = _get_dispatch_or_404(db, owner_id)
     _assert_intake_permission(db, user, "read")
-    if db.get(SampleDispatch, owner_id) is None:
-        raise not_found("Không tìm thấy phiếu chuyển mẫu")
+    if user.department_id == d.target_department_id:
+        return
+    _assert_customer_info_visible(db, user, d.intake_id)
 
 
 def _write_dispatch(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
-    from app.models.sample_flow import SampleDispatch
+    """Gắn tệp vào lượt chuyển — CẢ Phòng nhận mẫu LẪN phòng lab thực hiện.
 
-    _assert_intake_permission(db, user, "manage")
-    if db.get(SampleDispatch, owner_id) is None:
-        raise not_found("Không tìm thấy phiếu chuyển mẫu")
+    m37 giao việc ghi kết quả cho phòng lab, và số liệu thô / ảnh / báo cáo đính kèm
+    là một phần của kết quả đó. Nếu chỉ chấp nhận `intake:manage` thì ô "Đính kèm kết
+    quả" trên màn hình nhập kết quả sẽ 403 với đúng người được giao nhập — quyền ghi
+    nội dung và quyền ghi tệp của cùng một nội dung phải đi cùng nhau.
+    """
+    from app.core.rbac import has_permission
+
+    d = _get_dispatch_or_404(db, owner_id)
+    if has_permission(db, user.role, "intake", "manage"):
+        return
+    if not has_permission(db, user.role, "dispatch", "result"):
+        raise AppException(ErrorCode.FORBIDDEN, "Bạn không có quyền trên phiếu chuyển mẫu", 403)
+    # Người của phòng lab chỉ gắn tệp cho lượt chuyển tới phòng mình.
+    if user.role != "admin" and user.department_id != d.target_department_id:
+        raise AppException(
+            ErrorCode.FORBIDDEN,
+            "Bạn chỉ được đính kèm cho phiếu chuyển tới phòng của mình",
+            403,
+        )
 
 
 # ═══════════════════════════ Bảng định tuyến ═══════════════════════════

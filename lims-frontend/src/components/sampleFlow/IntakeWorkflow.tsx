@@ -26,6 +26,7 @@ export const INTAKE_TONE: Record<IntakeStatus, BadgeTone> = {
   dispatched: 'warning',
   completed: 'success',
   cancelled: 'overdue',
+  rejected: 'overdue',
 };
 
 const PAYMENT_TONE: Record<PaymentStatus, BadgeTone> = {
@@ -60,10 +61,13 @@ export function IntakeWorkflow({
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  // m42 — từ chối tiếp nhận là QUYẾT ĐỊNH KỸ THUẬT, bắt buộc lý do. Backend chặn
+  // (400) nếu thiếu; modal ở đây để người dùng không phải gặp lỗi mới biết.
+  const [rejectOpen, setRejectOpen] = useState(false);
 
   const status = intake.status;
   const flowIdx = INTAKE_FLOW.indexOf(status);
-  const cancelled = status === 'cancelled';
+  const cancelled = status === 'cancelled' || status === 'rejected';
   const unpaid = intake.payment_status === 'unpaid' || intake.payment_status === 'partial';
   // Cảnh báo (không chặn): chuyển lab khi khách chưa thanh toán đủ
   const showPayWarning = unpaid && ['received', 'quoted', 'quote_accepted'].includes(status);
@@ -113,10 +117,25 @@ export function IntakeWorkflow({
         })}
         {cancelled && (
           <Badge tone="overdue" className="ml-2">
-            <XCircle size={12} /> Đã hủy
+            <XCircle size={12} /> {INTAKE_STATUS_LABELS[status]}
           </Badge>
         )}
       </div>
+
+      {/* m42 — quyết định từ chối: ai, lúc nào, vì sao. Hiển thị ngay, không giấu
+          trong ghi chú, vì đây là thứ phải giải trình khi đánh giá hồ sơ. */}
+      {status === 'rejected' && intake.rejected_reason && (
+        <div className="mt-3 rounded-lg border border-overdue/40 bg-overdue/10 p-2.5 text-sm text-ink">
+          <strong>Từ chối tiếp nhận:</strong> {intake.rejected_reason}
+          {intake.decided_by_name ? ` — ${intake.decided_by_name}` : ''}
+        </div>
+      )}
+      {intake.condition_status === 'not_acceptable' && (
+        <div className="mt-3 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-sm text-ink">
+          <strong>Mẫu không đạt điều kiện tiếp nhận (đã nhận có bảo lưu):</strong>{' '}
+          {intake.condition_note}
+        </div>
+      )}
 
       {/* Thanh toán */}
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-hairline pt-3 text-sm">
@@ -152,9 +171,9 @@ export function IntakeWorkflow({
             <Button
               key={s}
               size="sm"
-              variant={s === 'cancelled' ? 'secondary' : 'primary'}
+              variant={s === 'cancelled' || s === 'rejected' ? 'secondary' : 'primary'}
               loading={busy === s}
-              onClick={() => go(s)}
+              onClick={() => (s === 'rejected' ? setRejectOpen(true) : go(s))}
             >
               {INTAKE_STATUS_LABELS[s]}
             </Button>
@@ -162,6 +181,13 @@ export function IntakeWorkflow({
         </div>
       )}
 
+      {rejectOpen && (
+        <RejectModal
+          intake={intake}
+          onClose={() => setRejectOpen(false)}
+          onDone={() => { setRejectOpen(false); onChanged(); }}
+        />
+      )}
       {payOpen && (
         <PaymentModal
           intake={intake}
@@ -261,6 +287,60 @@ function PaymentModal({
           />
         </Field>
       </div>
+    </Modal>
+  );
+}
+
+
+/** m42 — từ chối tiếp nhận mẫu. Lý do BẮT BUỘC (backend enforce, đây là lớp UX). */
+function RejectModal({
+  intake, onClose, onDone,
+}: {
+  intake: SampleIntake; onClose: () => void; onDone: () => void;
+}) {
+  const toast = useToast();
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    if (!reason.trim()) return toast.error('Nhập lý do từ chối');
+    setSaving(true);
+    try {
+      await flowApi.changeIntakeStatus(intake.id, 'rejected', reason.trim());
+      toast.success('Đã ghi nhận từ chối tiếp nhận');
+      onDone();
+    } catch (err) {
+      const e = describeError(err);
+      toast.error(e.title, e.description);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Từ chối tiếp nhận mẫu"
+      description={`Phiếu ${intake.code}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Hủy</Button>
+          <Button onClick={submit} loading={saving}>Xác nhận từ chối</Button>
+        </>
+      }
+    >
+      <Field
+        label="Lý do từ chối"
+        required
+        hint="Thiếu mẫu · sai bao bì · mẫu hỏng · sai nhiệt độ bảo quản · thiếu thông tin"
+      >
+        <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+      </Field>
+      <p className="mt-2 text-xs text-subink">
+        Nếu khách vẫn muốn làm dù mẫu không đạt, đừng từ chối — ghi{' '}
+        <strong>tình trạng mẫu</strong> là “không đạt” kèm mô tả sai lệch, phiếu vẫn chạy tiếp.
+      </p>
     </Modal>
   );
 }

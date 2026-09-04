@@ -102,6 +102,9 @@ export const NAV_GROUPS: NavGroup[] = [
     defaultOpen: true,
     items: [
       { to: '/sample-flow', label: 'Nhận & Chuyển mẫu', icon: Inbox, roles: ['admin', 'leader', 'reception', ...LAB] },
+      // W12 — chuyển từ nhóm Quản trị sang đây: quản lý khách hàng là việc hằng ngày
+      // của quầy, không phải thao tác quản trị hệ thống như Tài khoản hay Nhật ký.
+      { to: '/customers', label: 'Khách hàng', icon: UserSquare2, can: canViewCustomers },
       { to: '/samples', label: 'Mẫu thử nghiệm', icon: FlaskConical, roles: LAB_LEAD },
       { to: '/chemicals', label: 'Hóa chất', icon: FlaskConical, roles: [...LAB_LEAD, 'office'] },
       { to: '/equipment', label: 'Thiết bị & Hiệu chuẩn', icon: Wrench, can: canViewEquipment },
@@ -165,7 +168,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/users', label: 'Tài khoản', icon: Users, can: canManageUsers },
       { to: '/departments', label: 'Phòng ban', icon: Building2, can: canManageUsers },
-      { to: '/customers', label: 'Khách hàng', icon: UserSquare2, can: canViewCustomers },
       { to: '/audit', label: 'Nhật ký hệ thống', icon: ScrollText, can: canViewAudit },
     ],
   },

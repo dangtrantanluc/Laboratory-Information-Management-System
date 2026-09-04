@@ -14,16 +14,22 @@ export function ReceptionDashboard() {
   const chartsQ = useAsync(() => reportingApi.getDashboardCharts(), []);
   const data = dashQ.data?.data as any;
   const charts = chartsQ.data?.data as any;
-  const s = data?.samples;
-
-  const inProgress = n(s?.by_status?.assigned) + n(s?.by_status?.testing);
+  // m39 — đếm PHIẾU NHẬN MẪU và LƯỢT CHUYỂN, tức là đúng hai bảng mà quầy ghi vào.
+  // Trước đây các ô này lấy số từ `data.samples` (bảng của module M1) nhưng lại bấm
+  // sang /sample-flow đọc `sample_intakes` — con số và màn hình đích khác nguồn.
+  const it = data?.intakes;
+  const dp = data?.dispatches;
 
   const tiles: KpiSpec[] = [];
-  if (s?.available) {
-    tiles.push({ icon: <ClipboardList size={20} />, tone: 'info', label: 'Tổng mẫu', value: n(s.total), to: '/sample-flow' });
-    tiles.push({ icon: <Inbox size={20} />, tone: 'pending', label: 'Chờ chuyển lab', value: n(s.by_status?.received), to: '/sample-flow' });
-    tiles.push({ icon: <Clock size={20} />, tone: 'warning', label: 'Đang xử lý ở lab', value: inProgress });
-    tiles.push({ icon: <AlertTriangle size={20} />, tone: 'overdue', label: 'Mẫu quá hạn trả KQ', value: n(s.overdue), to: '/sample-flow' });
+  if (it?.available) {
+    tiles.push({ icon: <ClipboardList size={20} />, tone: 'info', label: 'Tổng phiếu nhận', value: n(it.total), to: '/sample-flow' });
+    tiles.push({ icon: <Inbox size={20} />, tone: 'pending', label: 'Chờ chuyển lab', value: n(it.awaiting_dispatch), to: '/sample-flow' });
+  }
+  if (dp?.available) {
+    tiles.push({ icon: <Clock size={20} />, tone: 'warning', label: 'Đang xử lý ở lab', value: n(dp.in_progress), to: '/sample-flow' });
+  }
+  if (it?.available) {
+    tiles.push({ icon: <AlertTriangle size={20} />, tone: 'overdue', label: 'Quá hạn trả kết quả', value: n(it.overdue), to: '/sample-flow' });
   }
 
   return (
@@ -48,9 +54,10 @@ export function ReceptionDashboard() {
             <AlertList
               title="Hàng đợi tiếp nhận"
               rows={[
-                { label: 'Phiếu chờ chuyển lab', value: n(s?.by_status?.received), tone: 'pending', to: '/sample-flow' },
-                { label: 'Đang xử lý ở lab', value: inProgress, tone: 'info', to: '/sample-flow' },
-                { label: 'Mẫu quá hạn trả kết quả', value: n(s?.overdue), tone: 'overdue', to: '/sample-flow' },
+                { label: 'Phiếu chờ chuyển lab', value: n(it?.awaiting_dispatch), tone: 'pending', to: '/sample-flow' },
+                { label: 'Lab chưa tiếp nhận', value: n(dp?.waiting), tone: 'warning', to: '/sample-flow' },
+                { label: 'Đang xử lý ở lab', value: n(dp?.in_progress), tone: 'info', to: '/sample-flow' },
+                { label: 'Quá hạn trả kết quả', value: n(it?.overdue), tone: 'overdue', to: '/sample-flow' },
               ]}
             />
             <SamplesOverTimeCard charts={charts} loading={chartsQ.loading} title="Mẫu nhận theo kỳ" subtitle="Thấy đỉnh tải để bố trí người" />

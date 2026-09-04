@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db_helpers import get_active_or_404
@@ -20,7 +20,6 @@ def _get_or_404(db: Session, customer_id: uuid.UUID) -> Customer:
 # kê tay riêng, quên nơi nào thì hỏng âm thầm (PATCH trả 200 mà không lưu gì).
 EDITABLE_FIELDS = (
     "name",
-    "contact",
     "type",
     "note",
     "address",
@@ -48,7 +47,17 @@ def list_customers(
 ) -> tuple[list[dict], int]:
     conditions = [Customer.deleted_at.is_(None)]
     if q:
-        conditions.append(Customer.name.ilike(f"%{q}%"))
+        # m44 — tìm ĐA TRƯỜNG. Trước đây chỉ khớp `name`, nên khách đọc mã số thuế
+        # hay số điện thoại qua điện thoại là nhân viên gõ vào không ra gì rồi bấm
+        # "thêm vào sổ" — đó chính là cách khách trùng được sinh ra ngay tại quầy.
+        like = f"%{q.strip()}%"
+        conditions.append(or_(
+            Customer.name.ilike(like),
+            Customer.tax_code.ilike(like),
+            Customer.phone.ilike(like),
+            Customer.email.ilike(like),
+            Customer.contact_person.ilike(like),
+        ))
     if type_filter:
         conditions.append(Customer.type == type_filter)
 
@@ -67,6 +76,41 @@ def list_customers(
 
 def get_customer(db: Session, customer_id: uuid.UUID) -> dict:
     return _serialize(_get_or_404(db, customer_id))
+
+
+def find_duplicates(
+    db: Session, *, name: Optional[str], tax_code: Optional[str],
+    exclude_id: Optional[uuid.UUID] = None,
+) -> list[dict]:
+    """Khách có khả năng TRÙNG với thông tin đang nhập.
+
+    CẢNH BÁO, KHÔNG CHẶN. Lý do không đặt ràng buộc duy nhất trên `tax_code` nằm ở
+    docstring migration m44: chưa chốt "khách hàng" là pháp nhân hay địa điểm (Q3),
+    mà nếu là địa điểm thì ba nhà máy của cùng một công ty PHẢI trùng mã số thuế.
+    Người ở quầy nhìn danh sách này rồi tự quyết là đúng vai hơn.
+    """
+    conds = []
+    tc = (tax_code or "").strip()
+    nm = (name or "").strip()
+    if tc:
+        conds.append(func.btrim(Customer.tax_code) == tc)
+    if nm:
+        conds.append(func.lower(func.btrim(Customer.name)) == nm.lower())
+    if not conds:
+        return []
+
+    where = [Customer.deleted_at.is_(None), or_(*conds)]
+    if exclude_id is not None:
+        where.append(Customer.id != exclude_id)
+    rows = db.execute(
+        select(Customer).where(*where).order_by(Customer.created_at.desc()).limit(10)
+    ).scalars().all()
+    return [
+        {"id": c.id, "name": c.name, "tax_code": c.tax_code, "phone": c.phone,
+         "address": c.address,
+         "matched_on": "tax_code" if tc and (c.tax_code or "").strip() == tc else "name"}
+        for c in rows
+    ]
 
 
 def create_customer(
@@ -112,6 +156,12 @@ def update_customer(
     ip: Optional[str],
 ) -> dict:
     customer = _get_or_404(db, customer_id)
+    # W14 — chụp giá trị TRƯỚC khi ghi. `detail={"diff": ...}` cũ chỉ có giá trị mới,
+    # nên không trả lời được "hồ sơ lúc in cho khách ghi gì".
+    detail = audit_service.diff_detail(
+        customer,
+        {f: changes[f] for f in EDITABLE_FIELDS if f in changes and changes[f] is not None},
+    )
     diff: dict = {}
     for field in EDITABLE_FIELDS:
         if field in changes and changes[field] is not None:
@@ -135,7 +185,7 @@ def update_customer(
         resource_id=customer.id,
         correlation_id=correlation_id,
         ip=ip,
-        detail={"diff": diff},
+        detail=detail,
     )
     db.commit()
     db.refresh(customer)

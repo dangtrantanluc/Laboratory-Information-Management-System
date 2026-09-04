@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Kiểm toán luồng nghiệp vụ end-to-end hệ thống LIMS VILAB — 19 phát hiện có bằng chứng, ma trận phân quyền thực tế và lộ trình ưu tiên.">
+<style>
+  /* Reset tối thiểu — bản Artifact được host cấp sẵn phần này */
+  :root{color-scheme:light dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Kiểm toán luồng nghiệp vụ VILAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root{
+    --paper:#F5F7F5; --surface:#FFFFFF; --surface-2:#EDF2EE;
+    --ink:#141C18; --ink-2:#3D4B44; --ink-3:#6B7A72;
+    --hairline:#D7DFD9; --hairline-2:#C0CCC5;
+    --accent:#0F5C4A; --accent-soft:#E1EDE7;
+    --p0:#A8231C; --p0-bg:#F7E6E4;
+    --p1:#95530B; --p1-bg:#F9ECDE;
+    --p2:#736013; --p2-bg:#F4EFDB;
+    --p3:#33607D; --p3-bg:#E5EEF4;
+    --ok:#22684B; --ok-bg:#E0EEE7;
+    --q:#57457A; --q-bg:#ECE7F3;
+    --shadow:0 1px 2px rgba(20,28,24,.05), 0 8px 24px -16px rgba(20,28,24,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+      --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+      --hairline:#27322D; --hairline-2:#35433C;
+      --accent:#4FBF98; --accent-soft:#12302A;
+      --p0:#F0908A; --p0-bg:#331A1A;
+      --p1:#E3A863; --p1-bg:#322614;
+      --p2:#D3C167; --p2-bg:#2C2A16;
+      --p3:#93BDD8; --p3-bg:#182831;
+      --ok:#6FCFA3; --ok-bg:#12291F;
+      --q:#B6A5D9; --q-bg:#221D2E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+    --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+    --hairline:#27322D; --hairline-2:#35433C;
+    --accent:#4FBF98; --accent-soft:#12302A;
+    --p0:#F0908A; --p0-bg:#331A1A;
+    --p1:#E3A863; --p1-bg:#322614;
+    --p2:#D3C167; --p2-bg:#2C2A16;
+    --p3:#93BDD8; --p3-bg:#182831;
+    --ok:#6FCFA3; --ok-bg:#12291F;
+    --q:#B6A5D9; --q-bg:#221D2E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+
+  /* ── Type scale ─────────────────────────── */
+  h1,h2,h3,h4{font-family:Spectral,Georgia,serif; text-wrap:balance; margin:0}
+  h1{font-size:2.6rem; line-height:1.12; font-weight:700; letter-spacing:-.015em}
+  h2{font-size:1.62rem; line-height:1.22; font-weight:600}
+  h3{font-size:1.16rem; line-height:1.3; font-weight:600; font-family:"IBM Plex Sans",sans-serif}
+  h4{font-size:.95rem; font-family:"IBM Plex Sans",sans-serif; font-weight:600}
+  p{margin:0 0 .85em}
+  .prose{max-width:70ch}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  }
+  code,.mono{font-family:"IBM Plex Mono",monospace; font-size:.855em}
+  code{background:var(--surface-2); padding:.1em .34em; border-radius:3px; color:var(--ink-2)}
+  a{color:var(--accent)}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+  /* ── Masthead ───────────────────────────── */
+  .mast{border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px}
+  .mast .eyebrow{display:block; margin-bottom:14px}
+  .mast p.lede{
+    font-family:Spectral,Georgia,serif; font-size:1.2rem; line-height:1.55;
+    color:var(--ink-2); max-width:62ch; margin:18px 0 0; font-style:italic;
+  }
+  .mast-meta{
+    display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:24px;
+    font-family:"IBM Plex Mono",monospace; font-size:.76rem; color:var(--ink-3);
+  }
+  .mast-meta b{color:var(--ink-2); font-weight:500}
+
+  /* ── Sections ───────────────────────────── */
+  section{margin:0 0 60px; scroll-margin-top:20px}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px; border-bottom:1px solid var(--hairline); padding-bottom:10px}
+  .sec-head .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600;
+    color:var(--accent); letter-spacing:.08em; padding-top:.35em;
+  }
+  .sec-sub{color:var(--ink-3); font-size:.9rem; margin:0 0 22px; max-width:70ch}
+
+  /* ── Score band ─────────────────────────── */
+  .verdict{
+    display:grid; grid-template-columns:minmax(0,220px) 1fr; gap:34px;
+    background:var(--surface); border:1px solid var(--hairline);
+    border-radius:4px; padding:28px 30px; box-shadow:var(--shadow);
+  }
+  .score{border-right:1px solid var(--hairline); padding-right:30px}
+  .score .n{
+    font-family:Spectral,serif; font-size:4.2rem; line-height:.9; font-weight:700;
+    color:var(--p1); font-variant-numeric:tabular-nums;
+  }
+  .score .n span{font-size:1.6rem; color:var(--ink-3); font-weight:400}
+  .score .cap{font-size:.82rem; color:var(--ink-3); margin-top:10px; line-height:1.45}
+  .tally{display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:2px 0}
+  .tally div{padding:6px 14px 8px; border-left:3px solid var(--hairline-2)}
+  .tally .v{font-family:"IBM Plex Mono",monospace; font-size:1.6rem; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.1}
+  .tally .k{font-size:.73rem; color:var(--ink-3); letter-spacing:.02em}
+  .tally .t0{border-left-color:var(--p0)} .tally .t0 .v{color:var(--p0)}
+  .tally .t1{border-left-color:var(--p1)} .tally .t1 .v{color:var(--p1)}
+  .tally .t2{border-left-color:var(--p2)} .tally .t2 .v{color:var(--p2)}
+  .tally .t3{border-left-color:var(--p3)} .tally .t3 .v{color:var(--p3)}
+  .tally .tq{border-left-color:var(--q)}  .tally .tq .v{color:var(--q)}
+
+  /* ── Pipeline ───────────────────────────── */
+  .pipe{display:grid; grid-template-columns:repeat(auto-fit,minmax(146px,1fr)); gap:8px; margin:24px 0 10px}
+  .stage{
+    background:var(--surface); border:1px solid var(--hairline); border-top:3px solid var(--hairline-2);
+    border-radius:3px; padding:11px 12px 12px; min-width:0;
+  }
+  .stage .n{font-family:"IBM Plex Mono",monospace; font-size:.66rem; color:var(--ink-3); letter-spacing:.1em}
+  .stage .t{font-weight:600; font-size:.9rem; margin:3px 0 5px; line-height:1.25}
+  .stage .s{font-size:.75rem; color:var(--ink-3); line-height:1.4}
+  .stage.ok{border-top-color:var(--ok)} .stage.ok .t{color:var(--ok)}
+  .stage.warn{border-top-color:var(--p1)} .stage.warn .t{color:var(--p1)}
+  .stage.bad{border-top-color:var(--p0); background:var(--p0-bg)} .stage.bad .t{color:var(--p0)}
+  .legend{display:flex; flex-wrap:wrap; gap:6px 20px; font-size:.78rem; color:var(--ink-3); margin-top:14px}
+  .legend b{font-weight:600}
+
+  /* ── Two worlds ─────────────────────────── */
+  .worlds{display:grid; grid-template-columns:1fr auto 1fr; gap:0; align-items:stretch; margin:22px 0}
+  .world{background:var(--surface); border:1px solid var(--hairline); border-radius:4px; padding:20px 22px}
+  .world h4{margin-bottom:4px}
+  .world .who{font-size:.78rem; color:var(--ink-3); margin-bottom:14px}
+  .chain{list-style:none; margin:0; padding:0; font-family:"IBM Plex Mono",monospace; font-size:.79rem}
+  .chain li{padding:5px 0 5px 16px; position:relative; color:var(--ink-2); border-left:1px solid var(--hairline-2); margin-left:4px}
+  .chain li::before{content:""; position:absolute; left:-4px; top:14px; width:7px; height:7px; border-radius:50%; background:var(--hairline-2)}
+  .chain li:last-child{border-left-color:transparent}
+  .world.live .chain li::before{background:var(--accent)}
+  .gapcol{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 18px; text-align:center}
+  .gapcol .bar{flex:1; width:2px; background:repeating-linear-gradient(to bottom,var(--p0) 0 5px,transparent 5px 11px); min-height:18px}
+  .gapcol .lbl{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600; color:var(--p0);
+    background:var(--p0-bg); border:1px solid var(--p0); border-radius:99px;
+    padding:4px 10px; margin:8px 0; letter-spacing:.06em; white-space:nowrap;
+  }
+
+  /* ── Findings ───────────────────────────── */
+  .finding{
+    background:var(--surface); border:1px solid var(--hairline); border-left:4px solid var(--hairline-2);
+    border-radius:3px; padding:18px 22px; margin-bottom:12px;
+  }
+  .finding.f0{border-left-color:var(--p0)}
+  .finding.f1{border-left-color:var(--p1)}
+  .finding.f2{border-left-color:var(--p2)}
+  .finding.f3{border-left-color:var(--p3)}
+  .f-head{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:9px}
+  .f-head h4{flex:1; min-width:240px; font-size:1rem}
+  .chip{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600; letter-spacing:.07em;
+    padding:2.5px 8px; border-radius:99px; white-space:nowrap;
+  }
+  .c0{background:var(--p0-bg); color:var(--p0)}
+  .c1{background:var(--p1-bg); color:var(--p1)}
+  .c2{background:var(--p2-bg); color:var(--p2)}
+  .c3{background:var(--p3-bg); color:var(--p3)}
+  .cq{background:var(--q-bg);  color:var(--q)}
+  .cok{background:var(--ok-bg); color:var(--ok)}
+  .cn{background:var(--surface-2); color:var(--ink-3)}
+  .f-body{font-size:.905rem; color:var(--ink-2); max-width:82ch}
+  .f-body p{margin:0 0 .6em}
+  .f-body p:last-child{margin-bottom:0}
+  .ev{
+    margin-top:11px; padding-top:10px; border-top:1px dashed var(--hairline-2);
+    font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--ink-3); line-height:1.7;
+  }
+  .ev b{color:var(--ink-2); font-weight:500}
+  .fix{
+    margin-top:10px; padding:9px 13px; background:var(--accent-soft); border-radius:3px;
+    font-size:.845rem; color:var(--ink-2);
+  }
+  .fix b{color:var(--accent)}
+
+  /* ── Tables ─────────────────────────────── */
+  .scroller{overflow-x:auto; border:1px solid var(--hairline); border-radius:4px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.855rem; min-width:660px}
+  th,td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--hairline); vertical-align:top}
+  thead th{
+    background:var(--surface-2); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; white-space:nowrap; position:sticky; top:0;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.mid{text-align:center; font-variant-numeric:tabular-nums}
+  .yes{color:var(--ok); font-weight:700}
+  .no{color:var(--ink-3)}
+  .bad{color:var(--p0); font-weight:700}
+  .row-th{font-weight:600; color:var(--ink); white-space:nowrap}
+
+  /* ── Role cards ─────────────────────────── */
+  .roles{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px}
+  .role{background:var(--surface); border:1px solid var(--hairline); border-radius:4px; padding:18px 20px}
+  .role h4{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:3px}
+  .role .rsub{font-size:.78rem; color:var(--ink-3); margin-bottom:13px; padding-bottom:11px; border-bottom:1px solid var(--hairline)}
+  .role dl{margin:0; font-size:.845rem}
+  .role dt{font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-weight:600; margin-top:11px}
+  .role dt:first-child{margin-top:0}
+  .role dd{margin:3px 0 0; color:var(--ink-2)}
+  .role dd.crit{color:var(--p0)}
+
+  /* ── Questions ──────────────────────────── */
+  .qlist{display:grid; gap:9px}
+  .qitem{display:grid; grid-template-columns:auto 1fr; gap:14px; background:var(--surface); border:1px solid var(--hairline); border-radius:3px; padding:14px 18px}
+  .qitem .qn{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--q); font-size:.82rem; padding-top:.1em}
+  .qitem .qq{font-weight:600; font-size:.93rem; margin-bottom:3px}
+  .qitem .qw{font-size:.83rem; color:var(--ink-3)}
+
+  /* ── Answers ────────────────────────────── */
+  .ans{border-top:1px solid var(--hairline); padding-top:18px; margin-top:18px}
+  .ans:first-of-type{border-top:none; padding-top:0; margin-top:0}
+  .ans .q{font-family:Spectral,serif; font-size:1.12rem; font-weight:600; margin-bottom:7px}
+  .ans .a{font-size:.92rem; color:var(--ink-2); max-width:80ch}
+  .ans .a strong{color:var(--ink)}
+
+  .note{
+    border-left:3px solid var(--accent); background:var(--surface); padding:13px 18px;
+    font-size:.87rem; color:var(--ink-2); margin:18px 0; border-radius:0 3px 3px 0;
+  }
+  ul.tight{margin:.4em 0; padding-left:1.15em}
+  ul.tight li{margin-bottom:.28em}
+
+  @media (max-width:820px){
+    .wrap{padding:0 18px 64px}
+    h1{font-size:2rem}
+    .verdict{grid-template-columns:1fr; gap:22px}
+    .score{border-right:none; border-bottom:1px solid var(--hairline); padding:0 0 20px}
+    .worlds{grid-template-columns:1fr}
+    .gapcol{flex-direction:row; padding:14px 0}
+    .gapcol .bar{flex:1; height:2px; width:auto; min-height:0; background:repeating-linear-gradient(to right,var(--p0) 0 5px,transparent 5px 11px)}
+    .gapcol .lbl{margin:0 10px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <span class="eyebrow">Business Flow Audit · Hệ thống LIMS</span>
+  <h1>Kiểm toán luồng nghiệp vụ VILAB</h1>
+  <p class="lede">Hệ thống hiện tại có thực sự mô phỏng đúng quy trình vận hành của một phòng thử nghiệm hay không — đối chiếu Nghiệp vụ ↔ Database ↔ API ↔ Phân quyền ↔ Giao diện.</p>
+  <div class="mast-meta">
+    <span>Kho: <b>lims</b></span>
+    <span>Nhánh: <b>main</b></span>
+    <span>Mốc: <b>e04ff51</b> · migration <b>m36</b></span>
+    <span>Ngày: <b>2026-09-03</b></span>
+    <span>Phạm vi: <b>Khách hàng → Báo giá → Nhận mẫu → Lab → Kết quả</b></span>
+  </div>
+</header>
+
+<!-- ══════════════ A ══════════════ -->
+<section id="a">
+  <div class="sec-head"><span class="letter">A</span><h2>Kết luận tổng quát</h2></div>
+  <p class="sec-sub">Điểm số đánh giá mức độ hệ thống phản ánh đúng nghiệp vụ phòng thử nghiệm end-to-end — không phải chất lượng code. Từng module riêng lẻ được xây dựng cẩn thận; chuỗi nghiệp vụ nối chúng lại thì đứt.</p>
+
+  <div class="verdict">
+    <div class="score">
+      <div class="n">4<span>/10</span></div>
+      <div class="cap">Vận hành được tới bước <b>chuyển mẫu sang lab</b>. Từ đó trở đi — nhập kết quả, kiểm tra, phê duyệt, phát hành — <b>không có luồng nghiệp vụ nào tồn tại</b> trong module đang chạy thật.</div>
+    </div>
+    <div class="tally">
+      <div class="t0"><div class="v">4</div><div class="k">P0 — Nghiêm trọng</div></div>
+      <div class="t1"><div class="v">6</div><div class="k">P1 — Lớn</div></div>
+      <div class="t2"><div class="v">6</div><div class="k">P2 — Trung bình</div></div>
+      <div class="t3"><div class="v">3</div><div class="k">P3 — Nhỏ</div></div>
+      <div class="tq"><div class="v">8</div><div class="k">Câu hỏi nghiệp vụ</div></div>
+      <div class="t0"><div class="v">2</div><div class="k">Rò rỉ PII (xác nhận)</div></div>
+      <div class="t1"><div class="v">3</div><div class="k">Rủi ro kiến trúc</div></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Ba phát hiện định hình toàn bộ báo cáo này:</b>
+    <ul class="tight">
+      <li><b>Phòng lab đã bị tước quyền nhập kết quả của chính mình</b> (migration <code>m36</code>, mới nhất). Phòng nhận mẫu nhập hộ.</li>
+      <li><b>Hệ thống có hai thế giới dữ liệu tách rời</b>: bảng <code>sample_intakes</code> (luồng thật đang dùng) và <code>samples</code> (luồng có đầy đủ kiểm soát ISO). Không có khóa ngoại nào nối chúng.</li>
+      <li><b>Cơ chế ẩn thông tin khách hàng với khối lab bị vô hiệu</b> qua hai đường vòng: tệp đính kèm và tham số tìm kiếm.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════ B ══════════════ -->
+<section id="b">
+  <div class="sec-head"><span class="letter">B</span><h2>Vòng đời end-to-end</h2></div>
+  <p class="sec-sub">Mô phỏng một mẫu thật đi hết quy trình. Mỗi bước được chấm theo việc hệ thống có <em>thực thi</em> bước đó không — không phải có màn hình hay không.</p>
+
+  <div class="pipe">
+    <div class="stage warn"><div class="n">01</div><div class="t">Khách hàng ⚠️</div><div class="s">Có sổ khách. Không chống trùng, tìm kiếm chỉ theo tên.</div></div>
+    <div class="stage warn"><div class="n">02</div><div class="t">Người liên hệ ⚠️</div><div class="s">Danh bạ tốt, nhưng phiếu chỉ giữ được <em>một</em> người.</div></div>
+    <div class="stage bad"><div class="n">03</div><div class="t">Báo giá ❌</div><div class="s">Bắt buộc phải chuyển lab <em>trước</em> mới lập được báo giá.</div></div>
+    <div class="stage warn"><div class="n">04</div><div class="t">Nhận mẫu ⚠️</div><div class="s">Bản chụp thông tin đúng chuẩn. Thiếu tình trạng &amp; số lượng mẫu.</div></div>
+    <div class="stage bad"><div class="n">05</div><div class="t">Chấp nhận mẫu ❌</div><div class="s">Không tồn tại. Không có đường từ chối mẫu.</div></div>
+    <div class="stage warn"><div class="n">06</div><div class="t">Chuyển lab ⚠️</div><div class="s">Chạy được, nhưng bỏ qua state machine và cả phiếu đã hủy.</div></div>
+    <div class="stage bad"><div class="n">07</div><div class="t">Phân công ❌</div><div class="s">Không có trong luồng thật.</div></div>
+    <div class="stage bad"><div class="n">08</div><div class="t">Thử nghiệm ❌</div><div class="s">Lab không có quyền ghi kết quả (m36).</div></div>
+    <div class="stage bad"><div class="n">09</div><div class="t">Kiểm tra ❌</div><div class="s">Không tồn tại.</div></div>
+    <div class="stage bad"><div class="n">10</div><div class="t">Phê duyệt ❌</div><div class="s">Không tồn tại.</div></div>
+    <div class="stage bad"><div class="n">11</div><div class="t">Phát hành ❌</div><div class="s">Không có phiếu kết quả. Chỉ là một trạng thái.</div></div>
+    <div class="stage warn"><div class="n">12</div><div class="t">Lưu hồ sơ ⚠️</div><div class="s">Audit append-only tốt. Bản ghi không bị khóa.</div></div>
+  </div>
+  <div class="legend">
+    <span><b style="color:var(--ok)">✅ Đúng</b></span>
+    <span><b style="color:var(--p1)">⚠️ Một phần</b></span>
+    <span><b style="color:var(--p0)">❌ Đứt / không tồn tại</b></span>
+    <span style="color:var(--ink-3)">Bước 07–11 là toàn bộ phần lõi của một LIMS.</span>
+  </div>
+
+  <h3 style="margin:38px 0 4px">Nguyên nhân gốc: hai thế giới dữ liệu</h3>
+  <p class="sec-sub">Đây không phải lỗi lập trình mà là một vết nứt kiến trúc. Hai bộ bảng cùng mô tả “mẫu thử nghiệm” nhưng không hề biết nhau.</p>
+
+  <div class="worlds">
+    <div class="world live">
+      <h4>Luồng đang chạy thật</h4>
+      <div class="who">Phòng nhận mẫu · Văn phòng · Lãnh đạo · GĐ2b (m16→m36)</div>
+      <ul class="chain">
+        <li>customers</li>
+        <li>customer_contacts</li>
+        <li>sample_intakes <span style="color:var(--ink-3)">(phiếu BM 7.1.01)</span></li>
+        <li>sample_dispatches <span style="color:var(--ink-3)">(BM 7.1.02)</span></li>
+        <li>quotations</li>
+      </ul>
+      <p style="font-size:.8rem; color:var(--p0); margin:14px 0 0">Không có: phân công · phiên bản kết quả · duyệt · bàn giao mẫu · state machine cho kết quả.</p>
+    </div>
+    <div class="gapcol">
+      <span class="bar"></span>
+      <span class="lbl">KHÔNG CÓ FK</span>
+      <span class="bar"></span>
+    </div>
+    <div class="world">
+      <h4>Luồng có kiểm soát ISO</h4>
+      <div class="who">Phòng lab · M1 (FR-001…019) — không ai đi tới được</div>
+      <ul class="chain">
+        <li>test_requests</li>
+        <li>samples <span style="color:var(--ink-3)">(condition_status)</span></li>
+        <li>sample_assignments</li>
+        <li>sample_results <span style="color:var(--ink-3)">(version, approved_by)</span></li>
+        <li>sample_handovers <span style="color:var(--ink-3)">(bất biến)</span></li>
+      </ul>
+      <p style="font-size:.8rem; color:var(--ok); margin:14px 0 0">Có đủ: tách nhập–duyệt, versioning bất biến, lý do sửa bắt buộc, chuỗi giám hộ.</p>
+    </div>
+  </div>
+
+  <p class="prose" style="font-size:.9rem; color:var(--ink-2)">
+    Kiểm chứng: không service nào tạo <code>Sample</code> từ <code>SampleIntake</code>; <code>samples</code> và <code>test_requests</code> không có cột nào trỏ tới <code>sample_intakes</code>. Phòng nhận mẫu <em>có</em> quyền <code>sample:create</code> nhưng menu <code>/samples</code> chỉ hiện cho <code>admin/leader/lab_manager/staff</code> — nên trên thực tế bảng <code>samples</code> gần như không bao giờ được ghi từ quầy.
+  </p>
+</section>
+
+<!-- ══════════════ C ══════════════ -->
+<section id="c">
+  <div class="sec-head"><span class="letter">C</span><h2>Phân tích theo vai trò</h2></div>
+  <p class="sec-sub">Đối chiếu trách nhiệm nghiệp vụ thực tế với quyền hạn hệ thống thật sự cấp.</p>
+
+  <div class="roles">
+    <div class="role">
+      <h4>Văn phòng <span class="chip c1">Lệch nghiệp vụ</span></h4>
+      <div class="rsub"><code>office</code> — 2 quyền duy nhất trong ma trận RBAC</div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Xem báo giá (kể cả xuất Excel), thẻ vào PTN, hồ sơ nhân sự, NCKH, báo cáo hoạt động, dashboard tài chính.</dd>
+        <dt>Không làm được</dt>
+        <dd class="crit">Không mở được màn hình <b>Khách hàng</b> — bị chặn ở cả frontend lẫn backend (quy ước B03). Không tạo/sửa được pháp nhân, MST, người liên hệ. Không lập được báo giá.</dd>
+        <dt>Mâu thuẫn</dt>
+        <dd>Vai trò nghiệp vụ của Văn phòng là quản lý khách hàng, hợp đồng, hóa đơn — nhưng hệ thống giao toàn bộ dữ liệu khách hàng cho Phòng nhận mẫu và <b>KTV phòng lab</b>. Văn phòng đọc được báo giá (có tên, địa chỉ, MST, điện thoại khách) nhưng không đọc được chính sổ khách hàng chứa cùng dữ liệu đó.</dd>
+      </dl>
+    </div>
+
+    <div class="role">
+      <h4>Phòng nhận mẫu <span class="chip c0">Nút thắt cổ chai</span></h4>
+      <div class="rsub"><code>reception</code> — vai trò gánh nhiều việc nhất hệ thống</div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Tạo/sửa phiếu nhận mẫu, tự đặt mã phiếu, quản lý sổ khách hàng &amp; danh bạ, chuyển chỉ tiêu tới lab, lập báo giá, ghi nhận thanh toán, đổi trạng thái phiếu, duyệt yêu cầu xem thông tin khách, quản lý danh mục chỉ tiêu &amp; bảng giá — <b>và từ m36, nhập cả kết quả thử nghiệm</b>.</dd>
+        <dt>Thiếu</dt>
+        <dd class="crit">Không có công cụ ghi nhận tình trạng mẫu, số lượng mẫu, hay từ chối mẫu không đạt điều kiện tiếp nhận.</dd>
+        <dt>Rủi ro</dt>
+        <dd class="crit">Không còn bất kỳ sự tách bạch trách nhiệm nào: cùng một người nhận mẫu, định giá, thu tiền, ghi kết quả và đóng phiếu.</dd>
+      </dl>
+    </div>
+
+    <div class="role">
+      <h4>Phòng thử nghiệm <span class="chip c0">Bị vô hiệu hóa</span></h4>
+      <div class="rsub"><code>staff</code> · <code>lab_manager</code></div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Xem phiếu nhận/chuyển mẫu của phòng mình (thông tin khách bị ẩn). Gửi yêu cầu xin xem thông tin khách hàng.</dd>
+        <dt>Không làm được</dt>
+        <dd class="crit">Không xác nhận được “đã nhận mẫu”. Không đổi được trạng thái thực hiện. <b>Không ghi được kết quả, đơn vị, phương pháp, tên cán bộ phân tích.</b> Toàn bộ đi qua một endpoint <code>PATCH /dispatches/{id}</code> mà m36 đã thu hồi quyền.</dd>
+        <dt>Nghịch lý</dt>
+        <dd>Vẫn giữ đầy đủ quyền nhập/duyệt kết quả trong module M1 (<code>sample:result</code>, <code>sample:approve</code>) — module mà quầy nhận mẫu không đẩy dữ liệu vào.</dd>
+      </dl>
+    </div>
+
+    <div class="role">
+      <h4>Lãnh đạo <span class="chip c1">Số liệu sai</span></h4>
+      <div class="rsub"><code>leader</code></div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Đọc mọi phiếu, duyệt kết quả M1, đọc nhật ký hệ thống, xem báo cáo &amp; dashboard, sửa phiếu chuyển mẫu (m36).</dd>
+        <dt>Không làm được</dt>
+        <dd>Không có <code>intake:manage</code> → không tạo/sửa được phiếu nhận mẫu, không đổi được trạng thái phiếu (dù service có kiểm tra cho phép — nhánh chết vì router chặn trước).</dd>
+        <dt>Vấn đề</dt>
+        <dd class="crit">Dashboard “Tổng mẫu / Mẫu quá hạn / Đã chốt” đọc bảng <code>samples</code> — bảng mà luồng nhận mẫu không bao giờ ghi. Không có KPI nào cho phiếu nhận mẫu, tỷ lệ từ chối, thời gian xử lý (TAT), doanh thu hay báo giá.</dd>
+      </dl>
+    </div>
+
+    <div class="role">
+      <h4>Quản trị <span class="chip cok">Đầy đủ</span></h4>
+      <div class="rsub"><code>admin</code></div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Toàn quyền trên mọi module; quản lý người dùng, phòng ban, RBAC; đọc nhật ký kiểm toán.</dd>
+        <dt>Ghi nhận tốt</dt>
+        <dd>Nhật ký kiểm toán là append-only (không có route UPDATE/DELETE, chặn thêm bằng trigger DB). Không có endpoint xóa cứng cho mẫu, phiếu, khách hàng.</dd>
+        <dt>Thiếu</dt>
+        <dd>Ma trận RBAC chỉ sửa được bằng migration, không có màn hình quản trị quyền. Vai trò <code>qms</code> không đọc được nhật ký kiểm toán dù đó là chức năng cốt lõi của Quản lý chất lượng.</dd>
+      </dl>
+    </div>
+
+    <div class="role">
+      <h4>Quản lý chất lượng <span class="chip cn">Ngoài luồng</span></h4>
+      <div class="rsub"><code>qms</code></div>
+      <dl>
+        <dt>Làm được</dt>
+        <dd>Đọc phiếu nhận mẫu và mẫu, quản trị kho biểu mẫu VILAS, duyệt tài liệu, dashboard chất lượng riêng.</dd>
+        <dt>Thiếu</dt>
+        <dd>Không đọc được nhật ký kiểm toán. Không có bất kỳ chỉ số chất lượng vận hành nào (tỷ lệ mẫu bị từ chối, tỷ lệ làm lại, sai lệch) vì dữ liệu nguồn không được ghi nhận.</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ D ══════════════ -->
+<section id="d">
+  <div class="sec-head"><span class="letter">D</span><h2>Danh mục phát hiện</h2></div>
+  <p class="sec-sub">Mỗi phát hiện kèm bằng chứng chỉ tới file và hàm cụ thể. Không suy đoán yêu cầu nghiệp vụ — chỗ nào thiếu thông tin được ghi rõ ở mục I.</p>
+
+  <h3 style="margin:26px 0 12px; color:var(--p0)">P0 — Nghiêm trọng về nghiệp vụ</h3>
+
+  <div class="finding f0">
+    <div class="f-head">
+      <span class="chip c0">P0-1</span><h4>Phòng lab không được ghi kết quả thử nghiệm của chính mình</h4>
+      <span class="chip cn">Lab · Kết quả</span>
+    </div>
+    <div class="f-body">
+      <p>Migration mới nhất thu hồi quyền <code>dispatch:update</code> của <code>staff</code> và <code>lab_manager</code>. Toàn bộ việc ghi <code>ket_qua</code>, <code>don_vi</code>, <code>phuong_phap</code>, <code>can_bo</code> và đổi trạng thái thực hiện đều đi qua đúng một endpoint dùng quyền đó. Chính docstring của migration ghi: <em>“Kết quả thử nghiệm từ nay do Phòng nhận mẫu / lãnh đạo nhập hộ, hoặc lab báo qua kênh khác rồi Phòng nhận mẫu ghi vào.”</em></p>
+      <p><b>Tác động:</b> người thực hiện phép thử không phải người ghi kết quả. Danh tính cán bộ phân tích tụt xuống thành ô text tự do (<code>can_bo VARCHAR(255)</code>) do người khác gõ, không phải một tham chiếu tới tài khoản hệ thống. Không truy xuất được ai thực sự làm phép thử — trái với ISO/IEC 17025 §7.8.2 và §6.2. Lab cũng không xác nhận được “đã nhận mẫu”, nên chuỗi giám hộ trong luồng thật bị đứt ngay từ điểm bàn giao.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> alembic/versions/1718870400035_m36_dispatch_update_roles.py · sample_flow_service.update_dispatch() · routers/sample_flow.py <code>require_permission("dispatch","update")</code> · models/sample_flow.py <code>SampleDispatch.can_bo</code></div>
+    <div class="fix"><b>Khuyến nghị:</b> tách endpoint — lab giữ quyền ghi <em>cột kết quả</em> và trạng thái thực hiện; Phòng nhận mẫu giữ quyền sửa <em>cột hành chính</em> của phiếu. Thay <code>can_bo</code> bằng khóa ngoại tới <code>users</code>, ghi tự động từ người đăng nhập.</div>
+  </div>
+
+  <div class="finding f0">
+    <div class="f-head">
+      <span class="chip c0">P0-2</span><h4>Kết quả trong luồng thật không có kiểm tra, phê duyệt, phiên bản hay khóa</h4>
+      <span class="chip cn">Lab · Lãnh đạo</span>
+    </div>
+    <div class="f-body">
+      <p><code>SampleDispatch.ket_qua</code> là một cột <code>Text</code> sửa tự do qua <code>PATCH</code>. Không có <code>approved_by</code>, không có <code>version</code>, không có <code>is_current</code>, không có lý do sửa. <code>update_dispatch()</code> gán thẳng <code>d.status = new_status</code> mà không qua state machine nào, nên <code>done → sent → sửa kết quả → done</code> lặp vô hạn đều hợp lệ. Phiếu đã ở trạng thái “Đã trả kết quả” vẫn sửa được kết quả.</p>
+      <p><b>Đối chiếu:</b> module M1 làm đúng toàn bộ những điều trên — <code>sample_results</code> có <code>version</code>, <code>is_current</code>, <code>approved_by</code>, CHECK bắt buộc <code>revision_reason</code> khi version &gt; 1, và chặn tự duyệt (<code>SELF_APPROVAL_FORBIDDEN</code>). Nhưng module đó không nằm trên đường đi của mẫu thật.</p>
+      <p>Nhật ký kiểm toán có ghi <code>DISPATCH_UPDATE</code> nhưng detail chỉ chứa <em>giá trị mới</em>, không có giá trị cũ — không tái dựng được kết quả tại thời điểm đã trả cho khách.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> models/sample_flow.py <code>SampleDispatch</code> · sample_flow_service.update_dispatch() · so sánh models/sample_result.py <code>ck_res_revision_reason</code>, result_service.approve_result()</div>
+    <div class="fix"><b>Khuyến nghị:</b> đưa cột kết quả của <code>sample_dispatches</code> vào bảng phiên bản riêng theo đúng mô hình <code>sample_results</code>, thêm state machine cho dispatch, và khóa bản ghi sau khi phiếu chuyển sang <code>completed</code>.</div>
+  </div>
+
+  <div class="finding f0">
+    <div class="f-head">
+      <span class="chip c0">P0-3</span><h4>Rò rỉ PII gián tiếp: tệp đính kèm bỏ qua toàn bộ cơ chế che thông tin khách hàng</h4>
+      <span class="chip cn">Bảo mật · m26</span>
+    </div>
+    <div class="f-body">
+      <p>Cơ chế m26 che <code>customer_name</code>, <code>address</code>, <code>tax_code</code>, <code>contact_person</code>, <code>phone</code>, <code>email</code> với khối lab, và đã cẩn thận xóa cả <code>customer_id</code> để chặn đường vòng <code>GET /customers/{id}</code>. Nhưng payload phiếu vẫn trả nguyên danh sách <code>files[]</code>.</p>
+      <p>Tệp đính kèm của phiếu chính là <b>bản scan BM 7.1.01 đã điền</b> — chứa đúng tên khách, địa chỉ, MST, người liên hệ, điện thoại và email vừa bị che. Guard đọc tệp <code>attachment_authz._read_intake()</code> chỉ kiểm quyền <code>intake:read</code>, mà <code>staff</code> và <code>lab_manager</code> đều có với scope <code>all</code>. Nó <b>không</b> gọi <code>customer_info_service.has_access()</code>.</p>
+      <p><b>Đường tấn công:</b> <code>GET /intakes/{id}</code> → lấy <code>files[].id</code> → <code>GET /attachments/{id}</code> → nhận presigned URL → tải file → đọc lại toàn bộ PII. Không có test nào chặn đường này; <code>test_attachment_authz.py</code> chỉ kiểm tra guard <em>có tồn tại</em>.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> services/attachment_authz.py <code>_read_intake / _read_dispatch</code> · sample_flow_service._serialize_intake() (<code>files</code> không bị mask) · customer_info_service.PII_FIELDS · seed RBAC <code>('staff','intake','read','all')</code></div>
+    <div class="fix"><b>Khuyến nghị:</b> trong <code>_read_intake</code> và <code>_read_dispatch</code>, gọi thêm <code>customer_info_service.has_access()</code>; hoặc lọc <code>files[]</code> khỏi payload khi phiếu đang bị che, giống cách <code>customer_id</code> đã được xử lý.</div>
+  </div>
+
+  <div class="finding f0">
+    <div class="f-head">
+      <span class="chip c0">P0-4</span><h4>Dashboard lãnh đạo và Phòng nhận mẫu đếm sai bảng</h4>
+      <span class="chip cn">Lãnh đạo · Báo cáo</span>
+    </div>
+    <div class="f-body">
+      <p><code>dashboard_service._kpi_samples()</code> đếm bảng <code>samples</code>. Luồng nhận mẫu ghi vào <code>sample_intakes</code>. Hai bảng không liên quan nhau.</p>
+      <p>Hệ quả cụ thể trên giao diện: ô KPI của Phòng nhận mẫu ghi <em>“Phiếu chờ chuyển lab”</em> và <em>“Mẫu quá hạn trả KQ”</em>, lấy giá trị từ <code>data.samples.by_status.received</code> và <code>.overdue</code>, nhưng bấm vào lại điều hướng sang <code>/sample-flow</code> — màn hình đọc bảng <em>khác</em>. Con số và màn hình đích không cùng nguồn dữ liệu.</p>
+      <p>Ngoài ra không tồn tại KPI nào cho: số phiếu nhận, tỷ lệ mẫu bị từ chối, tỷ lệ làm lại, thời gian xử lý (TAT/SLA), doanh thu, hay thống kê khách hàng — tức là toàn bộ nhóm chỉ số Quality và Management mà lãnh đạo cần.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> services/dashboard_service.py <code>_kpi_samples</code>, <code>_chart_samples_by_status</code> · pages/dashboards/ReceptionDashboard.tsx · pages/dashboards/LeaderDashboard.tsx · <code>grep Intake</code> trong unified_report_service/sample_report_service → không có kết quả</div>
+    <div class="fix"><b>Khuyến nghị:</b> hoặc nối hai thế giới dữ liệu (xem mục J), hoặc viết lại khối KPI mẫu trên <code>sample_intakes</code> + <code>sample_dispatches</code>. Không để hai nguồn cùng tồn tại dưới một nhãn.</div>
+  </div>
+
+  <h3 style="margin:34px 0 12px; color:var(--p1)">P1 — Lớn</h3>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-1</span><h4>Luồng “báo giá trước, chuyển mẫu sau” không thực hiện được</h4><span class="chip cn">Báo giá</span></div>
+    <div class="f-body">
+      <p>Thiết kế m28 tuyên bố luồng: <em>tiếp nhận → báo giá → khách đồng ý → thanh toán → chuyển lab</em>. Code chạy ngược lại:</p>
+      <ul class="tight">
+        <li><code>create_from_intake()</code> từ chối nếu phiếu chưa có chỉ tiêu: <em>“hãy phân chỉ tiêu trước khi lập báo giá”</em> — mà phân chỉ tiêu <b>chính là</b> chuyển mẫu sang lab.</li>
+        <li><code>add_dispatch()</code> đặt ngay <code>it.status = "dispatched"</code> và bắn thông báo cho phòng lab.</li>
+        <li>Khi báo giá chuyển sang <code>sent</code>/<code>accepted</code>, hàm đồng bộ chỉ chạy nếu phiếu đang ở <code>received</code>/<code>quoted</code> — lúc này phiếu đã là <code>dispatched</code>, nên không đồng bộ.</li>
+        <li><code>INTAKE_NEXT["dispatched"]</code> chỉ còn <code>completed</code> và <code>cancelled</code>.</li>
+      </ul>
+      <p>Kết quả: ba trạng thái <code>quoted → quote_accepted → paid</code> là mã chết trên đường đi tự nhiên. Giao diện chỉ cảnh báo mềm <em>“vẫn có thể chuyển nếu cần”</em> chứ không chặn.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> quotation_service.create_from_intake() (<code>ErrorCode.NO_ITEMS</code>) · sample_flow_service.add_dispatch() · quotation_service.change_status() · models/sample_flow.py <code>INTAKE_NEXT</code> · components/sampleFlow/IntakeWorkflow.tsx <code>showPayWarning</code></div>
+  </div>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-2</span><h4>Một phiếu chỉ giữ được một người liên hệ</h4><span class="chip cn">Nhận mẫu · Khách hàng</span></div>
+    <div class="f-body">
+      <p><code>sample_intakes</code> chỉ có ba ô phẳng <code>contact_person</code>, <code>phone</code>, <code>email</code>. Danh bạ <code>customer_contacts</code> được mô tả trong chính docstring là <em>“danh bạ phẳng, KHÔNG phân vai trò”</em>. Trên giao diện, chọn một người trong danh bạ sẽ <b>ghi đè</b> cả ba ô.</p>
+      <p>Không biểu diễn được ba tình huống rất phổ biến: người mang mẫu tới ≠ người nhận kết quả; người liên hệ chuyên môn ≠ người liên hệ thanh toán; hai bộ phận (QA và R&amp;D) của cùng khách gửi hai loại mẫu khác nhau. Hệ thống không lưu được “ai đã gửi mẫu nào”.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> models/sample_flow.py <code>SampleIntake</code> · models/customer.py <code>CustomerContact</code> docstring · components/sampleFlow/IntakeCreateModal.tsx <code>applyContact()</code></div>
+  </div>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-3</span><h4>Không có đường từ chối mẫu, không ghi nhận tình trạng và số lượng mẫu</h4><span class="chip cn">Nhận mẫu</span></div>
+    <div class="f-body">
+      <p>Trạng thái phiếu chỉ có <code>cancelled</code>, và lý do là tùy chọn (<code>note: Optional</code>) — hủy phiếu không bắt buộc nêu lý do, và “hủy” về nghiệp vụ khác hẳn “từ chối tiếp nhận vì mẫu không đạt”.</p>
+      <p>Form nhận mẫu không có ô nào cho tình trạng mẫu, số lượng mẫu, loại bao bì, hay nhiệt độ bảo quản. Cột <code>condition_status</code>/<code>condition_note</code> có tồn tại — nhưng nằm ở bảng <code>samples</code> thuộc thế giới mà quầy không chạm tới. <code>quantity</code> chỉ có ở dòng chỉ tiêu chuyển lab, tức là số lượng phép thử chứ không phải số lượng mẫu nhận.</p>
+      <p>ISO/IEC 17025 §7.4.2–7.4.3 yêu cầu ghi nhận sai lệch điều kiện mẫu và bảo lưu trách nhiệm khi vẫn nhận mẫu không đạt.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> models/sample_flow.py <code>VALID_INTAKE_STATUS</code> · schemas/sample_flow.py <code>ChangeIntakeStatusRequest</code>, <code>CreateIntakeRequest</code> · components/sampleFlow/IntakeCreateModal.tsx · models/sample.py <code>ck_smp_condition</code></div>
+  </div>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-4</span><h4>Thêm được chỉ tiêu vào phiếu đã hủy hoặc đã hoàn tất</h4><span class="chip cn">Nhận mẫu · Lab</span></div>
+    <div class="f-body">
+      <p><code>add_dispatch()</code> và <code>add_dispatches_batch()</code> không kiểm tra trạng thái phiếu. Câu lệnh <code>if it.status in ("received","quoted","quote_accepted","paid")</code> chỉ dùng để <em>nâng</em> trạng thái; với phiếu <code>cancelled</code> hoặc <code>completed</code>, dòng chỉ tiêu vẫn được tạo và phòng lab vẫn nhận thông báo “Mẫu mới được chuyển đến phòng”. Phòng lab làm việc trên một phiếu đã hủy.</p>
+      <p>Ngoài ra không có endpoint xóa dòng chỉ tiêu — một dòng chuyển nhầm phòng hoặc nhầm chỉ tiêu sẽ tồn tại vĩnh viễn, chỉ sửa được nội dung.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> sample_flow_service.add_dispatch(), add_dispatches_batch() · routers/sample_flow.py (không có <code>@router.delete</code> cho dispatch)</div>
+  </div>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-5</span><h4>Báo giá đã gửi khách vẫn sửa và xóa cứng được, không có phiên bản</h4><span class="chip cn">Báo giá</span></div>
+    <div class="f-body">
+      <p><code>update_quotation()</code> chỉ khóa khi trạng thái là <code>accepted</code>. Một báo giá đã ở trạng thái <code>sent</code> — nghĩa là đã gửi cho khách — vẫn sửa được đơn giá, số lượng, danh sách chỉ tiêu, và cả thông tin khách hàng. Không có bảng phiên bản; nhật ký chỉ ghi <code>code</code> và <code>total</code>, không ghi nội dung thay đổi.</p>
+      <p><code>delete_quotation()</code> dùng <code>db.delete()</code> — xóa cứng, cascade luôn các dòng chi tiết. Chứng từ thương mại biến mất khỏi hệ thống.</p>
+      <p>Không có cơ chế tự hết hiệu lực: <code>valid_until</code> qua rồi báo giá vẫn ở trạng thái <code>sent</code>; trạng thái <code>expired</code> chỉ đổi được thủ công.</p>
+      <p><b>Ghi nhận tích cực:</b> báo giá <em>có</em> chụp đúng thông tin khách (<code>customer_name/address/email/phone/tax_code</code>) thay vì đọc ngược từ master data — snapshot đúng chuẩn.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> quotation_service.update_quotation(), delete_quotation(), change_status() · models/quotation.py <code>QUOTATION_NEXT</code></div>
+  </div>
+
+  <div class="finding f1">
+    <div class="f-head"><span class="chip c1">P1-6</span><h4>KTV phòng lab sửa được hồ sơ pháp nhân khách hàng; Văn phòng thì không</h4><span class="chip cn">Phân quyền</span></div>
+    <div class="f-body">
+      <p>Backend: <code>write_roles = require_roles("admin","staff","reception")</code>. Frontend khớp y hệt. Nghĩa là <code>staff</code> — kỹ thuật viên phòng lab — tạo, sửa được tên pháp nhân, mã số thuế, địa chỉ, và toàn bộ danh bạ liên hệ, kể cả xóa cứng một dòng liên hệ.</p>
+      <p>Cùng lúc, <code>office</code> bị chặn khỏi cả đọc lẫn ghi. Đây là mâu thuẫn trực tiếp với phân công nghiệp vụ, và cũng mâu thuẫn nội bộ: cùng dữ liệu đó, Văn phòng lại đọc được đầy đủ qua màn hình Báo giá.</p>
+      <p>Ghi chú thêm: <code>leader</code> và <code>qms</code> cũng không tạo/sửa được khách hàng.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> routers/customers.py <code>read_roles</code> / <code>write_roles</code> · lib/rbac.ts <code>canManageCustomers</code>, <code>canViewCustomers</code> · routers/quotations.py <code>quotation_read</code></div>
+  </div>
+
+  <h3 style="margin:34px 0 12px; color:var(--p2)">P2 — Trung bình</h3>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-1</span><h4>Không chống trùng khách hàng; tìm kiếm chỉ theo tên</h4></div>
+    <div class="f-body"><p>Không có ràng buộc duy nhất hay chỉ mục nào trên <code>tax_code</code>, cũng không có kiểm tra định dạng MST. <code>list_customers()</code> chỉ lọc <code>Customer.name.ilike</code> — gõ mã số thuế, số điện thoại, email hay tên người liên hệ vào ô tìm kiếm đều không ra kết quả. Nút “thêm vào sổ” trên form nhận mẫu tạo khách mới ngay lập tức, không cảnh báo trùng. Đây là công thức chuẩn để sinh khách hàng trùng lặp tại quầy.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> customer_service.list_customers() · models/customer.py (chỉ có <code>ck_customer_type</code>) · IntakeCreateModal.createCustomerFromForm()</div>
+  </div>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-2</span><h4>Phiếu đã hoàn tất vẫn sửa được thông tin khách và cả mã phiếu</h4></div>
+    <div class="f-body">
+      <p>Nguyên tắc snapshot được thực hiện <b>đúng</b>: phiếu chụp giá trị chứ không giữ khóa ngoại tới danh bạ, nên khách đổi người liên hệ về sau không làm sai phiếu đã in. Đây là điểm mạnh thật sự của thiết kế.</p>
+      <p>Nhưng <code>_UPDATABLE_INTAKE_FIELDS</code> cho phép sửa <code>customer_name</code>, <code>tax_code</code>, <code>address</code>, <code>contact_person</code> — và cả <code>code</code> — ở <b>mọi trạng thái</b>, kể cả <code>completed</code>. Bản chụp được bảo vệ khỏi thay đổi của master data nhưng không được bảo vệ khỏi chỉnh sửa trực tiếp. Đổi <code>code</code> sau khi đã dán nhãn lên mẫu và đã chuyển lab khiến nhãn vật lý và hệ thống lệch nhau.</p>
+    </div>
+    <div class="ev"><b>Bằng chứng:</b> sample_flow_service.<code>_UPDATABLE_INTAKE_FIELDS</code>, update_intake()</div>
+  </div>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-3</span><h4>Rò rỉ PII gián tiếp thứ hai: tham số tìm kiếm làm lộ tên khách</h4></div>
+    <div class="f-body"><p><code>list_intakes()</code> áp bộ lọc <code>customer_name.ilike(q)</code> <b>trước</b> khi che dữ liệu. Người dùng khối lab gửi <code>GET /intakes?q=&lt;tên công ty&gt;</code> và quan sát phiếu nào trả về là suy ra được chủ mẫu, dù mọi trường đều hiển thị “••• Đã ẩn •••”. Kết hợp với việc <code>staff</code> và <code>lab_manager</code> đọc được toàn bộ sổ khách hàng qua <code>GET /customers</code>, người dùng có sẵn danh sách tên để dò.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> sample_flow_service.list_intakes() · routers/customers.py <code>read_roles</code> gồm <code>staff</code>, <code>lab_manager</code></div>
+  </div>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-4</span><h4>Nhật ký kiểm toán không lưu giá trị trước khi sửa</h4></div>
+    <div class="f-body"><p><code>INTAKE_UPDATE</code>, <code>DISPATCH_UPDATE</code> ghi <code>detail=changes</code>; <code>CUSTOMER_UPDATE</code> ghi <code>detail={"diff": …}</code> — tất cả chỉ chứa giá trị <em>mới</em>. Không tái dựng được nội dung hồ sơ tại thời điểm in hay tại thời điểm trả kết quả cho khách, tức là mất khả năng chứng minh khi có tranh chấp.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> sample_flow_service.update_intake() / update_dispatch() · customer_service.update_customer()</div>
+  </div>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-5</span><h4>Quyền xem thông tin khách hàng cấp cho cả phòng và vĩnh viễn</h4></div>
+    <div class="f-body"><p>Theo đúng thiết kế m26: một KTV xin xem thông tin khách của một phiếu, được duyệt, thì <b>toàn bộ phòng</b> đó có quyền xem <b>vĩnh viễn</b> — không hết hạn, không thu hồi được, không có endpoint hủy. Với dữ liệu định danh khách hàng thì cấp quyền không thời hạn cho một đơn vị tổ chức là mức kiểm soát yếu.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> models/sample_flow.py <code>CustomerInfoRequest</code> docstring · customer_info_service.has_access()</div>
+  </div>
+
+  <div class="finding f2">
+    <div class="f-head"><span class="chip c2">P2-6</span><h4>Quản lý chất lượng không đọc được nhật ký kiểm toán</h4></div>
+    <div class="f-body"><p><code>audit_roles = require_roles("admin","leader")</code>. Vai trò <code>qms</code> — chịu trách nhiệm kiểm soát hồ sơ (§8.4) và đánh giá nội bộ (§8.8) — không truy cập được nhật ký. Có thể là quyết định nghiệp vụ có chủ ý, nhưng cần xác nhận.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> routers/audit_logs.py</div>
+  </div>
+
+  <h3 style="margin:34px 0 12px; color:var(--p3)">P3 — Nhỏ</h3>
+
+  <div class="finding f3">
+    <div class="f-head"><span class="chip c3">P3-1</span><h4>CHECK constraint trong model đã lỗi thời so với database thật</h4></div>
+    <div class="f-body"><p><code>SampleIntake.__table_args__</code> khai <code>status IN ('open','dispatched','closed')</code> trong khi <code>VALID_INTAKE_STATUS</code> và database thật (sau m28) dùng 7 giá trị khác hẳn. Tương tự, <code>User</code> khai <code>status IN ('active','disabled')</code> nhưng m30 đã thêm <code>pending</code>. Không ảnh hưởng runtime — test dựng schema bằng chính alembic, không dùng <code>metadata.create_all</code> — nhưng gây hiểu sai cho người đọc model.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> models/sample_flow.py <code>ck_intake_status</code> · models/user.py <code>ck_users_status</code> · tests/conftest.py (dùng <code>command.upgrade</code>)</div>
+  </div>
+
+  <div class="finding f3">
+    <div class="f-head"><span class="chip c3">P3-2</span><h4>Sinh mã bằng COUNT(*) — trùng mã khi có bản ghi bị xóa</h4></div>
+    <div class="f-body"><p><code>_next_intake_code()</code> và <code>sample_common._next_code()</code> đếm số bản ghi trong năm rồi cộng 1. Xóa một bản ghi là số tiếp theo trùng với mã đã cấp. Ràng buộc UNIQUE bắt được lỗi nhưng người dùng nhận 409. Ở luồng nhận mẫu, việc để nhân viên tự đặt mã (khớp nhãn dán trên mẫu) là quyết định thiết kế <b>đúng</b>, nên rủi ro này chỉ nằm ở đường dự phòng.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> sample_flow_service._next_intake_code() · services/sample_common.py <code>_next_code</code></div>
+  </div>
+
+  <div class="finding f3">
+    <div class="f-head"><span class="chip c3">P3-3</span><h4>Seed RBAC có hai dòng mâu thuẫn scope cho cùng một quyền</h4></div>
+    <div class="f-body"><p>Ma trận seed chứa cả <code>('lab_manager','dispatch','update','all')</code> lẫn <code>('lab_manager','dispatch','update','department')</code>. Ràng buộc <code>uq_rp_role_res_act</code> chỉ cho tồn tại một dòng, nên scope thực tế phụ thuộc thứ tự chạy migration và mệnh đề <code>ON CONFLICT DO NOTHING</code>. Hiện không gây hại vì m36 đã xóa cả hai, nhưng cùng mẫu lỗi này tồn tại ở <code>staff</code>.</p></div>
+    <div class="ev"><b>Bằng chứng:</b> tổng hợp <code>INSERT INTO roles_permissions</code> trên toàn bộ alembic/versions/</div>
+  </div>
+</section>
+
+<!-- ══════════════ E ══════════════ -->
+<section id="e">
+  <div class="sec-head"><span class="letter">E</span><h2>Ma trận phân quyền thực tế</h2></div>
+  <p class="sec-sub">Đọc từ seed <code>roles_permissions</code> và các <code>require_roles</code> trong router — không phải từ tài liệu thiết kế. <span class="yes">✓</span> có quyền · <span class="no">—</span> không · <span class="bad">!</span> có quyền nhưng sai nghiệp vụ.</p>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr>
+          <th>Hành động</th>
+          <th class="mid">Văn phòng</th>
+          <th class="mid">Nhận mẫu</th>
+          <th class="mid">KTV</th>
+          <th class="mid">TP Lab</th>
+          <th class="mid">Lãnh đạo</th>
+          <th class="mid">QLCL</th>
+          <th class="mid">Quản trị</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-th">Xem khách hàng</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid bad">!</td><td class="mid bad">!</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Tạo / sửa khách hàng</td><td class="mid bad">—</td><td class="mid yes">✓</td><td class="mid bad">!</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Tạo / sửa người liên hệ</td><td class="mid bad">—</td><td class="mid yes">✓</td><td class="mid bad">!</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Nhận mẫu (tạo phiếu)</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Sửa phiếu nhận mẫu</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Đọc phiếu nhận mẫu</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Đổi trạng thái phiếu</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid bad">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Chuyển mẫu sang lab</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th"><b>Nhập kết quả (luồng thật)</b></td><td class="mid no">—</td><td class="mid bad">!</td><td class="mid bad">—</td><td class="mid bad">—</td><td class="mid bad">!</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Kiểm tra kết quả</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td></tr>
+        <tr><td class="row-th">Phê duyệt kết quả</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td></tr>
+        <tr><td class="row-th">Nhập kết quả (M1, rời)</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Duyệt kết quả (M1, rời)</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Lập / sửa báo giá</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Xem báo giá (có PII + giá)</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Ghi nhận thanh toán</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Quản lý bảng giá chỉ tiêu</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid no">—</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Xóa mẫu / phiếu / khách</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td></tr>
+        <tr><td class="row-th">Xem PII trên phiếu</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid bad">che*</td><td class="mid bad">che*</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td></tr>
+        <tr><td class="row-th">Đọc nhật ký kiểm toán</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid no">—</td><td class="mid yes">✓</td><td class="mid bad">—</td><td class="mid yes">✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:.8rem; color:var(--ink-3); margin-top:10px">
+    * “che” = bị ẩn trên payload phiếu nhưng <b>đọc lại được</b> qua tệp đính kèm (P0-3) và dò được qua tham số tìm kiếm (P2-3); đồng thời vẫn đọc được toàn bộ sổ khách hàng qua <code>GET /customers</code>.<br>
+    Hai ô đáng chú ý: “Kiểm tra kết quả” và “Phê duyệt kết quả” trống hoàn toàn ở luồng đang chạy thật — không vai trò nào có, vì bước đó không tồn tại.
+  </p>
+</section>
+
+<!-- ══════════════ F ══════════════ -->
+<section id="f">
+  <div class="sec-head"><span class="letter">F</span><h2>Vấn đề mô hình dữ liệu</h2></div>
+
+  <h3 style="margin:0 0 10px">Thực thể thiếu</h3>
+  <div class="scroller" style="margin-bottom:26px">
+    <table>
+      <thead><tr><th>Thực thể</th><th>Vì sao cần</th><th>Hệ quả hiện tại</th></tr></thead>
+      <tbody>
+        <tr><td class="row-th">Vai trò người liên hệ</td><td>Người gửi mẫu, người nhận kết quả, liên hệ kỹ thuật, liên hệ thanh toán là bốn vai trò độc lập</td><td>Phiếu ép tất cả về một <code>contact_person</code> (P1-2)</td></tr>
+        <tr><td class="row-th">Địa điểm / nhà máy</td><td>Một pháp nhân có nhiều nhà máy, mẫu lấy từ nhà máy nào là thông tin bắt buộc trên phiếu kết quả</td><td>Chỉ có một ô <code>address</code> phẳng — không biểu diễn được</td></tr>
+        <tr><td class="row-th">Chấp nhận / từ chối mẫu</td><td>ISO 17025 §7.4.2 — ghi nhận sai lệch điều kiện tiếp nhận</td><td>Chỉ có <code>cancelled</code>, không lý do bắt buộc (P1-3)</td></tr>
+        <tr><td class="row-th">Phiên bản kết quả (luồng thật)</td><td>Kết quả đã phát hành phải bất biến; sửa phải sinh phiên bản mới có lý do</td><td><code>ket_qua</code> là ô text sửa tự do (P0-2)</td></tr>
+        <tr><td class="row-th">Phiếu kết quả / phát hành</td><td>Sản phẩm cuối giao cho khách, có số hiệu, ngày phát hành, người ký</td><td>Chỉ có trạng thái <code>completed</code>, không có chứng từ</td></tr>
+        <tr><td class="row-th">Phiên bản báo giá</td><td>Chứng từ thương mại đã gửi khách phải giữ nguyên</td><td>Sửa đè, xóa cứng (P1-5)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin:0 0 10px">Database cho phép nhưng nghiệp vụ không</h3>
+  <ul class="tight prose" style="font-size:.9rem; color:var(--ink-2); margin-bottom:22px">
+    <li>Hai khách hàng cùng mã số thuế — không có ràng buộc duy nhất trên <code>tax_code</code>.</li>
+    <li>Nhiều phiếu nhận mẫu cùng một khách với thông tin liên hệ khác nhau, không có cách nào biết đâu là bản đúng.</li>
+    <li><code>ket_qua</code> ghi được cả khi <code>status = 'sent'</code> (lab còn chưa nhận mẫu).</li>
+    <li>Dòng chỉ tiêu tồn tại trên phiếu <code>cancelled</code> (P1-4).</li>
+    <li><code>quotations.intake_id</code> là <code>ON DELETE SET NULL</code> — báo giá có thể mồ côi khỏi phiếu.</li>
+  </ul>
+
+  <h3 style="margin:0 0 10px">Nghiệp vụ cần nhưng database không ràng buộc</h3>
+  <ul class="tight prose" style="font-size:.9rem; color:var(--ink-2); margin-bottom:22px">
+    <li>Người ghi kết quả phải là người được phân công thực hiện — không có bảng phân công trong luồng thật.</li>
+    <li>Người duyệt phải khác người nhập — chỉ tồn tại ở M1 (<code>result_service.approve_result</code>), không có ở luồng thật.</li>
+    <li>Trạng thái thanh toán phải đạt <code>paid</code> trước khi chuyển mẫu — chỉ là cảnh báo trên giao diện.</li>
+    <li>Kết quả đã trả cho khách phải bất biến — không có khóa nào.</li>
+  </ul>
+
+  <div class="note">
+    <b>Sai lệch mô hình cốt lõi:</b> <code>sample_dispatches</code> đang gánh hai khái niệm khác nhau cùng lúc — <em>“chỉ tiêu khách đặt”</em> (dùng để báo giá, tính tiền) và <em>“phiếu giao việc cho phòng lab”</em> (dùng để theo dõi thực hiện). Vì gộp làm một, không thể báo giá trước khi giao việc, không thể hủy giao việc mà giữ đơn hàng, và không thể giao cùng một chỉ tiêu cho hai phòng. Đây là nguyên nhân kỹ thuật của P1-1 và P1-4.
+  </div>
+
+  <h3 style="margin:26px 0 10px">Điểm làm đúng — cần giữ khi tái cấu trúc</h3>
+  <ul class="tight prose" style="font-size:.9rem; color:var(--ink-2)">
+    <li><b>Snapshot phiếu.</b> Phiếu chụp giá trị thông tin khách, không giữ khóa ngoại tới danh bạ. Khách đổi người liên hệ ngày mai không làm sai phiếu in hôm qua. Báo giá cũng chụp tương tự. Đây là điều nhiều LIMS thương mại làm sai.</li>
+    <li><b>Xóa <code>customer_id</code> khỏi payload bị che.</b> Tác giả đã lường trước đúng đường vòng <code>GET /customers/{id}</code> — chỉ bỏ sót đường tệp đính kèm.</li>
+    <li><b>Danh bạ tắt thay vì xóa.</b> <code>is_active=false</code> giữ lịch sử; unique index từng phần đảm bảo mỗi khách đúng một liên hệ mặc định, chốt ở tầng DB chứ không chỉ ở service.</li>
+    <li><b>Nhật ký append-only</b> và bảng bàn giao mẫu bất biến (không có route UPDATE/DELETE).</li>
+    <li><b>Deny-by-default cho tệp đính kèm.</b> <code>attachment_authz</code> bắt mọi module mới phải khai quyền tường minh — kiến trúc đúng, chỉ là luật cho <code>sample_intake</code> viết thiếu.</li>
+    <li><b>Danh sách field ghi được tường minh</b> thay cho vòng lặp <code>setattr</code> — đã chặn được đường đổi trạng thái vòng qua state machine.</li>
+  </ul>
+</section>
+
+<!-- ══════════════ G ══════════════ -->
+<section id="g">
+  <div class="sec-head"><span class="letter">G</span><h2>Bảo mật &amp; dữ liệu cá nhân</h2></div>
+  <p class="sec-sub">Mục tiêu nghiệp vụ của m26 là <em>làm mù</em> phòng lab — KTV nhận diện mẫu bằng mã phiếu, không biết mẫu của ai, để tránh thiên lệch kết quả. Đánh giá dưới đây theo đúng mục tiêu đó.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Đường truy cập</th><th>Vai trò khai thác</th><th>Kết quả</th><th>Mức</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="row-th">GET /attachments/{id} — tệp BM 7.1.01 đã điền</td>
+          <td>staff, lab_manager</td>
+          <td>Đọc lại toàn bộ tên, địa chỉ, MST, người liên hệ, điện thoại, email vừa bị che</td>
+          <td><span class="chip c0">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td class="row-th">GET /intakes?q=&lt;tên khách&gt;</td>
+          <td>staff, lab_manager</td>
+          <td>Bộ lọc chạy trước khi che → xác nhận được phiếu nào thuộc khách nào</td>
+          <td><span class="chip c1">HIGH</span></td>
+        </tr>
+        <tr>
+          <td class="row-th">GET /customers — sổ khách hàng đầy đủ</td>
+          <td>staff, lab_manager</td>
+          <td>Không phá vỡ tính “mù” trực tiếp, nhưng cung cấp từ điển tên để dò ở đường trên</td>
+          <td><span class="chip c2">MEDIUM</span></td>
+        </tr>
+        <tr>
+          <td class="row-th">GET /quotations — có PII + đơn giá</td>
+          <td>—</td>
+          <td>Đã siết đúng về admin/leader/reception/office; khối lab bị chặn</td>
+          <td><span class="chip cok">ĐÃ XỬ LÝ</span></td>
+        </tr>
+        <tr>
+          <td class="row-th">GET /customers/{id} qua customer_id trên phiếu</td>
+          <td>—</td>
+          <td><code>PII_ID_FIELDS</code> xóa <code>customer_id</code> khỏi payload bị che</td>
+          <td><span class="chip cok">ĐÃ XỬ LÝ</span></td>
+        </tr>
+        <tr>
+          <td class="row-th">Quyền xem đã duyệt</td>
+          <td>cả phòng ban</td>
+          <td>Vĩnh viễn, không thu hồi, không hết hạn</td>
+          <td><span class="chip c2">MEDIUM</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="prose" style="margin-top:16px; font-size:.9rem; color:var(--ink-2)">
+    Đánh giá chung: ý đồ bảo mật <b>đúng và được suy nghĩ kỹ</b> — tác giả đã nhận ra và bịt đường vòng khó nhất (<code>customer_id</code>). Nhưng cơ chế che đặt ở tầng <em>serialize dữ liệu</em>, trong khi tệp đính kèm đi qua một router hoàn toàn khác với luật uỷ quyền riêng. Một biện pháp kiểm soát chỉ mạnh bằng đường vòng yếu nhất của nó, và ở đây đường vòng đó trả về đúng bản scan của tờ phiếu chứa mọi thông tin cần che.
+  </p>
+</section>
+
+<!-- ══════════════ H ══════════════ -->
+<section id="h">
+  <div class="sec-head"><span class="letter">H</span><h2>Trải nghiệm tại quầy nhận mẫu</h2></div>
+  <p class="sec-sub">Ưu tiên cao nhất vì đây là nơi thao tác nhanh, khách đứng đợi, và sai sót lan xuống toàn bộ hồ sơ phía sau.</p>
+
+  <div class="roles">
+    <div class="role">
+      <h4>Làm tốt <span class="chip cok">Giữ nguyên</span></h4>
+      <dl>
+        <dt>Mã phiếu do nhân viên tự đặt</dt>
+        <dd>Đúng nghiệp vụ: mã phải khớp nhãn đã dán lên mẫu và sổ tay tại quầy, không phải số thứ tự hệ thống sinh ra.</dd>
+        <dt>Tự điền từ sổ khách</dt>
+        <dd>Chọn khách → điền sẵn 6 ô của BM 7.1.01. Khách chỉ có một người liên hệ thì điền luôn, không bắt bấm chọn thừa.</dd>
+        <dt>Danh bạ hỏng không chặn việc nhận mẫu</dt>
+        <dd>Lỗi tải danh bạ được nuốt, phiếu vẫn gõ tay được — đúng ưu tiên cho quầy.</dd>
+        <dt>Chia nhóm trường</dt>
+        <dd>Form theo đúng bố cục biểu mẫu giấy: Mã phiếu · Khách hàng · Mẫu &amp; hẹn trả · Kết quả &amp; lệ phí · Đính kèm.</dd>
+      </dl>
+    </div>
+    <div class="role">
+      <h4>Cản trở <span class="chip c1">Cần sửa</span></h4>
+      <dl>
+        <dt>Tìm khách chỉ theo tên</dt>
+        <dd class="crit">Khách đọc mã số thuế hoặc số điện thoại qua điện thoại — gõ vào ô tìm kiếm không ra gì. Nhân viên tạo khách mới, sinh trùng lặp.</dd>
+        <dt>Không có ô tình trạng &amp; số lượng mẫu</dt>
+        <dd class="crit">Việc đầu tiên nhân viên quầy làm với mẫu vật lý — đếm và xem tình trạng — không có chỗ ghi.</dd>
+        <dt>Không có nút từ chối</dt>
+        <dd class="crit">Mẫu hỏng, sai bao bì, sai nhiệt độ: chỉ còn cách “Hủy” không lý do, hoặc nhận bừa.</dd>
+        <dt>Menu Khách hàng nằm trong nhóm Quản trị</dt>
+        <dd>Công việc hằng ngày của quầy bị xếp cùng chỗ với Tài khoản, Phòng ban, Nhật ký hệ thống.</dd>
+        <dt>Ô “Chọn người liên hệ” chỉ hiện khi có &gt; 1 người</dt>
+        <dd>Hợp lý cho tốc độ, nhưng đồng nghĩa nhân viên không thấy được rằng phiếu chỉ ghi được đúng một người.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:20px">
+    <b>Câu hỏi kiểm chứng — “nhân viên mới có nhận mẫu được không?”</b><br>
+    Nhận mẫu và in phiếu: <b>có</b>, form bám sát biểu mẫu giấy nên không cần hiểu gì về database. Nhưng ba khái niệm sau thì không suy ra được từ giao diện: (1) vì sao phải phân chỉ tiêu <em>trước</em> mới lập được báo giá; (2) vì sao trạng thái phiếu nhảy thẳng sang “Đã chuyển lab” ngay khi thêm chỉ tiêu đầu tiên, bỏ qua ba bước hiển thị trên thanh tiến trình; (3) vì sao thanh tiến trình vẽ 6 bước nhưng thực tế chỉ đi được 2. Đây là rò rỉ của mô hình dữ liệu ra giao diện, không phải vấn đề đào tạo.
+  </div>
+</section>
+
+<!-- ══════════════ I ══════════════ -->
+<section id="i">
+  <div class="sec-head"><span class="letter">I</span><h2>Câu hỏi cần chủ nghiệp vụ quyết định</h2></div>
+  <p class="sec-sub">Những điểm audit này <b>không</b> tự kết luận. Mỗi câu đổi hướng thiết kế theo cách khác nhau, và đoán sai sẽ tốn nhiều hơn là hỏi.</p>
+
+  <div class="qlist">
+    <div class="qitem"><div class="qn">Q1</div><div>
+      <div class="qq">Ai chịu trách nhiệm nhập kết quả thử nghiệm — phòng lab hay Phòng nhận mẫu?</div>
+      <div class="qw">Migration m36 ghi “đã xác nhận với nghiệp vụ” là Phòng nhận mẫu. Nếu đúng như vậy thì hệ thống không thể truy xuất người thực hiện phép thử, và cần văn bản hóa rủi ro này trước kỳ đánh giá VILAS. Nếu đó là hiểu nhầm, đây là việc phải sửa đầu tiên.</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q2</div><div>
+      <div class="qq">Kết quả có cần bước kiểm tra và phê duyệt trước khi trả khách không? Ai duyệt?</div>
+      <div class="qw">Hiện không có bước nào. Module M1 đã xây sẵn tách nhập–duyệt đầy đủ nhưng không nằm trên luồng thật.</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q3</div><div>
+      <div class="qq">“Khách hàng” là pháp nhân hay địa điểm/nhà máy?</div>
+      <div class="qw">Quyết định này định hình toàn bộ mô hình. Nếu một công ty có ba nhà máy gửi mẫu riêng, mô hình hiện tại buộc phải tạo ba khách hàng trùng mã số thuế — mà MST lại không có ràng buộc duy nhất, nên sẽ trôi qua âm thầm.</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q4</div><div>
+      <div class="qq">Một người liên hệ có cần phân vai trò không?</div>
+      <div class="qw">Người mang mẫu, người nhận kết quả, liên hệ kỹ thuật, liên hệ thanh toán — có phải bốn vai trò tách rời, và một người có thể giữ nhiều vai không?</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q5</div><div>
+      <div class="qq">Có bắt buộc thanh toán trước khi chuyển mẫu sang lab không?</div>
+      <div class="qw">Thiết kế m28 nói có; code chỉ hiển thị cảnh báo mềm “vẫn có thể chuyển nếu cần”. Cần chốt là ràng buộc cứng, cảnh báo, hay tùy loại khách.</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q6</div><div>
+      <div class="qq">Mẫu không đạt điều kiện tiếp nhận xử lý thế nào?</div>
+      <div class="qw">Từ chối hẳn, hay nhận có bảo lưu và ghi chú lên phiếu kết quả? Ai được quyền quyết định — nhân viên quầy hay phải hỏi phòng lab?</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q7</div><div>
+      <div class="qq">Sau khi phiếu ở trạng thái “Đã trả kết quả”, còn được sửa thông tin gì?</div>
+      <div class="qw">Hiện sửa được tất cả, kể cả mã phiếu và tên khách. Cần chốt danh sách trường khóa cứng sau khi phát hành.</div>
+    </div></div>
+    <div class="qitem"><div class="qn">Q8</div><div>
+      <div class="qq">Module M1 (<code>samples</code>, <code>test_requests</code>, <code>sample_results</code>) còn dùng không?</div>
+      <div class="qw">Nếu còn thì phải nối vào luồng nhận mẫu. Nếu không thì phải gỡ, vì hiện nó đang cấp số liệu sai cho toàn bộ dashboard lãnh đạo. Không thể để nguyên trạng.</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════ J ══════════════ -->
+<section id="j">
+  <div class="sec-head"><span class="letter">J</span><h2>Luồng mục tiêu đề xuất</h2></div>
+  <p class="sec-sub">Không thêm module mới. Đề xuất là <b>nối</b> hai thế giới đã có, dùng lại phần kiểm soát mà M1 đã xây đúng, thay vì viết lại lần thứ ba.</p>
+
+  <div class="pipe" style="grid-template-columns:repeat(auto-fit,minmax(158px,1fr))">
+    <div class="stage ok"><div class="n">01</div><div class="t">Khách + Liên hệ</div><div class="s">Thêm vai trò liên hệ; chống trùng theo MST; tìm đa trường.</div></div>
+    <div class="stage ok"><div class="n">02</div><div class="t">Yêu cầu dịch vụ</div><div class="s">Bảng chỉ tiêu <em>khách đặt</em>, tách khỏi phiếu giao lab.</div></div>
+    <div class="stage ok"><div class="n">03</div><div class="t">Báo giá</div><div class="s">Lập từ yêu cầu, không cần chuyển lab trước. Khóa + version khi gửi.</div></div>
+    <div class="stage ok"><div class="n">04</div><div class="t">Nhận mẫu</div><div class="s">Thêm tình trạng &amp; số lượng mẫu vào BM 7.1.01.</div></div>
+    <div class="stage ok"><div class="n">05</div><div class="t">Chấp nhận / Từ chối</div><div class="s">Bước mới, bắt buộc lý do + người quyết định + thời điểm.</div></div>
+    <div class="stage ok"><div class="n">06</div><div class="t">Chuyển lab</div><div class="s">Sinh từ yêu cầu đã chấp nhận; có state machine.</div></div>
+    <div class="stage ok"><div class="n">07</div><div class="t">Phân công</div><div class="s">Dùng lại <code>sample_assignments</code>.</div></div>
+    <div class="stage ok"><div class="n">08</div><div class="t">Nhập kết quả</div><div class="s">Lab nhập, danh tính lấy từ tài khoản đăng nhập.</div></div>
+    <div class="stage ok"><div class="n">09</div><div class="t">Kiểm tra</div><div class="s">Trưởng phòng lab trả lại kèm lý do.</div></div>
+    <div class="stage ok"><div class="n">10</div><div class="t">Phê duyệt</div><div class="s">Người duyệt ≠ người nhập. Duyệt xong là bất biến.</div></div>
+    <div class="stage ok"><div class="n">11</div><div class="t">Phát hành</div><div class="s">Phiếu kết quả có số hiệu, ngày, người ký.</div></div>
+    <div class="stage ok"><div class="n">12</div><div class="t">Lưu hồ sơ</div><div class="s">Khóa bản ghi; audit ghi cả giá trị trước.</div></div>
+  </div>
+
+  <div class="note">
+    <b>Nguyên tắc chuyển đổi:</b> giữ nguyên bảng <code>sample_intakes</code> làm hồ sơ tiếp nhận (phần snapshot đang làm đúng), tách <code>sample_dispatches</code> thành <em>dòng yêu cầu</em> và <em>phiếu giao việc</em>, rồi nối phiếu giao việc vào <code>sample_assignments</code> → <code>sample_results</code> đã có sẵn versioning và tách nhập–duyệt. Phần khó nhất của một LIMS đã được viết đúng trong repo này — nó chỉ đang không được nối vào cửa trước.
+  </div>
+</section>
+
+<!-- ══════════════ K ══════════════ -->
+<section id="k">
+  <div class="sec-head"><span class="letter">K</span><h2>Thứ tự triển khai</h2></div>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:64px">Ưu tiên</th><th>Việc</th><th>Vì sao trước</th><th>Phụ thuộc</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="chip c0">P0</span></td>
+          <td class="row-th">Bịt rò rỉ PII qua tệp đính kèm</td>
+          <td>Lỗ hổng đang mở, khai thác chỉ cần hai lệnh gọi API, làm vô hiệu toàn bộ mục tiêu của m26</td>
+          <td>Không — sửa được ngay trong <code>attachment_authz</code>, kèm test</td>
+        </tr>
+        <tr>
+          <td><span class="chip c0">P0</span></td>
+          <td class="row-th">Trả lại quyền ghi kết quả cho phòng lab</td>
+          <td>Đang vi phạm nguyên tắc truy xuất người thực hiện; mọi kết quả tạo ra từ đây đều có vết</td>
+          <td>Q1 phải được chốt trước</td>
+        </tr>
+        <tr>
+          <td><span class="chip c0">P0</span></td>
+          <td class="row-th">Quyết định số phận module M1</td>
+          <td>Chặn tất cả việc sửa dashboard và toàn bộ lộ trình kết quả; càng để lâu càng đắt</td>
+          <td>Q8, Q2</td>
+        </tr>
+        <tr>
+          <td><span class="chip c1">P1</span></td>
+          <td class="row-th">Tách “chỉ tiêu khách đặt” khỏi “phiếu giao lab”</td>
+          <td>Mở khóa luồng báo giá → đồng ý → thanh toán → chuyển mẫu như thiết kế m28 đã định</td>
+          <td>Sau khi chốt Q8</td>
+        </tr>
+        <tr>
+          <td><span class="chip c1">P1</span></td>
+          <td class="row-th">Thêm bước chấp nhận/từ chối mẫu + tình trạng + số lượng</td>
+          <td>Yêu cầu của ISO 17025 §7.4 và là việc nhân viên quầy đang phải làm ngoài hệ thống</td>
+          <td>Q6</td>
+        </tr>
+        <tr>
+          <td><span class="chip c1">P1</span></td>
+          <td class="row-th">Vai trò cho người liên hệ trên phiếu</td>
+          <td>Không có thì không biết ai nhận kết quả — rủi ro gửi sai người</td>
+          <td>Q4</td>
+        </tr>
+        <tr>
+          <td><span class="chip c1">P1</span></td>
+          <td class="row-th">Khóa + version báo giá đã gửi; chuyển xóa cứng sang xóa mềm</td>
+          <td>Chứng từ thương mại, có giá trị pháp lý</td>
+          <td>Không</td>
+        </tr>
+        <tr>
+          <td><span class="chip c1">P1</span></td>
+          <td class="row-th">Sắp lại quyền khách hàng: Văn phòng vào, KTV ra</td>
+          <td>Sửa lệch vai trò và thu hẹp phạm vi tiếp xúc PII cùng lúc</td>
+          <td>Xác nhận vai trò Văn phòng</td>
+        </tr>
+        <tr>
+          <td><span class="chip c2">P2</span></td>
+          <td class="row-th">Chống trùng khách + tìm theo MST/điện thoại/email</td>
+          <td>Bỏ qua thì dữ liệu khách hàng phân mảnh không thể phục hồi</td>
+          <td>Q3</td>
+        </tr>
+        <tr>
+          <td><span class="chip c2">P2</span></td>
+          <td class="row-th">Khóa trường sau khi phiếu hoàn tất; audit ghi giá trị trước</td>
+          <td>Snapshot chỉ có giá trị pháp lý nếu không sửa được sau khi phát hành</td>
+          <td>Q7</td>
+        </tr>
+        <tr>
+          <td><span class="chip c2">P2</span></td>
+          <td class="row-th">Bịt oracle tìm kiếm; đặt hạn cho quyền xem PII đã duyệt</td>
+          <td>Hoàn tất mô hình bảo mật m26</td>
+          <td>Sau P0 tệp đính kèm</td>
+        </tr>
+        <tr>
+          <td><span class="chip c3">P3</span></td>
+          <td class="row-th">Dọn CHECK constraint lỗi thời, seed RBAC trùng, sinh mã bằng COUNT</td>
+          <td>Không ảnh hưởng vận hành, nhưng đang gây hiểu sai cho người đọc code</td>
+          <td>Không</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════ Final ══════════════ -->
+<section id="final" style="margin-bottom:0">
+  <div class="sec-head"><span class="letter">★</span><h2>Năm câu trả lời</h2></div>
+
+  <div class="ans">
+    <div class="q">1. VILAB có vận hành end-to-end một mẫu thật từ nhận mẫu → thử nghiệm → phê duyệt → trả kết quả không?</div>
+    <div class="a"><strong>Không.</strong> Chạy được đến bước chuyển mẫu sang phòng lab. Từ đó trở đi: phòng lab không có quyền ghi kết quả (m36), không có bước kiểm tra, không có bước phê duyệt, và không có chứng từ phát hành nào — “trả kết quả” chỉ là một giá trị trạng thái trên phiếu. Kết quả thực tế được ghi vào một ô text tự do mà Phòng nhận mẫu gõ hộ và sửa lại bất cứ lúc nào.</div>
+  </div>
+
+  <div class="ans">
+    <div class="q">2. Vai trò nào là nút thắt lớn nhất?</div>
+    <div class="a"><strong>Phòng nhận mẫu.</strong> Không phải vì thiếu quyền, mà vì thừa: nhận mẫu, quản lý sổ khách hàng, định giá, thu tiền, điều phối lab, duyệt yêu cầu xem thông tin khách, quản lý bảng giá — và từ m36, nhập cả kết quả thử nghiệm. Mọi phiếu đều phải đi qua một vai trò duy nhất, và không còn bất kỳ sự tách bạch trách nhiệm nào giữa người nhận mẫu, người định giá và người ghi kết quả.</div>
+  </div>
+
+  <div class="ans">
+    <div class="q">3. Thực thể nào không phản ánh đúng nghiệp vụ?</div>
+    <div class="a"><strong><code>sample_dispatches</code></strong> — gánh cùng lúc “chỉ tiêu khách đặt” (để báo giá) và “phiếu giao việc cho lab” (để theo dõi thực hiện), nên không thể báo giá trước khi giao việc. <strong><code>sample_intakes.contact_person</code></strong> — ép bốn vai trò liên hệ về một ô text. Và <strong>toàn bộ cụm <code>samples</code>/<code>test_requests</code>/<code>sample_results</code></strong> — mô hình hóa đúng nghiệp vụ nhất trong cả hệ thống, nhưng không được nối vào cửa trước nên vừa vô dụng vừa đang cấp số liệu sai cho dashboard lãnh đạo.</div>
+  </div>
+
+  <div class="ans">
+    <div class="q">4. Có vấn đề nào đủ nghiêm trọng để phải sửa trước khi mở rộng hệ thống?</div>
+    <div class="a"><strong>Có, ba vấn đề.</strong> (1) Rò rỉ PII qua tệp đính kèm — đang mở, khai thác bằng hai lệnh gọi API, làm vô hiệu hoàn toàn cơ chế làm mù phòng lab. (2) Phòng lab không được ghi kết quả của chính mình — mọi kết quả tạo ra trong thời gian này đều không truy xuất được người thực hiện, và không sửa hồi tố được. (3) Hai thế giới dữ liệu tách rời — mỗi tính năng mới xây trên nền này sẽ phải chọn một bên, và nợ kỹ thuật nhân đôi theo mỗi lần chọn.</div>
+  </div>
+
+  <div class="ans">
+    <div class="q">5. Nếu chỉ được sửa 5 thứ trong sprint tới?</div>
+    <div class="a">
+      <ol class="tight" style="padding-left:1.3em; margin:0">
+        <li><b>Bịt rò rỉ PII qua tệp đính kèm.</b> Sửa nhỏ, rủi ro thấp, chặn một lỗ hổng đang mở. Không phụ thuộc quyết định nghiệp vụ nào.</li>
+        <li><b>Trả quyền ghi kết quả cho phòng lab, thay <code>can_bo</code> bằng danh tính tài khoản.</b> Mỗi ngày trì hoãn là thêm một tập hồ sơ không truy xuất được người thực hiện.</li>
+        <li><b>Chốt số phận module M1 và sửa dashboard theo đúng quyết định đó.</b> Lãnh đạo đang ra quyết định dựa trên con số đếm sai bảng — đây là loại lỗi làm mất niềm tin vào toàn hệ thống.</li>
+        <li><b>Thêm bước chấp nhận/từ chối mẫu, kèm tình trạng và số lượng mẫu.</b> Việc nhân viên quầy đang làm bằng tay ngoài hệ thống, và là yêu cầu bắt buộc của ISO 17025 §7.4.</li>
+        <li><b>Khóa báo giá đã gửi và bỏ xóa cứng.</b> Chi phí thấp nhất trong năm việc, bảo vệ chứng từ có giá trị pháp lý, và không cần chờ bất kỳ quyết định nghiệp vụ nào.</li>
+      </ol>
+      <p style="margin-top:12px">Bốn việc đầu phụ thuộc câu trả lời cho Q1 và Q8 ở mục I — nên việc thực sự đầu tiên là đưa hai câu hỏi đó cho chủ nghiệp vụ, không phải mở editor.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

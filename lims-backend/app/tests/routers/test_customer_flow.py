@@ -11,6 +11,8 @@ QUY TẮC CHỐNG TEST GIÒN (áp dụng cho toàn bộ app/tests/routers/):
 2. So mã lỗi bằng ErrorCode.X, không bằng chuỗi. Đổi tên mã thì test đỏ đúng chỗ.
 3. Mỗi test một khẳng định nghiệp vụ; tên test là câu mô tả quy tắc đó.
 """
+import pytest
+
 from app.core.error_codes import ErrorCode
 from app.tests.conftest import requires_db
 
@@ -49,13 +51,14 @@ class TestCustomerCrud:
 
     def test_patch_updates_only_given_fields(self, client, as_role):
         as_role("admin")
-        cid = _create(client, contact="0900000000").json()["data"]["id"]
+        # m35 đã bỏ ô `contact` tự do; dùng `phone` — cùng khẳng định nghiệp vụ.
+        cid = _create(client, phone="0900000000").json()["data"]["id"]
 
         res = client.patch(f"{_BASE}/{cid}", json={"name": "Tên Đã Đổi"})
         assert res.status_code == 200
         body = res.json()["data"]
         assert body["name"] == "Tên Đã Đổi"
-        assert body["contact"] == "0900000000", "PATCH không được xoá trường không gửi"
+        assert body["phone"] == "0900000000", "PATCH không được xoá trường không gửi"
 
     def test_unknown_id_returns_404(self, client, as_role):
         as_role("admin")
@@ -105,26 +108,42 @@ class TestCustomerContactFields:
 
 @requires_db
 class TestCustomerRbac:
-    """require_roles ở router quy định ai đọc/ghi được."""
+    """require_roles ở router quy định ai đọc/ghi được.
 
-    def test_lab_manager_can_read(self, client, as_role):
-        as_role("lab_manager")
-        assert client.get(_BASE).status_code == 200
+    W12 đã SẮP LẠI ma trận: khối lab ra, Văn phòng vào. Lý do và bằng chứng nằm ở
+    docstring của read_roles/write_roles trong routers/customers.py.
+    """
 
-    def test_lab_manager_cannot_create(self, client, as_role):
-        """Đọc được KHÔNG có nghĩa là ghi được — đây là chỗ RBAC hay bị nới lỏng."""
-        as_role("lab_manager")
+    @pytest.mark.parametrize("role", ("admin", "leader", "reception", "office"))
+    def test_vai_tro_nghiep_vu_doc_duoc(self, client, as_role, role):
+        as_role(role)
+        assert client.get(_BASE).status_code == 200, role
+
+    @pytest.mark.parametrize("role", ("staff", "lab_manager", "qms"))
+    def test_khoi_lab_khong_con_doc_duoc(self, client, as_role, role):
+        """Thông tin khách của từng phiếu vẫn tới được lab qua luồng xin/duyệt m26 —
+        đúng cơ chế sinh ra để kiểm soát việc đó, thay vì mở cả sổ khách."""
+        as_role(role)
+        assert client.get(_BASE).status_code == 403, role
+
+    @pytest.mark.parametrize("role", ("staff", "lab_manager"))
+    def test_khoi_lab_khong_sua_duoc_ma_so_thue(self, client, as_role, role):
+        """KTV sửa được mã số thuế của pháp nhân là lỗi phân vai, không phải tiện ích."""
+        as_role(role)
         res = _create(client)
         assert res.status_code == 403
         assert res.json()["error"]["code"] == ErrorCode.FORBIDDEN
 
-    def test_office_role_cannot_read(self, client, as_role):
-        as_role("office")
-        assert client.get(_BASE).status_code == 403
+    @pytest.mark.parametrize("role", ("reception", "office", "admin"))
+    def test_vai_tro_phu_trach_khach_hang_tao_duoc(self, client, as_role, role):
+        as_role(role)
+        assert _create(client, name=f"Do {role} tạo").status_code == 201
 
-    def test_reception_can_create(self, client, as_role):
-        as_role("reception")
-        assert _create(client, name="Do lễ tân tạo").status_code == 201
+    def test_leader_chi_doc_khong_ghi(self, client, as_role):
+        """Đọc được KHÔNG có nghĩa là ghi được — chỗ RBAC hay bị nới lỏng."""
+        as_role("leader")
+        assert client.get(_BASE).status_code == 200
+        assert _create(client).status_code == 403
 
 
 @requires_db

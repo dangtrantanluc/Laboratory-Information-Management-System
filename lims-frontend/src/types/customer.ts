@@ -22,7 +22,6 @@ export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
 export interface Customer {
   id: string;
   name: string;
-  contact: string | null;
   type: string;
   note?: string | null;
   /** m32 — dùng để tự điền phiếu nhận mẫu BM 7.1.01 khi chọn khách từ sổ. */
@@ -31,5 +30,25 @@ export interface Customer {
   contact_person?: string | null;
   phone?: string | null;
   email?: string | null;
+  created_at?: string;
+}
+
+/**
+ * m35 — một người liên hệ của khách. Danh bạ PHẲNG, không phân vai trò: nghiệp vụ
+ * đã chốt là RIBE chỉ cần biết "khách này có những ai", không cần gán ai làm gì.
+ */
+export interface CustomerContact {
+  id: string;
+  customer_id: string;
+  full_name: string;
+  /** Chức vụ — chỉ để nhân viên nhận ra ai là ai. */
+  job_title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  /** Đúng 1 dòng/khách. Quầy nhận mẫu tự điền dòng này nên không phải bấm chọn. */
+  is_primary: boolean;
+  /** Nghỉ việc thì tắt, KHÔNG xoá — phiếu cũ đã in tên họ. */
+  is_active: boolean;
+  note?: string | null;
   created_at?: string;
 }

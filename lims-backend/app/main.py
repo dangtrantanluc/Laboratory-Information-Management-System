@@ -88,6 +88,19 @@ async def lifespan(_app: FastAPI):
     except Exception as exc:  # noqa: BLE001 — không được chặn khởi động vì việc chỉnh tuning
         logger.warning("Cannot set threadpool limiter", extra={"error": str(exc)})
 
+    # Ma trận quyền được cache Redis TTL 300s. Migration đổi quyền (m36, m37) chạy
+    # ngay trước khi app khởi động, nên cache của tiến trình cũ vẫn giữ ma trận CŨ
+    # thêm tới 5 phút sau deploy — vừa chưa cấp quyền mới, vừa còn cấp quyền vừa bị
+    # thu hồi. `invalidate_role_cache()` đã tồn tại từ đầu nhưng KHÔNG được gọi ở
+    # bất kỳ đâu; gọi ở đây khiến mọi lần deploy tự đóng cửa sổ đó.
+    try:
+        from app.core.rbac import invalidate_role_cache
+
+        invalidate_role_cache()
+        logger.info("RBAC cache invalidated on startup")
+    except Exception as exc:  # noqa: BLE001 — cache lỗi không được chặn khởi động
+        logger.warning("RBAC cache invalidate skipped", extra={"error": str(exc)})
+
     try:
         from app.services import storage_service
 

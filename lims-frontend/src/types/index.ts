@@ -190,7 +190,8 @@ export interface FormSubmission {
 // ── Nhận & Chuyển mẫu (GĐ2b) ────────────────────────────────────
 // m28: luồng thật — tiếp nhận → báo giá → khách đồng ý → thanh toán → chuyển lab → trả KQ
 export type IntakeStatus =
-  | 'received' | 'quoted' | 'quote_accepted' | 'paid' | 'dispatched' | 'completed' | 'cancelled';
+  | 'received' | 'quoted' | 'quote_accepted' | 'paid' | 'dispatched' | 'completed'
+  | 'cancelled' | 'rejected';
 
 export const INTAKE_STATUS_LABELS: Record<IntakeStatus, string> = {
   received: 'Đã tiếp nhận',
@@ -200,12 +201,31 @@ export const INTAKE_STATUS_LABELS: Record<IntakeStatus, string> = {
   dispatched: 'Đã chuyển lab',
   completed: 'Đã trả kết quả',
   cancelled: 'Đã hủy',
+  rejected: 'Từ chối tiếp nhận',
 };
 
 /** Các bước theo thứ tự để vẽ thanh tiến trình (không gồm 'cancelled'). */
 export const INTAKE_FLOW: IntakeStatus[] = [
   'received', 'quoted', 'quote_accepted', 'paid', 'dispatched', 'completed',
 ];
+
+/** m43 — vai trò người liên hệ trên phiếu. */
+export type ContactRole = 'courier' | 'technical' | 'result_recipient' | 'billing';
+export const CONTACT_ROLE_LABELS: Record<ContactRole, string> = {
+  courier: 'Người gửi mẫu',
+  technical: 'Liên hệ chuyên môn',
+  result_recipient: 'Người nhận kết quả',
+  billing: 'Liên hệ thanh toán',
+};
+export interface IntakeContact {
+  id?: string;
+  role: ContactRole;
+  role_label?: string;
+  full_name: string;
+  job_title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid' | 'waived';
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -239,10 +259,23 @@ export interface SampleDispatch {
   don_vi?: string | null;
   phuong_phap?: string | null;
   ket_qua?: string | null;
+  /** Ô text cũ của BM 7.1/02. m37 giữ để đọc phiếu cũ — truy xuất dùng performed_by. */
   can_bo?: string | null;
+  /** m37 — người THỰC HIỆN phép thử, backend gán từ tài khoản đăng nhập. */
+  performed_by?: string | null;
+  performed_by_name?: string | null;
+  performed_at?: string | null;
   target_department_id: string;
   target_department_name: string | null;
   status: DispatchStatus;
+  /** m37 — bước hợp lệ kế tiếp; dựng nút từ đây thay vì cho chọn mọi trạng thái. */
+  next_statuses?: DispatchStatus[];
+  /** m40 — trạng thái duyệt kết quả, suy từ phiên bản hiện hành ở sample_results. */
+  result_id?: string | null;
+  result_version?: number | null;
+  result_approval_status?: 'draft' | 'pending' | 'approved' | null;
+  result_approved_by_name?: string | null;
+  result_approved_at?: string | null;
   note: string | null;
   dispatched_by: string;
   dispatched_by_name: string | null;
@@ -259,7 +292,6 @@ export interface SampleIntake {
   /** m33 — liên kết sổ khách hàng; null = khách vãng lai HOẶC đang bị che PII (m26). */
   customer_id?: string | null;
   customer_name: string;
-  contact: string | null;
   description: string | null;
   note: string | null;
   status: IntakeStatus;
@@ -279,6 +311,15 @@ export interface SampleIntake {
   phone?: string | null;
   email?: string | null;
   due_date?: string | null;
+  /** m39 — ngày hẹn ở dạng so sánh được; null khi ô text không phân giải nổi. */
+  due_date_at?: string | null;
+  /** m42 — tình trạng & số lượng mẫu, và dấu vết quyết định từ chối tiếp nhận. */
+  sample_count?: number | null;
+  condition_status?: 'acceptable' | 'not_acceptable' | null;
+  condition_note?: string | null;
+  rejected_reason?: string | null;
+  decided_by_name?: string | null;
+  decided_at?: string | null;
   result_language?: string | null;
   return_method?: string | null;
   fee_note?: string | null;
