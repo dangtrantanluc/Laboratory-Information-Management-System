@@ -3,6 +3,7 @@ import { ErrorState } from '@/components/ui/States';
 import { Users as UsersIcon, Plus, KeyRound, Power } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PendingApprovals } from '@/components/users/PendingApprovals';
+import { LockedAccounts } from '@/components/users/LockedAccounts';
 import { Card } from '@/components/ui/Card';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { DataTable, type Column } from '@/components/ui/DataTable';
@@ -70,10 +71,10 @@ export function UsersPage() {
       align: 'right',
       render: (u) => (
         <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => setResetUser(u)} title="Đặt lại mật khẩu">
+          <Button aria-label="Đặt lại mật khẩu" size="sm" variant="ghost" onClick={() => setResetUser(u)} title="Đặt lại mật khẩu">
             <KeyRound size={14} />
           </Button>
-          <Button
+          <Button aria-label={u.status === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
             size="sm"
             variant="ghost"
             onClick={() => setToggleUser(u)}
@@ -101,6 +102,10 @@ export function UsersPage() {
 
       {/* m30 — hàng chờ duyệt tài khoản tự đăng ký. Tự ẩn khi không có ai chờ. */}
       <PendingApprovals onChanged={reload} />
+
+      {/* m49 — đặt ngay đây vì đây là nơi quản trị viên tới khi có người báo
+          "không đăng nhập được", không phải một mục menu riêng luôn rỗng. */}
+      <LockedAccounts onChanged={reload} />
 
       <Card>
         <div className="flex flex-wrap gap-3 border-b border-hairline p-4">

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Danh sách CBVC-NLĐ Viện Nghiên cứu Công nghệ Sinh học và Môi trường năm 2026 — 33 nhân sự, cơ cấu học vị, ngạch, chuyên ngành và phân bố tuổi.">
+<style>:root{color-scheme:light dark}body{margin:0}[hidden]{display:none!important}</style>
+<title>Nhân sự Viện 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F5F7F5; --surface:#FFFFFF; --surface-2:#EDF2EE;
+    --ink:#141C18; --ink-2:#3D4B44; --ink-3:#6B7A72;
+    --hairline:#D7DFD9; --hairline-2:#C0CCC5;
+    --accent:#0F5C4A; --accent-soft:#E1EDE7;
+    --s1:#2a78d6; --s2:#eb6834;          /* đạt kiểm định CVD ở cả hai chế độ */
+    --s1-soft:#E4EEFB; --s2-soft:#FBE8E0;
+    --warn:#95530B; --warn-bg:#F9ECDE;
+    --shadow:0 1px 2px rgba(20,28,24,.05), 0 8px 24px -16px rgba(20,28,24,.28);
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+    --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+    --hairline:#27322D; --hairline-2:#35433C;
+    --accent:#4FBF98; --accent-soft:#12302A;
+    --s1:#3987e5; --s2:#d95926;
+    --s1-soft:#16283C; --s2-soft:#331E15;
+    --warn:#E3A863; --warn-bg:#322614;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="dark"]{
+    --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+    --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+    --hairline:#27322D; --hairline-2:#35433C;
+    --accent:#4FBF98; --accent-soft:#12302A;
+    --s1:#3987e5; --s2:#d95926;
+    --s1-soft:#16283C; --s2-soft:#331E15;
+    --warn:#E3A863; --warn-bg:#322614;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 26px 88px}
+  h1,h2{font-family:Spectral,Georgia,serif;text-wrap:balance;margin:0}
+  h1{font-size:2.3rem;line-height:1.14;font-weight:700;letter-spacing:-.015em}
+  h2{font-size:1.4rem;font-weight:600}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.68rem;font-weight:600;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+  .mono{font-family:"IBM Plex Mono",monospace}
+
+  .mast{border-bottom:2px solid var(--ink);padding:48px 0 20px;margin-bottom:34px}
+  .mast .eyebrow{display:block;margin-bottom:12px}
+  .mast p{color:var(--ink-2);max-width:64ch;margin:14px 0 0}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:38px}
+  .tile{background:var(--surface);border:1px solid var(--hairline);border-radius:5px;padding:14px 16px}
+  .tile .v{font-family:Spectral,serif;font-size:2rem;font-weight:700;line-height:1;color:var(--accent)}
+  .tile .k{font-size:.79rem;color:var(--ink-3);margin-top:5px;line-height:1.35}
+  .tile.s1 .v{color:var(--s1)} .tile.s2 .v{color:var(--s2)}
+
+  section{margin-bottom:46px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--hairline);
+    padding-bottom:9px;margin-bottom:6px}
+  .sec-sub{color:var(--ink-3);font-size:.88rem;margin:0 0 18px;max-width:74ch}
+
+  /* ── Biểu đồ chấm: mỗi chấm một người ── */
+  .chart{background:var(--surface);border:1px solid var(--hairline);border-radius:5px;
+    padding:14px 8px 6px;box-shadow:var(--shadow);overflow-x:auto}
+  svg{display:block;width:100%;height:auto;min-width:660px}
+  .dot{stroke:var(--surface);stroke-width:2}
+  .dot.civil_servant{fill:var(--s1)} .dot.contract{fill:var(--s2)}
+  .dot:hover{stroke:var(--ink)}
+  .axis{stroke:var(--hairline-2);stroke-width:1}
+  .tick{stroke:var(--hairline-2);stroke-width:1}
+  .axl{fill:var(--ink-3);font-size:11px;font-family:"IBM Plex Mono",monospace}
+  .gap{fill:var(--warn-bg)}
+  .gapl{fill:var(--warn);font-size:10.5px;font-weight:600}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;padding:10px 14px 4px;font-size:.84rem;color:var(--ink-2)}
+  .legend i{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
+  .legend .i1{background:var(--s1)} .legend .i2{background:var(--s2)}
+
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+  .card{background:var(--surface);border:1px solid var(--hairline);border-radius:5px;padding:16px 18px}
+  .card h3{margin:0 0 3px;font-size:.95rem;font-weight:600}
+  .card .cs{font-size:.78rem;color:var(--ink-3);margin-bottom:12px}
+  .brow{display:grid;grid-template-columns:minmax(78px,auto) 1fr 30px;align-items:center;gap:10px;margin-bottom:7px}
+  .bl{font-size:.83rem;color:var(--ink-2)}
+  .btrack{background:var(--surface-2);border-radius:3px;height:16px;overflow:hidden}
+  .bfill{display:block;height:100%;background:var(--accent);border-radius:0 3px 3px 0}
+  .bv{font-family:"IBM Plex Mono",monospace;font-size:.8rem;text-align:right;color:var(--ink)}
+
+  .scroller{overflow-x:auto;border:1px solid var(--hairline);border-radius:5px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:880px}
+  th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--hairline);vertical-align:top}
+  thead th{background:var(--surface-2);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:600;white-space:nowrap;position:sticky;top:0}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{text-align:right;font-family:"IBM Plex Mono",monospace;color:var(--ink-2)}
+  td.nm{font-weight:600;color:var(--ink);white-space:nowrap}
+  .pill{display:inline-block;font-size:.7rem;padding:1.5px 7px;border-radius:99px;white-space:nowrap}
+  .pill.civil_servant{background:var(--s1-soft);color:var(--s1)}
+  .pill.contract{background:var(--s2-soft);color:var(--s2)}
+  .pill.ok{background:var(--accent-soft);color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:.66rem}
+  .pill.new{background:var(--warn-bg);color:var(--warn)}
+
+  .note{border-left:3px solid var(--warn);background:var(--surface);padding:12px 16px;
+    font-size:.86rem;color:var(--ink-2);margin:16px 0;border-radius:0 3px 3px 0}
+  .note b{color:var(--ink)}
+  ul.tight{margin:.35em 0;padding-left:1.1em} ul.tight li{margin-bottom:.3em}
+  @media (max-width:720px){.wrap{padding:0 16px 60px}h1{font-size:1.75rem}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <span class="eyebrow">Danh sách CBVC – NLĐ · 15.9.2026</span>
+  <h1>Nhân sự Viện năm 2026</h1>
+  <p>Bóc từ file Word của Viện. Đây là bản để soát trước khi nhập vào mục Hồ sơ nhân sự —
+     mỗi chấm, mỗi dòng dưới đây là một bản ghi sẽ được tạo.</p>
+</header>
+
+<div class="tiles">
+  <div class="tile"><div class="v">33</div><div class="k">người trong danh sách</div></div>
+  <div class="tile s1"><div class="v">14</div><div class="k">biên chế · tuổi TB 46</div></div>
+  <div class="tile s2"><div class="v">19</div><div class="k">hợp đồng · tuổi TB 27</div></div>
+  <div class="tile"><div class="v">6</div><div class="k">đã có tài khoản trên hệ thống</div></div>
+  <div class="tile"><div class="v">27</div><div class="k">chưa có — sẽ tạo mới</div></div>
+</div>
+
+<section>
+  <div class="sec-head"><h2>Hai thế hệ tách hẳn nhau</h2></div>
+  <p class="sec-sub">Mỗi chấm là một người, đặt theo năm sinh. Điều đáng chú ý không phải độ tuổi
+     trung bình mà là <b>khoảng trống ở giữa</b>: người biên chế trẻ nhất sinh 1989, người hợp đồng
+     lớn tuổi nhất sinh 1990 — hai nhóm không chồng lấn một năm nào.</p>
+  <div class="chart">
+    <svg viewBox="0 0 940 210" role="img"
+         aria-label="Phân bố năm sinh của 33 nhân sự, tách theo diện biên chế và hợp đồng">
+      <rect x="554.8" y="18" width="21.2" height="150" class="gap"/><text x="565.4" y="13" class="gapl" text-anchor="middle">không ai sinh giữa hai nhóm</text>
+      <line x1="46" y1="158" x2="894" y2="158" class="axis"/>
+      <line x1="152.0" y1="168" x2="152.0" y2="173" class="tick"/><text x="152.0" y="189" class="axl" text-anchor="middle">1970</text><line x1="258.0" y1="168" x2="258.0" y2="173" class="tick"/><text x="258.0" y="189" class="axl" text-anchor="middle">1975</text><line x1="364.0" y1="168" x2="364.0" y2="173" class="tick"/><text x="364.0" y="189" class="axl" text-anchor="middle">1980</text><line x1="470.0" y1="168" x2="470.0" y2="173" class="tick"/><text x="470.0" y="189" class="axl" text-anchor="middle">1985</text><line x1="576.0" y1="168" x2="576.0" y2="173" class="tick"/><text x="576.0" y="189" class="axl" text-anchor="middle">1990</text><line x1="682.0" y1="168" x2="682.0" y2="173" class="tick"/><text x="682.0" y="189" class="axl" text-anchor="middle">1995</text><line x1="788.0" y1="168" x2="788.0" y2="173" class="tick"/><text x="788.0" y="189" class="axl" text-anchor="middle">2000</text>
+      <circle class="dot civil_servant" cx="130.8" cy="158.0" r="6.5"><title>Nguyễn Thị Thúy · sinh 1969 · 57 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="194.4" cy="158.0" r="6.5"><title>Nguyễn Ngọc Hà · sinh 1972 · 54 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="215.6" cy="158.0" r="6.5"><title>Phùng Võ Cẩm Hồng · sinh 1973 · 53 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="300.4" cy="158.0" r="6.5"><title>Huỳnh Văn Biết · sinh 1977 · 49 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="321.6" cy="158.0" r="6.5"><title>Nguyễn Minh Quang · sinh 1978 · 48 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="321.6" cy="143.0" r="6.5"><title>Nguyễn Thị Vân Khanh · sinh 1978 · 48 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="342.8" cy="158.0" r="6.5"><title>Phan Thị Xuân Trang · sinh 1979 · 47 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="342.8" cy="143.0" r="6.5"><title>Trương Phước Thiên Hoàng · sinh 1979 · 47 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="427.6" cy="158.0" r="6.5"><title>Nguyễn Công Mạnh · sinh 1983 · 43 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="427.6" cy="143.0" r="6.5"><title>Trịnh Thị Phi Ly · sinh 1983 · 43 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="448.8" cy="158.0" r="6.5"><title>Huỳnh Thị Ngọc Oanh · sinh 1984 · 42 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="448.8" cy="143.0" r="6.5"><title>Trần Thị Vân · sinh 1984 · 42 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="491.2" cy="158.0" r="6.5"><title>Nguyễn Lê Trúc Phương · sinh 1986 · 40 tuổi · Biên chế</title></circle><circle class="dot civil_servant" cx="554.8" cy="158.0" r="6.5"><title>Phan Hữu Tín · sinh 1989 · 37 tuổi · Biên chế</title></circle><circle class="dot contract" cx="576.0" cy="158.0" r="6.5"><title>Đào Uyên Trân Đa · sinh 1990 · 36 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="597.2" cy="158.0" r="6.5"><title>Huỳnh Anh Tuấn · sinh 1991 · 35 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="618.4" cy="158.0" r="6.5"><title>Lê Hoàng Độ · sinh 1992 · 34 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="703.2" cy="158.0" r="6.5"><title>Võ Trần Quốc Thắng · sinh 1996 · 30 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="724.4" cy="158.0" r="6.5"><title>Trương Quang Toản · sinh 1997 · 29 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="745.6" cy="158.0" r="6.5"><title>Thái Thị Thanh Thủy · sinh 1998 · 28 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="745.6" cy="143.0" r="6.5"><title>Vũ Ngọc Khánh Như · sinh 1998 · 28 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="788.0" cy="158.0" r="6.5"><title>Nguyễn Thị Thùy Trang · sinh 2000 · 26 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="788.0" cy="143.0" r="6.5"><title>Đặng Xuân Đài · sinh 2000 · 26 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="809.2" cy="158.0" r="6.5"><title>Lê Quang Trường · sinh 2001 · 25 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="809.2" cy="143.0" r="6.5"><title>Phùng Thị Ngọc Hân · sinh 2001 · 25 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="809.2" cy="128.0" r="6.5"><title>Vũ Văn Tuấn · sinh 2001 · 25 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="158.0" r="6.5"><title>Nguyễn Minh Chánh · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="143.0" r="6.5"><title>Nguyễn Thị Bé Thư · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="128.0" r="6.5"><title>Phạm Phương Trinh · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="113.0" r="6.5"><title>Trần Phước Hên · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="98.0" r="6.5"><title>Trần Thị Thanh Lịch · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="83.0" r="6.5"><title>Trần Đình Phong · sinh 2002 · 24 tuổi · Hợp đồng</title></circle><circle class="dot contract" cx="830.4" cy="68.0" r="6.5"><title>Vũ Đình Anh Tuấn · sinh 2002 · 24 tuổi · Hợp đồng</title></circle>
+    </svg>
+    <div class="legend">
+      <span><i class="i1"></i>Biên chế — 14 người, 37–57 tuổi</span>
+      <span><i class="i2"></i>Hợp đồng — 19 người, 24–36 tuổi</span>
+      <span style="color:var(--ink-3)">Di chuột lên từng chấm để xem tên</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Cơ cấu</h2></div>
+  <div class="grid2">
+    <div class="card"><h3>Học hàm / học vị</h3><div class="cs">5 tiến sĩ đều thuộc diện biên chế</div><div class="brow"><span class="bl">Kỹ sư</span><span class="btrack"><span class="bfill" style="width:45.5%"></span></span><span class="bv">15</span></div><div class="brow"><span class="bl">Thạc sĩ</span><span class="btrack"><span class="bfill" style="width:33.3%"></span></span><span class="bv">11</span></div><div class="brow"><span class="bl">Tiến sĩ</span><span class="btrack"><span class="bfill" style="width:15.2%"></span></span><span class="bv">5</span></div><div class="brow"><span class="bl">Chưa ghi</span><span class="btrack"><span class="bfill" style="width:6.1%"></span></span><span class="bv">2</span></div></div>
+    <div class="card"><h3>Ngạch</h3><div class="cs">Nghiên cứu viên chiếm phần lớn</div><div class="brow"><span class="bl">NCV</span><span class="btrack"><span class="bfill" style="width:69.7%"></span></span><span class="bv">23</span></div><div class="brow"><span class="bl">GV</span><span class="btrack"><span class="bfill" style="width:9.1%"></span></span><span class="bv">3</span></div><div class="brow"><span class="bl">GVC</span><span class="btrack"><span class="bfill" style="width:6.1%"></span></span><span class="bv">2</span></div><div class="brow"><span class="bl">Chưa ghi</span><span class="btrack"><span class="bfill" style="width:6.1%"></span></span><span class="bv">2</span></div><div class="brow"><span class="bl">CV</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">KTV</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">KS</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div></div>
+    <div class="card"><h3>Chuyên ngành</h3><div class="cs">8 ngành nhiều người nhất</div><div class="brow"><span class="bl">Công nghệ Sinh học</span><span class="btrack"><span class="bfill" style="width:54.5%"></span></span><span class="bv">18</span></div><div class="brow"><span class="bl">Kỹ thuật Môi trường</span><span class="btrack"><span class="bfill" style="width:9.1%"></span></span><span class="bv">3</span></div><div class="brow"><span class="bl">Nông học</span><span class="btrack"><span class="bfill" style="width:6.1%"></span></span><span class="bv">2</span></div><div class="brow"><span class="bl">Công nghệ hóa thực phẩm/ CNSH</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">Hoá phân tích</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">Vi sinh vật/Công nghệ sinh học</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">Công nghệ Môi trường</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div><div class="brow"><span class="bl">Bảo vệ Thực vật</span><span class="btrack"><span class="bfill" style="width:3.0%"></span></span><span class="bv">1</span></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Toàn bộ danh sách</h2></div>
+  <p class="sec-sub">Đúng 33 dòng sẽ được nhập. Cột cuối cho biết người đó đã có tài khoản trên hệ
+     thống hay chưa — người đã có sẽ được gắn hồ sơ vào tài khoản sẵn có, không tạo trùng.</p>
+  <div class="scroller"><table>
+    <thead><tr><th>STT</th><th>Họ và tên</th><th>Năm sinh</th><th>Tuổi</th><th>Học vị</th>
+      <th>Ngạch</th><th>Chuyên ngành</th><th>Diện</th><th>Tài khoản</th></tr></thead>
+    <tbody><tr data-dien="civil_servant"><td class="num">1</td><td class="nm">Huỳnh Văn Biết</td><td class="num">1977</td><td class="num">49</td><td>Tiến sĩ</td><td class="mono">GVC</td><td>Công nghệ Sinh học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">biet.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">2</td><td class="nm">Phùng Võ Cẩm Hồng</td><td class="num">1973</td><td class="num">53</td><td>Tiến sĩ</td><td class="mono">GVC</td><td>Công nghệ hóa thực phẩm/ CNSH</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">hong.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">3</td><td class="nm">Nguyễn Ngọc Hà</td><td class="num">1972</td><td class="num">54</td><td>Tiến sĩ</td><td class="mono">GV</td><td>Hoá phân tích</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">4</td><td class="nm">Trịnh Thị Phi Ly</td><td class="num">1983</td><td class="num">43</td><td>Tiến sĩ</td><td class="mono">GV</td><td>Công nghệ Sinh học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">ly.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">5</td><td class="nm">Trương Phước Thiên Hoàng</td><td class="num">1979</td><td class="num">47</td><td>Tiến sĩ</td><td class="mono">CV</td><td>Vi sinh vật/Công nghệ sinh học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">hoang.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">6</td><td class="nm">Nguyễn Minh Quang</td><td class="num">1978</td><td class="num">48</td><td>Thạc sĩ</td><td class="mono">GV</td><td>Nông học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">7</td><td class="nm">Nguyễn Thị Vân Khanh</td><td class="num">1978</td><td class="num">48</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Nông học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">8</td><td class="nm">Nguyễn Công Mạnh</td><td class="num">1983</td><td class="num">43</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Môi trường</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">manh.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">9</td><td class="nm">Phan Thị Xuân Trang</td><td class="num">1979</td><td class="num">47</td><td>Thạc sĩ</td><td class="mono">KTV</td><td>Kỹ thuật Môi trường</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">10</td><td class="nm">Trần Thị Vân</td><td class="num">1984</td><td class="num">42</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Bảo vệ Thực vật</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill ok">van.demo@lims.local</span></td></tr><tr data-dien="civil_servant"><td class="num">11</td><td class="nm">Phan Hữu Tín</td><td class="num">1989</td><td class="num">37</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">12</td><td class="nm">Nguyễn Lê Trúc Phương</td><td class="num">1986</td><td class="num">40</td><td>Kỹ sư</td><td class="mono">KS</td><td>Bác sĩ thú y</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">13</td><td class="nm">Huỳnh Thị Ngọc Oanh</td><td class="num">1984</td><td class="num">42</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Kỹ thuật Môi trường</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="civil_servant"><td class="num">14</td><td class="nm">Nguyễn Thị Thúy</td><td class="num">1969</td><td class="num">57</td><td>—</td><td class="mono">—</td><td>Nhân viên phục vụ</td><td><span class="pill civil_servant">Biên chế</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">15</td><td class="nm">Trương Quang Toản</td><td class="num">1997</td><td class="num">29</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">16</td><td class="nm">Võ Trần Quốc Thắng</td><td class="num">1996</td><td class="num">30</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">17</td><td class="nm">Đào Uyên Trân Đa</td><td class="num">1990</td><td class="num">36</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Bảo vệ thực vật</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">18</td><td class="nm">Lê Hoàng Độ</td><td class="num">1992</td><td class="num">34</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">19</td><td class="nm">Huỳnh Anh Tuấn</td><td class="num">1991</td><td class="num">35</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Kỹ thuật Môi trường</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">20</td><td class="nm">Thái Thị Thanh Thủy</td><td class="num">1998</td><td class="num">28</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">21</td><td class="nm">Vũ Ngọc Khánh Như</td><td class="num">1998</td><td class="num">28</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Quản lý tài nguyên rừng</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">22</td><td class="nm">Nguyễn Thị Thùy Trang</td><td class="num">2000</td><td class="num">26</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">23</td><td class="nm">Lê Quang Trường</td><td class="num">2001</td><td class="num">25</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">24</td><td class="nm">Vũ Văn Tuấn</td><td class="num">2001</td><td class="num">25</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">25</td><td class="nm">Phùng Thị Ngọc Hân</td><td class="num">2001</td><td class="num">25</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">26</td><td class="nm">Trần Đình Phong</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">27</td><td class="nm">Nguyễn Thị Bé Thư</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">28</td><td class="nm">Nguyễn Minh Chánh</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">29</td><td class="nm">Trần Phước Hên</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">30</td><td class="nm">Trần Thị Thanh Lịch</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">31</td><td class="nm">Phạm Phương Trinh</td><td class="num">2002</td><td class="num">24</td><td>Kỹ sư</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">32</td><td class="nm">Đặng Xuân Đài</td><td class="num">2000</td><td class="num">26</td><td>Thạc sĩ</td><td class="mono">NCV</td><td>Công nghệ Sinh học</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr><tr data-dien="contract"><td class="num">33</td><td class="nm">Vũ Đình Anh Tuấn</td><td class="num">2002</td><td class="num">24</td><td>—</td><td class="mono">—</td><td>—</td><td><span class="pill contract">Hợp đồng</span></td><td><span class="pill new">chưa có</span></td></tr></tbody>
+  </table></div>
+
+  <div class="note">
+    <b>Ba điểm cần biết trước khi nhập.</b>
+    <ul class="tight">
+      <li><b>Email:</b> file không có cột email, mà tài khoản thì bắt buộc có. 27 người mới sẽ được
+        cấp email tạm dạng <span class="mono">hoten@ribe.local</span> và tài khoản <b>bị khoá đăng
+        nhập</b> — dùng như sổ nhân sự, không ai vào được hệ thống cho tới khi có email thật.</li>
+      <li><b>Năm sinh:</b> hồ sơ nhân sự hiện chưa có ô nào chứa năm sinh — sẽ bổ sung thêm một cột.</li>
+      <li><b>Hai người thiếu dữ liệu:</b> Nguyễn Thị Thúy (STT 14) và Vũ Đình Anh Tuấn (STT 33)
+        chưa có học vị/ngạch trong file gốc; ô "Bảo vệ Thực vật" và "Bảo vệ thực vật" khác nhau
+        cách viết hoa, sẽ gộp làm một.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

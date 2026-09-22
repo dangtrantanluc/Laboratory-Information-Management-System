@@ -10,7 +10,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db_helpers import get_or_404
@@ -24,14 +24,22 @@ from app.services import audit_service, hr_common as hc
 
 # ===================== Serialize hồ sơ (đầy đủ — strip ở router/sau) =====================
 def _profile_dict(db: Session, p: HrProfile) -> dict:
-    u = db.get(User, p.user_id)
+    # m48 — `user_id` có thể NULL (người trong sổ nhân sự, chưa có tài khoản). Tên lấy
+    # từ CHÍNH HỒ SƠ, không từ `users`: hồ sơ chưa gắn thì không có hàng users nào.
+    u = db.get(User, p.user_id) if p.user_id else None
     computed = hc.compute_salary_amount(p.salary_coefficient, p.base_salary_amount)
+    # m49 — phòng công tác nằm TRÊN HỒ SƠ. Đường lùi về phòng của tài khoản giữ cho
+    # những hồ sơ gắn tài khoản trước m49 (chưa kịp xếp phòng) không mất phòng ban.
+    dept_id = p.department_id or (u.department_id if u else None)
     return {
+        "id": p.id,
         "user_id": p.user_id,
-        "full_name": u.full_name if u else None,
+        "has_account": u is not None,
+        "full_name": p.full_name,
+        "birth_year": p.birth_year,
         "email": str(u.email) if u else None,
-        "department_id": u.department_id if u else None,
-        "department_name": hc.dept_name(db, u.department_id) if u else None,
+        "department_id": dept_id,
+        "department_name": hc.dept_name(db, dept_id) if dept_id else None,
         "job_title": p.job_title,
         "hired_date": p.hired_date.isoformat() if p.hired_date else None,
         "phone": p.phone,
@@ -62,6 +70,17 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
     }
 
 
+def _assert_department_exists(db: Session, department_id: Optional[uuid.UUID]) -> None:
+    """Phòng phải có thật. FK cũng chặn, nhưng lỗi FK bật lên ở tầng DB thành 500 —
+    người nhập cần biết "phòng không tồn tại", không phải một lỗi máy chủ."""
+    if department_id is None:
+        return
+    from app.models.department import Department
+
+    if db.get(Department, department_id) is None:
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Phòng ban không tồn tại", 400)
+
+
 def _get_profile_or_404(db: Session, user_id: uuid.UUID) -> HrProfile:
     return get_or_404(db, HrProfile, user_id, "Hồ sơ nhân sự không tồn tại", code=ErrorCode.PROFILE_NOT_FOUND)
 
@@ -88,12 +107,26 @@ def list_profiles(
     limit: int,
 ) -> tuple[list[dict], int]:
     conditions = []
-    join_user = select(HrProfile).join(User, User.id == HrProfile.user_id)
+    # LEFT JOIN, KHÔNG phải INNER: hồ sơ chưa gắn tài khoản không có hàng `users` nào,
+    # inner join sẽ lặng lẽ loại 27/33 người khỏi màn hình danh sách.
+    join_user = select(HrProfile).outerjoin(User, User.id == HrProfile.user_id)
     if q:
         like = f"%{q.strip()}%"
-        conditions.append(or_(User.full_name.ilike(like), User.email.ilike(like)))
+        # Tìm theo tên trên HỒ SƠ (luôn có), email chỉ là điều kiện phụ khi đã gắn.
+        conditions.append(or_(HrProfile.full_name.ilike(like), User.email.ilike(like)))
     if department_id:
-        conditions.append(User.department_id == department_id)
+        # Khớp theo cùng quy tắc mà _profile_dict hiển thị: phòng trên hồ sơ trước,
+        # phòng của tài khoản chỉ tính khi hồ sơ chưa xếp phòng. Lọc thẳng trên
+        # User.department_id sẽ bỏ sót toàn bộ hồ sơ chưa gắn tài khoản.
+        conditions.append(
+            or_(
+                HrProfile.department_id == department_id,
+                and_(
+                    HrProfile.department_id.is_(None),
+                    User.department_id == department_id,
+                ),
+            )
+        )
     if job_title:
         conditions.append(HrProfile.job_title.ilike(f"%{job_title.strip()}%"))
     today = date.today()
@@ -115,12 +148,12 @@ def list_profiles(
     total = db.execute(
         select(func.count())
         .select_from(HrProfile)
-        .join(User, User.id == HrProfile.user_id)
+        .outerjoin(User, User.id == HrProfile.user_id)
         .where(*conditions)
     ).scalar_one()
     rows = db.execute(
         join_user.where(*conditions)
-        .order_by(User.full_name.asc())
+        .order_by(HrProfile.full_name.asc())
         .offset((page - 1) * limit)
         .limit(limit)
     ).scalars().all()
@@ -133,26 +166,45 @@ def create_profile(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    full_name: str,
     job_title: str,
     hired_date: Optional[date],
     phone: Optional[str],
     correlation_id: Optional[str],
     ip: Optional[str],
+    link_user_id: Optional[uuid.UUID] = None,
+    birth_year: Optional[int] = None,
+    department_id: Optional[uuid.UUID] = None,
 ) -> dict:
     hc.assert_can_manage_profile(user)
-    target = db.get(User, target_user_id)
-    if target is None:
-        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
-    if db.get(HrProfile, target_user_id) is not None:
-        raise AppException(
-            ErrorCode.DUPLICATE_PROFILE, "Người dùng đã có hồ sơ nhân sự (1-1)", 409
-        )
+    if not full_name or not full_name.strip():
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu họ và tên", 400)
     if not job_title or not job_title.strip():
         raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu chức danh (job_title)", 400)
 
+    # m48 — gắn tài khoản là TUỲ CHỌN. Người chưa có tài khoản vẫn phải vào được sổ
+    # nhân sự; đó là lý do lược đồ đổi khoá.
+    if link_user_id is not None:
+        target = db.get(User, link_user_id)
+        if target is None:
+            raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
+        existing = db.execute(
+            select(HrProfile).where(HrProfile.user_id == link_user_id)
+        ).scalar_one_or_none()
+        if existing is not None:
+            raise AppException(
+                ErrorCode.DUPLICATE_PROFILE,
+                f"Tài khoản này đã gắn với hồ sơ '{existing.full_name}'",
+                409,
+            )
+
+    _assert_department_exists(db, department_id)
+
     p = HrProfile(
-        user_id=target_user_id,
+        user_id=link_user_id,
+        full_name=full_name.strip(),
+        birth_year=birth_year,
+        department_id=department_id,
         job_title=job_title.strip(),
         hired_date=hired_date,
         phone=phone,
@@ -166,10 +218,11 @@ def create_profile(
         action="HR_PROFILE_CREATE",
         resource="hr_profile",
         user_id=user.id,
-        resource_id=target_user_id,
+        resource_id=p.id,
         correlation_id=correlation_id,
         ip=ip,
-        detail={"target_user_id": str(target_user_id), "job_title": job_title.strip()},
+        detail={"full_name": p.full_name, "job_title": p.job_title,
+                "linked_user": str(link_user_id) if link_user_id else None},
     )
     db.commit()
     db.refresh(p)
@@ -177,17 +230,125 @@ def create_profile(
 
 
 # ===================== #3 / #4 GET =====================
-def get_profile(db: Session, *, user: CurrentUser, target_user_id: uuid.UUID) -> dict:
-    # Staff chỉ xem hồ sơ của chính mình (contract #3)
-    if user.role == "staff" and user.id != target_user_id:
+def get_profile(db: Session, *, user: CurrentUser, profile_id: uuid.UUID) -> dict:
+    p = _get_profile_or_404(db, profile_id)
+    # Staff chỉ xem hồ sơ của chính mình (contract #3). m48: so với TÀI KHOẢN ĐÃ GẮN
+    # của hồ sơ — khoá hồ sơ giờ là id riêng, không còn trùng với id người dùng.
+    if user.role == "staff" and p.user_id != user.id:
         raise hc.forbidden("Bạn chỉ được xem hồ sơ của chính mình")
-    p = _get_profile_or_404(db, target_user_id)
     return hc.strip_profile(_profile_dict(db, p), user)
 
 
 def get_my_profile(db: Session, *, user: CurrentUser) -> dict:
-    p = _get_profile_or_404(db, user.id)
+    p = db.execute(select(HrProfile).where(HrProfile.user_id == user.id)).scalar_one_or_none()
+    if p is None:
+        raise AppException(
+            ErrorCode.PROFILE_NOT_FOUND, "Bạn chưa có hồ sơ nhân sự", 404
+        )
     # Chính chủ luôn xem đầy đủ — strip vẫn áp nhưng of_self=True nên giữ nguyên
+    return hc.strip_profile(_profile_dict(db, p), user)
+
+
+# ============ m48: GẮN HỒ SƠ ↔ TÀI KHOẢN ============
+#
+# Ba tình huống có thật, và đây là cách xử lý từng cái:
+#
+#  1. Có hồ sơ trước, sau mới có tài khoản (phần lớn danh sách CBVC 2026)
+#     → `suggest_profiles_for_user` gợi ý hồ sơ chưa gắn TRÙNG TÊN khi tạo/duyệt tài
+#       khoản; người duyệt bấm `link_account`.
+#  2. Có tài khoản trước, chưa có hồ sơ (người mới được cấp tài khoản ngay)
+#     → tạo hồ sơ với `link_user_id` trỏ sang tài khoản đó.
+#  3. Người mới, không tài khoản và không có trong danh sách
+#     → chỉ tạo hồ sơ, `user_id` để trống. Không cần thao tác gì thêm.
+#
+# VÌ SAO KHÔNG TỰ ĐỘNG GẮN THEO TÊN
+# Trùng họ tên là chuyện bình thường ở Việt Nam. Gắn tự động sẽ nối hồ sơ lương và
+# bằng cấp của người này vào tài khoản người khác — một lỗi âm thầm, phát hiện ra thì
+# đã lan sang bảng lương. Vì vậy hệ thống chỉ GỢI Ý, người duyệt xác nhận.
+
+
+def _norm_name(v: str) -> str:
+    """Chuẩn hoá tên để so khớp: bỏ hoa/thường và khoảng trắng thừa."""
+    return " ".join((v or "").split()).lower()
+
+
+def suggest_profiles_for_user(db: Session, *, user: CurrentUser, target_user_id: uuid.UUID) -> list[dict]:
+    """Hồ sơ CHƯA GẮN có tên trùng với một tài khoản — để người duyệt chọn."""
+    hc.assert_can_manage_profile(user)
+    target = db.get(User, target_user_id)
+    if target is None:
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
+    rows = db.execute(
+        select(HrProfile).where(HrProfile.user_id.is_(None))
+    ).scalars().all()
+    want = _norm_name(target.full_name)
+    return [
+        {"id": p.id, "full_name": p.full_name, "birth_year": p.birth_year,
+         "job_title": p.job_title, "contract_type": p.contract_type}
+        for p in rows if _norm_name(p.full_name) == want
+    ]
+
+
+def link_account(
+    db: Session, *, user: CurrentUser, profile_id: uuid.UUID, target_user_id: uuid.UUID,
+    correlation_id: Optional[str], ip: Optional[str],
+) -> dict:
+    """Gắn một hồ sơ nhân sự với một tài khoản. Quan hệ một-một, hai chiều."""
+    hc.assert_can_manage_profile(user)
+    p = _get_profile_or_404(db, profile_id)
+    if p.user_id is not None:
+        raise AppException(
+            ErrorCode.DUPLICATE_PROFILE,
+            f"Hồ sơ '{p.full_name}' đã gắn tài khoản khác — gỡ trước khi gắn lại",
+            409,
+        )
+    target = db.get(User, target_user_id)
+    if target is None:
+        raise AppException(ErrorCode.USER_NOT_FOUND, "Người dùng không tồn tại", 404)
+    taken = db.execute(
+        select(HrProfile).where(HrProfile.user_id == target_user_id)
+    ).scalar_one_or_none()
+    if taken is not None:
+        raise AppException(
+            ErrorCode.DUPLICATE_PROFILE,
+            f"Tài khoản này đã gắn với hồ sơ '{taken.full_name}'",
+            409,
+        )
+
+    p.user_id = target_user_id
+    p.updated_by = user.id
+    p.updated_at = func.now()
+    audit_service.log_action(
+        db, action="HR_PROFILE_LINK", resource="hr_profile", user_id=user.id,
+        resource_id=p.id, correlation_id=correlation_id, ip=ip,
+        detail={"full_name": p.full_name, "linked_user": str(target_user_id)},
+    )
+    db.commit()
+    db.refresh(p)
+    return hc.strip_profile(_profile_dict(db, p), user)
+
+
+def unlink_account(
+    db: Session, *, user: CurrentUser, profile_id: uuid.UUID,
+    correlation_id: Optional[str], ip: Optional[str],
+) -> dict:
+    """Gỡ liên kết. Hồ sơ Ở LẠI sổ nhân sự — người vẫn làm ở Viện, chỉ là thôi dùng
+    phần mềm hoặc gắn nhầm tài khoản."""
+    hc.assert_can_manage_profile(user)
+    p = _get_profile_or_404(db, profile_id)
+    if p.user_id is None:
+        raise AppException(ErrorCode.VALIDATION_ERROR, "Hồ sơ chưa gắn tài khoản nào", 400)
+    old = p.user_id
+    p.user_id = None
+    p.updated_by = user.id
+    p.updated_at = func.now()
+    audit_service.log_action(
+        db, action="HR_PROFILE_UNLINK", resource="hr_profile", user_id=user.id,
+        resource_id=p.id, correlation_id=correlation_id, ip=ip,
+        detail={"full_name": p.full_name, "unlinked_user": str(old)},
+    )
+    db.commit()
+    db.refresh(p)
     return hc.strip_profile(_profile_dict(db, p), user)
 
 
@@ -196,13 +357,13 @@ def update_profile(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     changes: dict,
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
     hc.assert_can_manage_profile(user)
-    p = _get_profile_or_404(db, target_user_id)
+    p = _get_profile_or_404(db, profile_id)
 
     forbidden_fields = (hc.SALARY_FIELDS | hc.CONTRACT_FIELDS) - {"phone"}
     if any(k in forbidden_fields for k in changes):
@@ -213,12 +374,16 @@ def update_profile(
             400,
         )
 
+    if "department_id" in changes:
+        _assert_department_exists(db, changes["department_id"])
+
     changed_fields = []
-    for field in ("job_title", "hired_date", "phone", "position"):
+    for field in ("full_name", "job_title", "hired_date", "phone", "position",
+                  "birth_year", "department_id"):
         if field in changes:
             value = changes[field]
-            if field == "job_title" and (not value or not str(value).strip()):
-                raise AppException(ErrorCode.VALIDATION_ERROR, "job_title không được rỗng", 400)
+            if field in ("job_title", "full_name") and (not value or not str(value).strip()):
+                raise AppException(ErrorCode.VALIDATION_ERROR, f"{field} không được rỗng", 400)
             setattr(p, field, value.strip() if isinstance(value, str) else value)
             changed_fields.append(field)
     if not changed_fields:
@@ -231,7 +396,7 @@ def update_profile(
         action="HR_PROFILE_UPDATE",
         resource="hr_profile",
         user_id=user.id,
-        resource_id=target_user_id,
+        resource_id=profile_id,
         correlation_id=correlation_id,
         ip=ip,
         detail={"changed_fields": changed_fields},  # KHÔNG giá trị PII
@@ -246,7 +411,7 @@ def update_contract(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     contract_signed_date: date,
     contract_type: str,
     contract_end_date: Optional[date],
@@ -254,7 +419,7 @@ def update_contract(
     ip: Optional[str],
 ) -> dict:
     hc.assert_can_edit_salary(user)  # HĐ = nhóm tài chính → admin/office
-    p = _get_profile_or_404(db, target_user_id)
+    p = _get_profile_or_404(db, profile_id)
     if not contract_type:
         raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu contract_type", 400)
     if db.get(ContractType, contract_type) is None:
@@ -280,7 +445,7 @@ def update_contract(
         action="HR_CONTRACT_UPDATE",
         resource="hr_profile",
         user_id=user.id,
-        resource_id=target_user_id,
+        resource_id=profile_id,
         correlation_id=correlation_id,
         ip=ip,
         detail={"contract_type": contract_type},
@@ -305,13 +470,13 @@ def update_salary_cycle(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     salary_cycle_years: int,
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
     hc.assert_can_edit_salary(user)
-    p = _get_profile_or_404(db, target_user_id)
+    p = _get_profile_or_404(db, profile_id)
     if not isinstance(salary_cycle_years, int) or salary_cycle_years < 1:
         raise AppException(ErrorCode.INVALID_CYCLE, "salary_cycle_years phải là số nguyên >= 1", 400)
     p.salary_cycle_years = salary_cycle_years
@@ -324,7 +489,7 @@ def update_salary_cycle(
         action="HR_SALARY_CYCLE_UPDATE",
         resource="hr_profile",
         user_id=user.id,
-        resource_id=target_user_id,
+        resource_id=profile_id,
         correlation_id=correlation_id,
         ip=ip,
         detail={"salary_cycle_years": salary_cycle_years},
@@ -345,7 +510,7 @@ def create_salary_raise(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     salary_grade: str,
     salary_coefficient: str,
     base_salary_amount: str,
@@ -355,7 +520,7 @@ def create_salary_raise(
     ip: Optional[str],
 ) -> dict:
     hc.assert_can_edit_salary(user)  # leader/staff → SALARY_FORBIDDEN
-    p = _get_profile_or_404(db, target_user_id)
+    p = _get_profile_or_404(db, profile_id)
 
     if not salary_grade or not salary_grade.strip():
         raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu salary_grade", 400)
@@ -373,7 +538,7 @@ def create_salary_raise(
 
     # Snapshot mức cũ → bản ghi lịch sử immutable
     sh = SalaryHistory(
-        user_id=target_user_id,
+        user_id=profile_id,
         old_grade=p.salary_grade,
         old_coefficient=p.salary_coefficient,
         old_base_amount=p.base_salary_amount,
@@ -404,7 +569,7 @@ def create_salary_raise(
         action="HR_SALARY_RAISE",
         resource="hr_profile",
         user_id=user.id,
-        resource_id=target_user_id,
+        resource_id=profile_id,
         correlation_id=correlation_id,
         ip=ip,
         detail={"raise_date": raise_date.isoformat(), "salary_history_id": str(sh.id)},
@@ -433,22 +598,22 @@ def list_salary_history(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     page: int,
     limit: int,
 ) -> tuple[list[dict], int]:
-    _get_profile_or_404(db, target_user_id)
-    if not hc.can_read_salary(user, target_user_id):
+    p = _get_profile_or_404(db, profile_id)
+    if not hc.can_read_salary(user, p.user_id):
         raise hc.salary_forbidden()
 
     total = db.execute(
         select(func.count())
         .select_from(SalaryHistory)
-        .where(SalaryHistory.user_id == target_user_id)
+        .where(SalaryHistory.profile_id == profile_id)
     ).scalar_one()
     rows = db.execute(
         select(SalaryHistory)
-        .where(SalaryHistory.user_id == target_user_id)
+        .where(SalaryHistory.profile_id == profile_id)
         .order_by(SalaryHistory.raise_date.desc(), SalaryHistory.created_at.desc())
         .offset((page - 1) * limit)
         .limit(limit)
@@ -479,7 +644,7 @@ def _competence_dict(db: Session, c: Competence) -> dict:
     is_expired = bool(c.expiry_date and c.expiry_date < date.today())
     return {
         "id": c.id,
-        "user_id": c.user_id,
+        "profile_id": c.profile_id,
         "kind": c.kind,
         "title": c.title,
         "issuer": c.issuer,
@@ -493,11 +658,15 @@ def _competence_dict(db: Session, c: Competence) -> dict:
     }
 
 
-def _assert_competence_read(user: CurrentUser, target_user_id: uuid.UUID) -> None:
-    """Đọc năng lực: admin/leader (all); staff của mình. Office → 403 (không tài chính)."""
+def _assert_competence_read(user: CurrentUser, linked_user_id: Optional[uuid.UUID]) -> None:
+    """Đọc năng lực: admin/leader (all); staff của mình. Office → 403 (không tài chính).
+
+    m48 — tham số là TÀI KHOẢN ĐÃ GẮN của hồ sơ (có thể None khi hồ sơ chưa gắn). Với
+    hồ sơ chưa gắn, không tồn tại "chính mình" nào cả, nên staff không xem được.
+    """
     if user.role == "office":
         raise hc.forbidden("Văn phòng không quản lý hồ sơ năng lực")
-    if user.role == "staff" and user.id != target_user_id:
+    if user.role == "staff" and linked_user_id != user.id:
         raise hc.forbidden("Bạn chỉ được xem năng lực của chính mình")
 
 
@@ -505,13 +674,13 @@ def list_competences(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     kind: Optional[str],
     status_filter: Optional[str],
 ) -> list[dict]:
-    _get_profile_or_404(db, target_user_id)
-    _assert_competence_read(user, target_user_id)
-    conditions = [Competence.user_id == target_user_id]
+    p = _get_profile_or_404(db, profile_id)
+    _assert_competence_read(user, p.user_id)
+    conditions = [Competence.profile_id == profile_id]
     if kind:
         if kind not in ("degree", "certificate", "authorization"):
             raise AppException(ErrorCode.VALIDATION_ERROR, "kind không hợp lệ", 400)
@@ -530,14 +699,14 @@ def create_competence(
     db: Session,
     *,
     user: CurrentUser,
-    target_user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     payload: dict,
     correlation_id: Optional[str],
     ip: Optional[str],
 ) -> dict:
     hc.assert_can_manage_competence(user)
-    _get_profile_or_404(db, target_user_id)
-    c = _build_competence(db, target_user_id, payload, user)
+    _get_profile_or_404(db, profile_id)
+    c = _build_competence(db, profile_id, payload, user)
     db.add(c)
     db.flush()
     audit_service.log_action(
@@ -548,7 +717,7 @@ def create_competence(
         resource_id=c.id,
         correlation_id=correlation_id,
         ip=ip,
-        detail={"op": "create", "kind": c.kind, "target_user_id": str(target_user_id)},
+        detail={"op": "create", "kind": c.kind, "profile_id": str(profile_id)},
     )
     db.commit()
     db.refresh(c)
@@ -556,7 +725,7 @@ def create_competence(
 
 
 def _build_competence(
-    db: Session, target_user_id: uuid.UUID, payload: dict, user: CurrentUser
+    db: Session, profile_id: uuid.UUID, payload: dict, user: CurrentUser
 ) -> Competence:
     kind = payload.get("kind")
     if kind not in ("degree", "certificate", "authorization"):
@@ -581,7 +750,7 @@ def _build_competence(
             )
         hc.assert_user_exists(db, authorized_by)
     return Competence(
-        user_id=target_user_id,
+        user_id=profile_id,
         kind=kind,
         title=str(title).strip(),
         issuer=payload.get("issuer"),
@@ -673,7 +842,7 @@ def delete_competence(
         resource_id=competence_id,
         correlation_id=correlation_id,
         ip=ip,
-        detail={"op": "delete", "target_user_id": str(target)},
+        detail={"op": "delete", "profile_id": str(target)},
     )
     db.commit()
 

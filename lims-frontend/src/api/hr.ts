@@ -24,13 +24,18 @@ export function listProfiles(f: HrProfileFilters = {}) {
 export function getMyProfile() {
   return apiGet<HrProfile>('/hr-profiles/me');
 }
-export function getProfile(userId: string) {
-  return apiGet<HrProfile>(`/hr-profiles/${userId}`);
+export function getProfile(profileId: string) {
+  return apiGet<HrProfile>(`/hr-profiles/${profileId}`);
 }
 
 export interface CreateProfileBody {
-  user_id: string;
+  /** Tuỳ chọn — bỏ trống nếu người này chưa có tài khoản (m48). */
+  user_id?: string | null;
+  full_name: string;
+  birth_year?: number | null;
   job_title: string;
+  /** Phòng công tác ghi thẳng lên hồ sơ (m49) — không còn suy từ tài khoản. */
+  department_id?: string | null;
   hired_date?: string | null;
   phone?: string | null;
 }
@@ -40,12 +45,13 @@ export function createProfile(body: CreateProfileBody) {
 
 export interface UpdateProfileBody {
   job_title?: string | null;
+  department_id?: string | null;
   hired_date?: string | null;
   phone?: string | null;
   position?: string | null;
 }
-export function updateProfile(userId: string, body: UpdateProfileBody) {
-  return apiPatch<HrProfile>(`/hr-profiles/${userId}`, body);
+export function updateProfile(profileId: string, body: UpdateProfileBody) {
+  return apiPatch<HrProfile>(`/hr-profiles/${profileId}`, body);
 }
 
 // ── Hợp đồng ────────────────────────────────────────────────────
@@ -54,13 +60,13 @@ export interface UpdateContractBody {
   contract_type: string;
   contract_end_date?: string | null;
 }
-export function updateContract(userId: string, body: UpdateContractBody) {
-  return apiPatch<HrProfile>(`/hr-profiles/${userId}/contract`, body);
+export function updateContract(profileId: string, body: UpdateContractBody) {
+  return apiPatch<HrProfile>(`/hr-profiles/${profileId}/contract`, body);
 }
 
 // ── Chu kỳ nâng lương ───────────────────────────────────────────
-export function updateSalaryCycle(userId: string, salary_cycle_years: number) {
-  return apiPatch<HrProfile>(`/hr-profiles/${userId}/salary-cycle`, { salary_cycle_years });
+export function updateSalaryCycle(profileId: string, salary_cycle_years: number) {
+  return apiPatch<HrProfile>(`/hr-profiles/${profileId}/salary-cycle`, { salary_cycle_years });
 }
 
 // ── Nâng lương + lịch sử ────────────────────────────────────────
@@ -71,19 +77,19 @@ export interface CreateSalaryRaiseBody {
   raise_date: string;
   note?: string | null;
 }
-export function createSalaryRaise(userId: string, body: CreateSalaryRaiseBody) {
+export function createSalaryRaise(profileId: string, body: CreateSalaryRaiseBody) {
   return apiPost<HrProfile & { salary_history_id?: string }>(
-    `/hr-profiles/${userId}/salary-raises`,
+    `/hr-profiles/${profileId}/salary-raises`,
     body,
   );
 }
-export function listSalaryHistory(userId: string, page = 1, limit = 50) {
-  return apiGetPaged<SalaryHistoryItem[]>(`/hr-profiles/${userId}/salary-history`, { page, limit });
+export function listSalaryHistory(profileId: string, page = 1, limit = 50) {
+  return apiGetPaged<SalaryHistoryItem[]>(`/hr-profiles/${profileId}/salary-history`, { page, limit });
 }
 
 // ── Hồ sơ năng lực ──────────────────────────────────────────────
-export function listCompetences(userId: string, filters: { kind?: string; status?: string } = {}) {
-  return apiGet<Competence[]>(`/hr-profiles/${userId}/competences`, { ...filters });
+export function listCompetences(profileId: string, filters: { kind?: string; status?: string } = {}) {
+  return apiGet<Competence[]>(`/hr-profiles/${profileId}/competences`, { ...filters });
 }
 export interface CreateCompetenceBody {
   kind: CompetenceKind;
@@ -94,8 +100,8 @@ export interface CreateCompetenceBody {
   scope_detail?: string | null;
   authorized_by?: string | null;
 }
-export function createCompetence(userId: string, body: CreateCompetenceBody) {
-  return apiPost<Competence>(`/hr-profiles/${userId}/competences`, body);
+export function createCompetence(profileId: string, body: CreateCompetenceBody) {
+  return apiPost<Competence>(`/hr-profiles/${profileId}/competences`, body);
 }
 export function updateCompetence(competenceId: string, body: Partial<CreateCompetenceBody>) {
   return apiPatch<Competence>(`/competences/${competenceId}`, body);
@@ -107,11 +113,32 @@ export function uploadCompetenceAttachment(competenceId: string, file: File) {
   );
 }
 
-export function getCompetenceSummary(userId: string) {
-  return apiGet<CompetenceSummary>(`/hr-profiles/${userId}/competence-summary`);
+export function getCompetenceSummary(profileId: string) {
+  return apiGet<CompetenceSummary>(`/hr-profiles/${profileId}/competence-summary`);
 }
 
 // ── Danh mục ────────────────────────────────────────────────────
 export function listContractTypes() {
   return apiGet<CatalogItem[]>('/catalogs/contract-types');
+}
+
+
+// ── m48: gắn hồ sơ nhân sự ↔ tài khoản ──────────────────────────
+/** Hồ sơ CHƯA GẮN trùng tên với một tài khoản — để người duyệt chọn, không tự gắn. */
+export function suggestProfilesForUser(userId: string) {
+  return apiGet<ProfileSuggestion[]>(`/users/${userId}/profile-suggestions`);
+}
+export function linkProfileAccount(profileId: string, userId: string) {
+  return apiPost<HrProfile>(`/hr-profiles/${profileId}/link`, { user_id: userId });
+}
+export function unlinkProfileAccount(profileId: string) {
+  return apiPost<HrProfile>(`/hr-profiles/${profileId}/unlink`, {});
+}
+
+export interface ProfileSuggestion {
+  id: string;
+  full_name: string;
+  birth_year?: number | null;
+  job_title: string;
+  contract_type?: string | null;
 }

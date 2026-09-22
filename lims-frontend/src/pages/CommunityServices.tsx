@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { HeartHandshake, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { HeartHandshake, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
@@ -23,6 +25,7 @@ import { canManageResearch } from '@/lib/rbac';
 import type { CommunityService } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 export function CommunityServices() {
   const { user } = useAuth();
@@ -33,7 +36,7 @@ export function CommunityServices() {
   const [deleteTarget, setDeleteTarget] = useState<CommunityService | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(() => researchApi.listCommunity({ limit: 100 }), []);
+  const { data, loading, error, reload } = useAsync(() => researchApi.listCommunity({ limit: 100 }), []);
   const canManage = canManageResearch(user);
 
   async function doDelete() {
@@ -57,7 +60,7 @@ export function CommunityServices() {
     { key: 'performer', header: 'Người thực hiện', render: (c) => c.performer_name ?? '—' },
     {
       key: 'performed_at',
-      header: 'Thời gian',
+      header: 'Thời gian thực hiện',
       sortValue: (c) => c.performed_at,
       render: (c) => formatDate(c.performed_at),
     },
@@ -68,13 +71,18 @@ export function CommunityServices() {
             header: '',
             align: 'right' as const,
             render: (c: CommunityService) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(c)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${c.content}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(c) },
+                    { label: 'Xóa hoạt động', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(c), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -89,11 +97,14 @@ export function CommunityServices() {
         description="Các hoạt động phục vụ cộng đồng, xã hội"
         icon={<HeartHandshake size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm hoạt động
-            </Button>
-          )
+          <>
+            <ExportExcelButton kind="community-services" />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} /> Thêm hoạt động
+              </Button>
+            )}
+          </>
         }
       />
       <Card>
@@ -101,6 +112,7 @@ export function CommunityServices() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(c) => c.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           onRowClick={(c) => setViewTarget(c)}

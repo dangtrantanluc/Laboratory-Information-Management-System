@@ -385,6 +385,38 @@ export function canViewQuotations(user: CurrentUser | null): boolean {
   return !!user && ['admin', 'leader', 'reception', 'office'].includes(user.role);
 }
 
+// ── m46: Phiếu kết quả thử nghiệm (BM 7.8/01) ───────────────────
+//
+// ĐÚNG BA VAI, đã chốt với chủ nghiệp vụ. CỐ Ý không suy từ canViewIntake: quyền
+// `intake:read` đang cấp cho staff và lab_manager với scope 'all', mà tệp BM 7.8/01
+// chứa nguyên văn tên và địa chỉ khách hàng ở bảng đầu phiếu — đúng những trường m26
+// che với khối lab. Giữ khớp roles_permissions trong migration m46: lệch hai phía thì
+// nút hiện mà bấm vào 403.
+const TEST_REPORT_ROLES = ['reception', 'leader', 'admin'];
+
+/** Xem và tải phiếu kết quả đã phát hành. */
+export function canViewTestReports(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'test_report', 'read')
+    || (!!user && TEST_REPORT_ROLES.includes(user.role));
+}
+/** Tải lên, phát hành, ghi nhận đã gửi khách, thu hồi. */
+export function canManageTestReports(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'test_report', 'manage')
+    || (!!user && TEST_REPORT_ROLES.includes(user.role));
+}
+
+// ── m50: Báo cáo tổng hợp khách hàng ────────────────────────────
+/**
+ * Văn phòng ĐƯỢC xem báo cáo này dù bị chặn ở báo cáo mẫu (B03).
+ *
+ * Hai thứ khác nhau: báo cáo mẫu là dữ liệu THỬ NGHIỆM (chỉ tiêu, kết quả, phòng lab),
+ * còn đây là dữ liệu THƯƠNG MẠI (khách nào, bao nhiêu phiếu, thu được chưa) — vốn đã
+ * là việc của Văn phòng. Giữ khớp _ALLOWED_ROLES trong customer_report_service.py.
+ */
+export function canViewCustomerReport(user: CurrentUser | null): boolean {
+  return !!user && ['admin', 'leader', 'reception', 'office'].includes(user.role);
+}
+
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'admin', label: 'Quản trị viên' },
   { value: 'leader', label: 'Ban lãnh đạo' },

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { Building2, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -19,7 +20,7 @@ export function Departments() {
   const [createOpen, setCreateOpen] = useState(false);
   const [delDept, setDelDept] = useState<Department | null>(null);
 
-  const { data, loading, reload } = useAsync(() => usersApi.listDepartments(true), []);
+  const { data, loading, error, reload } = useAsync(() => usersApi.listDepartments(true), []);
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100, status: 'active' }), []);
 
   const columns: Column<Department>[] = [
@@ -33,7 +34,7 @@ export function Departments() {
       align: 'right',
       render: (d) => (
         <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => setDelDept(d)} title="Xóa">
+          <Button aria-label="Xóa" size="sm" variant="ghost" onClick={() => setDelDept(d)} title="Xóa">
             <Trash2 size={14} className="text-overdue" />
           </Button>
         </div>
@@ -58,6 +59,7 @@ export function Departments() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(d) => d.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           onRowClick={(d) => setEditing(d)}

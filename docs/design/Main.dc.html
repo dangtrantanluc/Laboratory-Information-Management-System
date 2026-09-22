@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --blueberry:#1a6e4a; --berry:#5a8a6c; --stem:#52564c; --yogurt:#baa070;
+      --plate:#f6f7f1; --surface:#ffffff; --surface2:#f9faf4;
+      --ink:#1a1f1b; --subink:#52564c; --hairline:#e2e4d8;
+      --success:#15803d; --pending:#2563eb; --warning:#ac6014; --overdue:#bb332c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px;background:var(--plate);color:var(--ink);
+      font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+    a{color:var(--blueberry)} a:hover{color:#12563a}
+    .card{border:1px solid var(--hairline);border-radius:12px;background:var(--surface);
+      box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06)}
+    .bar{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--hairline)}
+    .inp{height:36px;border:1px solid var(--hairline);border-radius:8px;background:var(--surface);
+      display:flex;align-items:center;gap:8px;padding:0 12px;font-size:13px;color:var(--subink)}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    thead tr{background:var(--plate);border-bottom:1px solid var(--hairline)}
+    th{padding:10px 16px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;
+      letter-spacing:.025em;color:var(--stem);white-space:nowrap}
+    td{padding:12px 16px;vertical-align:middle;color:var(--ink);border-bottom:1px solid var(--hairline)}
+    tbody tr:last-child td{border-bottom:0}
+    .code{font-weight:600}
+    .sub{font-size:12px;color:var(--subink);margin-top:2px}
+    .money{font-weight:600;text-align:right;white-space:nowrap}
+    .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;
+      font-size:12px;font-weight:500;box-shadow:inset 0 0 0 1px}
+    .b-ok{background:rgba(21,128,61,.1);color:var(--success);box-shadow:inset 0 0 0 1px rgba(21,128,61,.2)}
+    .b-sent{background:rgba(37,99,235,.1);color:var(--pending);box-shadow:inset 0 0 0 1px rgba(37,99,235,.2)}
+    .b-draft{background:var(--plate);color:var(--subink);box-shadow:inset 0 0 0 1px var(--hairline)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;
+      border-radius:8px;font-size:12px;font-weight:500;border:1px solid transparent;cursor:default;white-space:nowrap}
+    .btn-2{background:var(--surface);border-color:var(--hairline);color:var(--ink)}
+    .btn-1{background:var(--blueberry);color:#fff}
+    .btn-g{background:transparent;color:var(--stem)}
+    .icon{width:36px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+      border-radius:8px;color:var(--stem)}
+    .acts{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+    .menu{width:224px;border:1px solid var(--hairline);border-radius:12px;background:var(--surface);
+      box-shadow:0 8px 24px rgba(16,24,40,.12);padding:6px}
+    .mi{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;font-size:14px;
+      font-weight:500;color:var(--stem)}
+    .mi-d{color:var(--overdue)}
+    .sep{height:1px;background:var(--hairline);margin:4px 6px}
+
+  </style>
+</helmet>
+<div style="margin-bottom:14px"><div style="font-size:16px;font-weight:700">Phương án A · Nút “Sửa” có nhãn + menu ⋯</div><div style="font-size:13px;color:var(--stem);margin-top:2px">Hành động chính hiện rõ; xem / xuất / xóa gom vào menu. Luôn đúng 2 control mỗi hàng.</div></div><div class="card"><div class="bar"><div class="inp" style="width:260px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>Số báo giá / khách hàng…</div><div class="inp" style="width:180px;justify-content:space-between"><span>— Mọi trạng thái —</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div><div style="flex:1"></div><span style="font-size:13px;color:var(--stem)">3 báo giá</span></div><table><thead><tr><th>Số báo giá</th><th>Khách hàng</th><th>Ngày lập</th><th>Hiệu lực đến</th><th style="text-align:right">Tổng cộng</th><th>Trạng thái</th><th></th></tr></thead><tbody><tr><td><div class="code">BG-2026-0023</div></td><td><div>Công ty CP Dược Hậu Giang</div><div class="sub">Phiếu: NM-2026-0105</div></td><td style="white-space:nowrap">04/09/2026</td><td style="white-space:nowrap">04/10/2026</td><td class="money">1.425.600 VND</td><td><span class="badge b-draft">Nháp</span></td><td style="position:relative"><div class="acts"><span class="btn btn-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Sửa</span><span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span></div></td></tr><tr style="background:var(--plate)"><td><div class="code">BG-2026-0021</div></td><td><div>Công ty TNHH Thủy sản Minh Phú</div><div class="sub">Phiếu: NM-2026-0102</div></td><td style="white-space:nowrap">03/09/2026</td><td style="white-space:nowrap">03/10/2026</td><td class="money">1.944.000 VND</td><td><span class="badge b-sent">Đã gửi khách</span></td><td style="position:relative"><div class="acts"><span class="btn btn-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Sửa</span><span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span></div><div style="position:relative"><div class="menu" style="position:absolute;right:0;top:6px;z-index:5"><div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>Xem chi tiết</div><div class="mi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>Xuất Excel</div><div class="sep"></div><div class="mi mi-d"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Xóa báo giá</div></div></div></td></tr><tr><td><div class="code">BG-2026-0022</div></td><td><div>Viện Kiểm nghiệm ATVSTP Quốc gia</div><div class="sub">Phiếu: NM-2026-0103</div></td><td style="white-space:nowrap">01/09/2026</td><td style="white-space:nowrap">01/10/2026</td><td class="money">550.800 VND</td><td><span class="badge b-ok">Khách đồng ý</span></td><td style="position:relative"><div class="acts"><span class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span></div></td></tr></tbody></table></div>
+</x-dc>
+</body>
+</html>

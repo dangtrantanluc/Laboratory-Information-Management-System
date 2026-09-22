@@ -302,6 +302,22 @@ Quy trình theo **contract-first** (không code khi contract chưa APPROVED):
 README chi tiết từng phần: [`lims-backend/README.md`](lims-backend/README.md) ·
 [`lims-frontend/README.md`](lims-frontend/README.md).
 
+**Tài liệu triển khai** — chọn theo máy đích:
+
+| Máy đích | Tài liệu | Ghi chú |
+|----------|----------|---------|
+| Linux (Ubuntu/Debian) | [`DEPLOY_LINUX.md`](DEPLOY_LINUX.md) | Cài mới qua Cloudflare Tunnel |
+| **Windows 10/11 + Docker Desktop** | [**`DEPLOY_WINDOWS.md`**](DEPLOY_WINDOWS.md) | **Chuyển cả hệ thống + dữ liệu** từ máy Linux sang, giữ nguyên tên miền |
+| Bất kỳ (phần Cloudflare) | [`DEPLOY_CLOUDFLARE.md`](DEPLOY_CLOUDFLARE.md) | Chi tiết cấu hình tunnel |
+| Clone sang máy khác (tổng quan) | [`DEPLOY.md`](DEPLOY.md) | Runbook rút gọn |
+
+**Vận hành** — sao lưu, khôi phục, sự cố:
+
+| Máy | Tài liệu |
+|-----|----------|
+| Linux | [`ops/RUNBOOK.md`](ops/RUNBOOK.md) |
+| Windows | [`ops/BACKUP_WINDOWS.md`](ops/BACKUP_WINDOWS.md) — 4 tình huống khôi phục, 3-2-1, RPO/RTO, diễn tập định kỳ |
+
 **Bảng xác nhận tính năng cho khách hàng** (non-tech, có ô tick xác nhận):
 [`LIMS-Xac-nhan-tinh-nang.xlsx`](LIMS-Xac-nhan-tinh-nang.xlsx) — 62 tính năng mô tả bằng
 ngôn ngữ đời thường, khách hàng chọn *Đồng ý / Cần chỉnh sửa / Chưa cần / Cần trao đổi* +

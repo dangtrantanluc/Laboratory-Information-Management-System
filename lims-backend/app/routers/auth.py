@@ -13,6 +13,7 @@ from app.core import security
 from app.core.error_codes import ErrorCode
 from app.core.concurrency import upload_slot
 from app.core.deps import CurrentUser, get_current_user
+from app.core.request_meta import client_ip
 from app.core.exceptions import AppException
 from app.core.rate_limit import rate_limit
 from app.core.responses import ok
@@ -46,10 +47,12 @@ from app.models.user import User
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _client_ip(request: Request) -> str | None:
-    if request.client:
-        return request.client.host
-    return None
+# Dùng helper CHUNG (app/core/request_meta) thay cho bản sao cục bộ: nó đọc X-Real-IP
+# trước rồi mới rơi về request.client.host. Ở production hai đường cho cùng kết quả —
+# nginx đặt X-Real-IP và uvicorn chạy --proxy-headers — nhưng bản sao cục bộ trả chuỗi
+# "testclient" dưới TestClient, mà `audit_logs.ip` là cột INET nên ghi vào là lỗi.
+# Đây cũng là một trong 25 bản sao `_ip()` mà app/core/request_meta sinh ra để xoá dần.
+_client_ip = client_ip
 
 
 # Hạn mức thuần-IP giờ chỉ là chốt chống flood THÔ: cả viện đi chung một IP NAT

@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { FormBody, FormSection } from '@/components/ui/FormSection';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/States';
+import {EmptyState, ErrorState } from '@/components/ui/States';
 import { formatDateTime } from '@/lib/format';
 import { RegistrationStatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/context/ToastContext';
@@ -136,7 +136,7 @@ function TemplatesTab({ canManage, canSubmit }: { canManage: boolean; canSubmit:
   const [submitFor, setSubmitFor] = useState<FormTemplate | null>(null);
   const [fileFor, setFileFor] = useState<FormTemplate | null>(null);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => formsApi.listAllTemplates({ active_only: true }),
     [],
   );
@@ -330,6 +330,7 @@ function TemplatesTab({ canManage, canSubmit }: { canManage: boolean; canSubmit:
           columns={columns}
           rows={rows}
           rowKey={(t) => t.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={15}
           onRowClick={canManage ? (t) => setEditing(t) : undefined}

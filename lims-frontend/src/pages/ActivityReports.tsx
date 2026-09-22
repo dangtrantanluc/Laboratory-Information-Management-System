@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { CalendarClock, Plus, CheckCircle2, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -47,7 +48,7 @@ export function ActivityReports() {
   const canReview = canReviewActivityReports(user);
   const canSubmit = canSubmitActivityReport(user);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => reportApi.listReports({ limit: 100, period: period || undefined, status: statusFilter || undefined }),
     [period, statusFilter],
   );
@@ -86,9 +87,9 @@ export function ActivityReports() {
       align: 'right',
       render: (r) => (
         <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={() => setViewId(r.id)}><Eye size={14} /></Button>
+          <Button aria-label="Xem chi tiết" size="sm" variant="ghost" onClick={() => setViewId(r.id)}><Eye size={14} /></Button>
           {(canReview || r.reporter_user_id === user?.id) && (
-            <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(r)}><Trash2 size={14} className="text-overdue" /></Button>
+            <Button aria-label="Xóa" size="sm" variant="ghost" onClick={() => setDeleteTarget(r)}><Trash2 size={14} className="text-overdue" /></Button>
           )}
         </div>
       ),
@@ -119,7 +120,7 @@ export function ActivityReports() {
             ))}
           </select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(r) => r.id} loading={loading} pageSize={15} onRowClick={(r) => setViewId(r.id)} />
+        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(r) => r.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={15} onRowClick={(r) => setViewId(r.id)} />
       </Card>
 
       {viewId && (
@@ -209,7 +210,7 @@ function ReportDetailModal({
             render={(t) => (<><div className="font-medium text-ink">{t.course_name}</div><div className="text-xs text-subink">LT/TH HK1: {t.hk1_theory_hours ?? 0}/{t.hk1_practice_hours ?? 0} · HK2: {t.hk2_theory_hours ?? 0}/{t.hk2_practice_hours ?? 0} · HK3: {t.hk3_theory_hours ?? 0}/{t.hk3_practice_hours ?? 0}</div></>)} />
           <DetailSection title="Đề tài NCKH" rows={r.projects}
             render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{p.level ?? '—'} · KP: {money(p.budget_amount)}</div></>)} />
-          <DetailSection title="Bài báo & Báo cáo KH" rows={r.publications}
+          <DetailSection title="Công bố khoa học" rows={r.publications}
             render={(p) => (<><div className="font-medium text-ink">{p.title}</div><div className="text-xs text-subink">{PUBLICATION_TYPE_LABELS[p.type]} · {p.journal ?? '—'} · {p.year ?? '—'}{p.is_scie ? ' · SCIE' : ''}{p.is_scopus ? ' · Scopus' : ''}</div></>)} />
           <DetailSection title="Hợp đồng" rows={r.contracts}
             render={(c) => (<><div className="font-medium text-ink">{c.title}</div><div className="text-xs text-subink">{c.contract_type ?? '—'} · {money(c.value_amount)}</div></>)} />

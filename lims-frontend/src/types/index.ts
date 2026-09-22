@@ -336,6 +336,73 @@ export interface SampleIntake {
   customer_info_masked?: boolean;
   /** 'pending' nếu phòng đã gửi yêu cầu và đang chờ Phòng nhận mẫu duyệt. */
   customer_info_request_status?: 'pending' | null;
+  /** m46 — đã phát hành phiếu kết quả (BM 7.8/01) hay chưa. Badge "KQ" ở bảng danh sách. */
+  has_test_report?: boolean;
+}
+
+// ── m46: PHIẾU KẾT QUẢ THỬ NGHIỆM (BM 7.8/01/RIBE) ───────────────
+//
+// Chứng từ trả cho khách, TẢI TỆP LÊN chứ không sinh từ dữ liệu: biểu mẫu thật là
+// nhiều khối mã mẫu trong một tệp, mỗi khối một bộ chỉ tiêu và một ma trận kết quả
+// theo từng mẫu con — mô hình `ket_qua` một ô text của phiếu chuyển không tả nổi.
+export type TestReportStatus = 'draft' | 'issued' | 'delivered' | 'revoked';
+
+export const TEST_REPORT_STATUS_LABELS: Record<TestReportStatus, string> = {
+  draft: 'Nháp',
+  issued: 'Đã phát hành',
+  delivered: 'Đã gửi khách',
+  revoked: 'Đã thu hồi',
+};
+
+export type DeliveryMethod = 'direct' | 'mail' | 'email';
+
+export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, string> = {
+  direct: 'Trao trực tiếp',
+  mail: 'Gửi bưu điện',
+  email: 'Gửi email',
+};
+
+export interface TestReportFile {
+  id: string;
+  file_name: string;
+  mime: string | null;
+  size: number | null;
+  uploaded_by_name: string | null;
+  uploaded_at: string;
+}
+
+export interface TestReport {
+  id: string;
+  intake_id: string;
+  intake_code?: string | null;
+  report_no: string;
+  version: number;
+  supersedes_id?: string | null;
+  supersedes_report_no?: string | null;
+  revision_reason?: string | null;
+  status: TestReportStatus;
+  status_label: string;
+  /** Bước hợp lệ kế tiếp — dựng nút từ đây thay vì đoán theo status. */
+  next_statuses: TestReportStatus[];
+  title?: string | null;
+  note?: string | null;
+  issued_at?: string | null;
+  issued_by?: string | null;
+  issued_by_name?: string | null;
+  delivered_at?: string | null;
+  delivery_method?: DeliveryMethod | null;
+  delivery_method_label?: string | null;
+  delivered_to?: string | null;
+  delivery_note?: string | null;
+  revoked_at?: string | null;
+  revoked_by_name?: string | null;
+  revoked_reason?: string | null;
+  /** Trễ hạn so với ngày hẹn trả trên phiếu; âm = trả sớm, null = không có mốc so. */
+  days_late?: number | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+  files: TestReportFile[];
 }
 
 // ── m29: BÁO GIÁ ─────────────────────────────────────────────────
@@ -792,8 +859,13 @@ export interface Attachment {
  * Số tiền / hệ số là STRING — không parseFloat.
  */
 export interface HrProfile {
-  user_id: string;
+  /** m48 — khoá của HỒ SƠ. Trước đây trùng với user_id; nay là id riêng. */
+  id: string;
+  /** Tài khoản đã gắn; null = có trong sổ nhân sự nhưng chưa có tài khoản. */
+  user_id: string | null;
+  has_account: boolean;
   full_name: string;
+  birth_year?: number | null;
   email?: string | null;
   department_id?: string | null;
   department_name?: string | null;

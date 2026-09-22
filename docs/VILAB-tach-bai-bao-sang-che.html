@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Phân tích tách màn hình Bài báo & Sáng chế thành hai danh mục riêng cho VILAB LIMS — hiện trạng dữ liệu, ba phương án giao diện, thiết kế xuất Excel và bốn điểm cần chốt.">
+<style>
+  /* Reset tối thiểu — bản Artifact được host cấp sẵn phần này */
+  :root{color-scheme:light dark}
+  body{margin:0}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Tách bài báo và sáng chế</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root{
+    --paper:#F5F7F5; --surface:#FFFFFF; --surface-2:#EDF2EE;
+    --ink:#141C18; --ink-2:#3D4B44; --ink-3:#6B7A72;
+    --hairline:#D7DFD9; --hairline-2:#C0CCC5;
+    --accent:#0F5C4A; --accent-soft:#E1EDE7;
+    --p0:#A8231C; --p0-bg:#F7E6E4;
+    --p1:#95530B; --p1-bg:#F9ECDE;
+    --p2:#736013; --p2-bg:#F4EFDB;
+    --p3:#33607D; --p3-bg:#E5EEF4;
+    --ok:#22684B; --ok-bg:#E0EEE7;
+    --q:#57457A; --q-bg:#ECE7F3;
+    --shadow:0 1px 2px rgba(20,28,24,.05), 0 8px 24px -16px rgba(20,28,24,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+      --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+      --hairline:#27322D; --hairline-2:#35433C;
+      --accent:#4FBF98; --accent-soft:#12302A;
+      --p0:#F0908A; --p0-bg:#331A1A;
+      --p1:#E3A863; --p1-bg:#322614;
+      --p2:#D3C167; --p2-bg:#2C2A16;
+      --p3:#93BDD8; --p3-bg:#182831;
+      --ok:#6FCFA3; --ok-bg:#12291F;
+      --q:#B6A5D9; --q-bg:#221D2E;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1411; --surface:#151D19; --surface-2:#1C2622;
+    --ink:#E4ECE7; --ink-2:#AEBCB5; --ink-3:#7C8B84;
+    --hairline:#27322D; --hairline-2:#35433C;
+    --accent:#4FBF98; --accent-soft:#12302A;
+    --p0:#F0908A; --p0-bg:#331A1A;
+    --p1:#E3A863; --p1-bg:#322614;
+    --p2:#D3C167; --p2-bg:#2C2A16;
+    --p3:#93BDD8; --p3-bg:#182831;
+    --ok:#6FCFA3; --ok-bg:#12291F;
+    --q:#B6A5D9; --q-bg:#221D2E;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.62; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+
+  h1,h2,h3,h4{font-family:Spectral,Georgia,serif; text-wrap:balance; margin:0}
+  h1{font-size:2.6rem; line-height:1.12; font-weight:700; letter-spacing:-.015em}
+  h2{font-size:1.62rem; line-height:1.22; font-weight:600}
+  h3{font-size:1.16rem; line-height:1.3; font-weight:600; font-family:"IBM Plex Sans",sans-serif}
+  h4{font-size:.95rem; font-family:"IBM Plex Sans",sans-serif; font-weight:600}
+  p{margin:0 0 .85em}
+  .prose{max-width:70ch}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:600;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  }
+  code,.mono{font-family:"IBM Plex Mono",monospace; font-size:.855em}
+  code{background:var(--surface-2); padding:.1em .34em; border-radius:3px; color:var(--ink-2)}
+  a{color:var(--accent)}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+  .mast{border-bottom:2px solid var(--ink); padding:56px 0 22px; margin-bottom:40px}
+  .mast .eyebrow{display:block; margin-bottom:14px}
+  .mast p.lede{
+    font-family:Spectral,Georgia,serif; font-size:1.2rem; line-height:1.55;
+    color:var(--ink-2); max-width:62ch; margin:18px 0 0; font-style:italic;
+  }
+  .mast-meta{
+    display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:24px;
+    font-family:"IBM Plex Mono",monospace; font-size:.76rem; color:var(--ink-3);
+  }
+  .mast-meta b{color:var(--ink-2); font-weight:500}
+
+  section{margin:0 0 60px; scroll-margin-top:20px}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin-bottom:8px; border-bottom:1px solid var(--hairline); padding-bottom:10px}
+  .sec-head .letter{
+    font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600;
+    color:var(--accent); letter-spacing:.08em; padding-top:.35em;
+  }
+  .sec-sub{color:var(--ink-3); font-size:.9rem; margin:0 0 22px; max-width:74ch}
+
+  .note{
+    border-left:3px solid var(--accent); background:var(--surface); padding:13px 18px;
+    font-size:.87rem; color:var(--ink-2); margin:18px 0; border-radius:0 3px 3px 0;
+  }
+  .note.warn{border-left-color:var(--p1)}
+  .note.crit{border-left-color:var(--p0)}
+  .note.ok{border-left-color:var(--ok)}
+  .note b{color:var(--ink)}
+  ul.tight{margin:.4em 0; padding-left:1.15em}
+  ul.tight li{margin-bottom:.28em}
+
+  .chip{
+    font-family:"IBM Plex Mono",monospace; font-size:.66rem; font-weight:600; letter-spacing:.07em;
+    padding:2.5px 8px; border-radius:99px; white-space:nowrap; display:inline-block;
+  }
+  .c0{background:var(--p0-bg); color:var(--p0)}
+  .c1{background:var(--p1-bg); color:var(--p1)}
+  .c3{background:var(--p3-bg); color:var(--p3)}
+  .cq{background:var(--q-bg);  color:var(--q)}
+  .cok{background:var(--ok-bg); color:var(--ok)}
+  .cn{background:var(--surface-2); color:var(--ink-3)}
+
+  .scroller{overflow-x:auto; border:1px solid var(--hairline); border-radius:4px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:.855rem; min-width:660px}
+  th,td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--hairline); vertical-align:top}
+  thead th{
+    background:var(--surface-2); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; white-space:nowrap; position:sticky; top:0;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.mid{text-align:center; font-variant-numeric:tabular-nums}
+  .yes{color:var(--ok); font-weight:700}
+  .no{color:var(--ink-3)}
+  .row-th{font-weight:600; color:var(--ink); white-space:nowrap}
+  td .sub{display:block; font-size:.79rem; color:var(--ink-3); line-height:1.4}
+
+  /* ── Cây phân loại ─────────────────────── */
+  .tree{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:12px; margin:20px 0}
+  .branch{background:var(--surface); border:1px solid var(--hairline); border-top:3px solid var(--hairline-2); border-radius:4px; padding:16px 18px}
+  .branch.b1{border-top-color:var(--accent)}
+  .branch.b2{border-top-color:var(--p3)}
+  .branch.b3{border-top-color:var(--p1)}
+  .branch h4{margin-bottom:2px}
+  .branch .fld{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--ink-3); margin-bottom:12px}
+  .leaf{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:6px 0; border-top:1px solid var(--hairline)}
+  .leaf:first-of-type{border-top:none}
+  .leaf .nm{font-size:.875rem; color:var(--ink-2)}
+  .leaf .nm .m{display:block; font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--ink-3)}
+  .leaf .ct{font-family:"IBM Plex Mono",monospace; font-size:.8rem; font-variant-numeric:tabular-nums; color:var(--ink)}
+  .leaf.new{background:var(--p1-bg); margin:0 -18px; padding:6px 18px}
+
+  /* ── Ma trận cột ───────────────────────── */
+  .matrix td.mid{font-family:"IBM Plex Mono",monospace}
+  .matrix .empty{color:var(--p0); opacity:.55}
+
+  /* ── Phương án ─────────────────────────── */
+  .opts{display:grid; gap:12px}
+  .opt{
+    display:grid; grid-template-columns:auto 1fr; gap:18px;
+    background:var(--surface); border:1px solid var(--hairline);
+    border-left:4px solid var(--hairline-2); border-radius:4px; padding:18px 22px;
+  }
+  .opt.pick{border-left-color:var(--ok); box-shadow:var(--shadow)}
+  .opt .tag{
+    font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:.95rem;
+    color:var(--ink-3); padding-top:.1em;
+  }
+  .opt.pick .tag{color:var(--ok)}
+  .opt h4{margin-bottom:5px; display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+  .opt .body{font-size:.885rem; color:var(--ink-2)}
+  .opt .pros{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:4px 22px; margin-top:9px; font-size:.83rem}
+  .opt .pros .p::before{content:"+ "; color:var(--ok); font-weight:700}
+  .opt .pros .m::before{content:"− "; color:var(--p0); font-weight:700}
+  .opt .pros div{color:var(--ink-3)}
+
+  /* ── Mockup màn hình ───────────────────── */
+  .mock{background:var(--surface); border:1px solid var(--hairline); border-radius:5px; overflow:hidden; margin:14px 0; box-shadow:var(--shadow)}
+  .mock .bar{background:var(--surface-2); padding:9px 16px; border-bottom:1px solid var(--hairline); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  .mock .bar .t{font-weight:600; font-size:.93rem}
+  .mock .bar .btn{font-size:.72rem; background:var(--accent); color:#fff; padding:4px 11px; border-radius:4px; font-weight:600}
+  .mock .chips{display:flex; gap:6px; padding:11px 16px; flex-wrap:wrap; border-bottom:1px solid var(--hairline)}
+  .mock .ch{font-size:.74rem; padding:3px 11px; border-radius:99px; border:1px solid var(--hairline-2); color:var(--ink-3)}
+  .mock .ch.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .mock .cols{display:flex; gap:0; padding:0; font-family:"IBM Plex Mono",monospace; font-size:.7rem; overflow-x:auto}
+  .mock .cols span{padding:8px 13px; border-right:1px solid var(--hairline); color:var(--ink-3); white-space:nowrap; letter-spacing:.04em}
+  .mock .cols span:last-child{border-right:none}
+
+  .qlist{display:grid; gap:9px}
+  .qitem{display:grid; grid-template-columns:auto 1fr; gap:14px; background:var(--surface); border:1px solid var(--hairline); border-radius:3px; padding:14px 18px}
+  .qitem .qn{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--q); font-size:.82rem; padding-top:.1em}
+  .qitem .qq{font-weight:600; font-size:.93rem; margin-bottom:3px}
+  .qitem .qw{font-size:.845rem; color:var(--ink-3)}
+  .qitem .qw b{color:var(--accent); font-weight:600}
+
+  .steps{display:grid; gap:8px}
+  .step{display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:baseline; background:var(--surface); border:1px solid var(--hairline); border-radius:3px; padding:13px 18px}
+  .step .n{font-family:"IBM Plex Mono",monospace; font-size:.74rem; font-weight:600; color:var(--accent); white-space:nowrap}
+  .step .b{font-size:.885rem; color:var(--ink-2)}
+  .step .b b{color:var(--ink)}
+  .step .b .f{display:block; margin-top:3px; font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--ink-3)}
+
+  .ev{
+    margin-top:11px; padding-top:10px; border-top:1px dashed var(--hairline-2);
+    font-family:"IBM Plex Mono",monospace; font-size:.75rem; color:var(--ink-3); line-height:1.7;
+  }
+  .ev b{color:var(--ink-2); font-weight:500}
+
+  @media (max-width:820px){
+    .wrap{padding:0 18px 64px}
+    h1{font-size:2rem}
+    .opt{grid-template-columns:1fr}
+    .step{grid-template-columns:auto 1fr}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <span class="eyebrow">Phân tích giao diện · VILAB LIMS · Nghiên cứu khoa học</span>
+  <h1>Tách bài báo và sáng chế</h1>
+  <p class="lede">Yêu cầu của cô là tách một màn hình thành hai để xuất Excel dễ hơn. Dữ liệu đã sẵn
+    sàng cho việc đó — nhưng có hai loại hồ sơ cô chưa nhắc tới, và một chỗ dữ liệu đang mô tả cùng
+    một sự thật bằng ba trường khác nhau.</p>
+  <div class="mast-meta">
+    <span><b>Màn hình:</b> Nghiên cứu ▸ Bài báo &amp; Sáng chế</span>
+    <span><b>Cần migration:</b> không</span>
+    <span><b>Cần chốt:</b> 4 câu</span>
+  </div>
+</header>
+
+<!-- ══════════════════════════ A ══════════════════════════ -->
+<section id="a">
+  <div class="sec-head"><span class="letter">A</span><h2>Yêu cầu, dịch sang ngôn ngữ dữ liệu</h2></div>
+  <p class="sec-sub">Nguyên văn: <i>“Em tách bài báo và sáng chế riêng ra dùm cô nha. Do bài báo có
+    bài báo trong nước và bài báo quốc tế. Phần sáng chế có sáng chế và giải pháp hữu ích. Như vậy,
+    xuất file excel dễ hơn.”</i></p>
+
+  <div class="note ok">
+    <b>Tin tốt: không cần đụng tới cơ sở dữ liệu.</b> Bảng <code>publications</code> đã có sẵn đúng ba
+    trường cần cho phép tách này — <code>type</code>, <code>pub_scope</code> và
+    <code>patent_kind</code>. Toàn bộ công việc nằm ở tầng giao diện và tầng xuất Excel.
+  </div>
+
+  <p class="prose">Dưới đây là dữ liệu <b>thật đang có trên hệ thống</b>, xếp theo đúng cách cô mô tả:</p>
+
+  <div class="tree">
+    <div class="branch b1">
+      <h4>Bài báo</h4>
+      <div class="fld">type = 'paper' · phân theo pub_scope</div>
+      <div class="leaf"><span class="nm">Trong nước<span class="m">pub_scope = domestic</span></span><span class="ct">1</span></div>
+      <div class="leaf"><span class="nm">Quốc tế<span class="m">pub_scope = international</span></span><span class="ct">2</span></div>
+    </div>
+    <div class="branch b3">
+      <h4>Báo cáo hội nghị <span class="chip c1">CÔ CHƯA NHẮC</span></h4>
+      <div class="fld">type = 'conference'</div>
+      <div class="leaf"><span class="nm">Kỷ yếu / hội nghị<span class="m">không phải bài báo, không phải sáng chế</span></span><span class="ct">2</span></div>
+    </div>
+    <div class="branch b2">
+      <h4>Sáng chế</h4>
+      <div class="fld">type = 'patent' · phân theo patent_kind</div>
+      <div class="leaf"><span class="nm">Sáng chế<span class="m">patent_kind = invention</span></span><span class="ct">1</span></div>
+      <div class="leaf"><span class="nm">Giải pháp hữu ích<span class="m">patent_kind = utility_solution</span></span><span class="ct">1</span></div>
+      <div class="leaf new"><span class="nm">Giống cây trồng <span class="chip c1">CÔ CHƯA NHẮC</span><span class="m">patent_kind = plant_variety</span></span><span class="ct">1</span></div>
+    </div>
+  </div>
+
+  <div class="ev"><b>Nguồn:</b> truy vấn trực tiếp CSDL production, bảng <b>publications</b> — 8 bản ghi.</div>
+</section>
+
+<!-- ══════════════════════════ B ══════════════════════════ -->
+<section id="b">
+  <div class="sec-head"><span class="letter">B</span><h2>Vì sao Excel hiện tại khó dùng</h2></div>
+  <p class="sec-sub">Cô nói đúng nguyên nhân, và đây là bằng chứng cụ thể: file xuất ra có 18 cột,
+    nhưng không dòng nào dùng quá một nửa số cột đó.</p>
+
+  <div class="scroller">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="width:34%">Cột trong file Excel hiện tại</th>
+          <th class="mid">Bài báo</th>
+          <th class="mid">Hội nghị</th>
+          <th class="mid">Sáng chế</th>
+          <th>Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="row-th">Tên công trình · Năm · Tác giả · Đơn vị · Minh chứng</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td>5 cột dùng chung — phần duy nhất luôn có dữ liệu.</td></tr>
+        <tr><td class="row-th">Tạp chí / Nhà xuất bản</td><td class="mid yes">✓</td><td class="mid yes">✓</td><td class="mid empty">trống</td><td>Với sáng chế thì khái niệm này không tồn tại.</td></tr>
+        <tr><td class="row-th">DOI · Danh mục · Phạm vi · Chỉ mục</td><td class="mid yes">✓</td><td class="mid empty">một phần</td><td class="mid empty">trống</td><td><b>4 cột</b> chỉ có nghĩa với bài báo.</td></tr>
+        <tr><td class="row-th">Số bằng · Cơ quan cấp · Ngày nộp đơn · Ngày cấp bằng · Loại SC/GPHI · Chủ sở hữu</td><td class="mid empty">trống</td><td class="mid empty">trống</td><td class="mid yes">✓</td><td><b>6 cột</b> chỉ có nghĩa với sáng chế.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <b>Cụ thể là:</b> một dòng bài báo để trống 6 cột, một dòng sáng chế để trống 4 cột. Người nhận
+    file phải tự lọc, tự xoá cột thừa, rồi tự tách thành hai bảng trước khi làm được gì với nó —
+    đúng công việc mà cô đang phải làm bằng tay mỗi kỳ báo cáo.
+  </div>
+  <div class="ev"><b>Nguồn:</b> lims-backend/app/services/<b>research_export_service.py</b> — mục <b>publications</b>, 18 cột.</div>
+</section>
+
+<!-- ══════════════════════════ C ══════════════════════════ -->
+<section id="c">
+  <div class="sec-head"><span class="letter">C</span><h2>Một vấn đề phải chốt trước khi tách</h2></div>
+  <p class="sec-sub">Nếu tách theo “trong nước / quốc tế” thì phải trả lời được: <b>lấy trường nào làm
+    chuẩn?</b> Hiện có ba trường cùng mô tả một sự thật.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:26%">Trường</th><th style="width:32%">Giá trị</th><th>Nó nói gì</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="row-th mono">pub_scope</td>
+          <td class="mono">domestic · international</td>
+          <td>Phạm vi công bố. Đây là trường <b>sinh ra để làm việc này</b>.</td>
+        </tr>
+        <tr>
+          <td class="row-th mono">category</td>
+          <td class="mono">isi_q1 · isi_q2 · isi_q3 · isi_q4 · scopus · <b>domestic</b> · <b>conference</b></td>
+          <td>Danh mục “Chỉ số”. Nhưng nó trộn <b>ba khái niệm khác nhau</b> vào một danh sách: xếp hạng tạp chí (ISI/Scopus), phạm vi (trong nước), và loại công bố (kỷ yếu hội nghị).</td>
+        </tr>
+        <tr>
+          <td class="row-th mono">is_scie · is_ssci<br>is_scopus · is_aci</td>
+          <td class="mono">true / false</td>
+          <td>Bốn cờ chỉ mục, lấy từ các cột tương ứng trong file Excel gốc của Viện.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note crit">
+    <b>Hiện tại ba trường đang khớp nhau — nhưng không có gì bắt buộc chúng khớp.</b>
+    Dữ liệu thật cho thấy <code>category=domestic</code> đi cùng <code>pub_scope=domestic</code>, và
+    <code>isi_q1</code>/<code>scopus</code> đi cùng <code>international</code>. Đó là do người nhập
+    liệu cẩn thận, không phải do hệ thống ép. Không có ràng buộc nào ngăn một bài báo được lưu là
+    <code>category=isi_q1</code> nhưng <code>pub_scope=domestic</code> — và khi đó, tách theo trường
+    nào sẽ ra hai kết quả khác nhau, mà không ai biết bên nào đúng.
+  </div>
+
+  <div class="note">
+    <b>Đề xuất:</b> lấy <code>pub_scope</code> làm nguồn chân lý duy nhất cho “trong nước / quốc tế”,
+    và để <code>category</code> quay về đúng nghĩa <b>chỉ số / xếp hạng tạp chí</b>. Kèm theo:
+    <ul class="tight">
+      <li>khi người dùng chọn chỉ số ISI/Scopus, form <b>tự đặt</b> <code>pub_scope=international</code>;</li>
+      <li>khi chọn “Tạp chí trong nước”, tự đặt <code>domestic</code>;</li>
+      <li>hai mục <code>domestic</code> và <code>conference</code> trong danh mục Chỉ số nên được rà lại — chúng không phải chỉ số.</li>
+    </ul>
+    Việc này nhỏ, nhưng làm <b>trước</b> khi tách thì mới bảo đảm hai màn hình mới luôn cộng lại đúng
+    bằng tổng cũ.
+  </div>
+</section>
+
+<!-- ══════════════════════════ D ══════════════════════════ -->
+<section id="d">
+  <div class="sec-head"><span class="letter">D</span><h2>Ba phương án giao diện</h2></div>
+  <p class="sec-sub">Cả ba đều đạt mục tiêu “xuất Excel dễ hơn”. Khác nhau ở chỗ người dùng phải bấm
+    bao nhiêu lần, và menu bên trái dài thêm bao nhiêu.</p>
+
+  <div class="opts">
+    <div class="opt pick">
+      <div class="tag">A</div>
+      <div>
+        <h4>Hai mục menu riêng <span class="chip cok">KHUYẾN NGHỊ</span></h4>
+        <div class="body">
+          Thay mục <b>“Bài báo &amp; Sáng chế”</b> bằng <b>“Bài báo”</b> và <b>“Sáng chế &amp; GPHI”</b>.
+          Mỗi trang có bảng riêng với <b>đúng những cột có nghĩa</b> cho loại đó, bộ lọc riêng, và nút
+          Xuất Excel riêng. Bên trong mỗi trang có dải chip để lọc tiếp theo phân loại con.
+          <div class="pros">
+            <div class="p">Đúng cách cô mô tả — “tách riêng ra”</div>
+            <div class="p">Bảng hết cột trống, đọc trên màn hình cũng dễ hơn</div>
+            <div class="p">Bấm Xuất Excel là ra đúng file cần, không phải chọn gì thêm</div>
+            <div class="m">Menu Nghiên cứu dài thêm 1 dòng (4 → 5)</div>
+            <div class="m">Đường dẫn cũ <code>/research/publications</code> phải chuyển hướng</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="tag">B</div>
+      <div>
+        <h4>Một trang, hai tab</h4>
+        <div class="body">
+          Giữ nguyên một mục menu, thêm hai tab <b>Bài báo</b> / <b>Sáng chế</b> ở đầu trang. Xuất Excel
+          theo tab đang mở.
+          <div class="pros">
+            <div class="p">Menu không dài thêm</div>
+            <div class="p">Ít thay đổi nhất về mặt kỹ thuật</div>
+            <div class="m">Vẫn phải bấm một lần để tới đúng nơi</div>
+            <div class="m">Không giải quyết được cảm giác “hai thứ khác nhau bị nhét chung một chỗ”</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="tag">C</div>
+      <div>
+        <h4>Chỉ tách phần xuất Excel</h4>
+        <div class="body">
+          Giữ nguyên giao diện, chỉ tách nút Xuất Excel thành nhiều mục:
+          <i>Bài báo trong nước · Bài báo quốc tế · Sáng chế · Giải pháp hữu ích</i>.
+          <div class="pros">
+            <div class="p">Rẻ nhất, làm trong nửa ngày</div>
+            <div class="p">Giải quyết đúng vấn đề cô nêu ra (file Excel)</div>
+            <div class="m">Màn hình vẫn lộn xộn như cũ</div>
+            <div class="m">Cô nói “tách riêng ra”, không chỉ nói “tách file Excel”</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ E ══════════════════════════ -->
+<section id="e">
+  <div class="sec-head"><span class="letter">E</span><h2>Phương án A trông như thế nào</h2></div>
+  <p class="sec-sub">Hai trang, mỗi trang chỉ mang cột của chính nó.</p>
+
+  <h3 style="margin:0 0 4px">Trang 1 — Bài báo</h3>
+  <div class="mock">
+    <div class="bar"><span class="t">Bài báo &amp; báo cáo hội nghị</span><span class="btn">Xuất Excel</span></div>
+    <div class="chips">
+      <span class="ch on">Tất cả · 5</span>
+      <span class="ch">Trong nước · 1</span>
+      <span class="ch">Quốc tế · 2</span>
+      <span class="ch">Hội nghị · 2</span>
+    </div>
+    <div class="cols">
+      <span>TIÊU ĐỀ</span><span>TÁC GIẢ</span><span>TẠP CHÍ / KỶ YẾU</span><span>NĂM</span>
+      <span>PHẠM VI</span><span>CHỈ SỐ</span><span>DOI</span><span>MINH CHỨNG</span>
+    </div>
+  </div>
+
+  <h3 style="margin:22px 0 4px">Trang 2 — Sáng chế &amp; Giải pháp hữu ích</h3>
+  <div class="mock">
+    <div class="bar"><span class="t">Sáng chế &amp; Giải pháp hữu ích</span><span class="btn">Xuất Excel</span></div>
+    <div class="chips">
+      <span class="ch on">Tất cả · 3</span>
+      <span class="ch">Sáng chế · 1</span>
+      <span class="ch">Giải pháp hữu ích · 1</span>
+      <span class="ch">Giống cây trồng · 1</span>
+    </div>
+    <div class="cols">
+      <span>TÊN CÔNG TRÌNH</span><span>TÁC GIẢ</span><span>LOẠI</span><span>SỐ BẰNG</span>
+      <span>CƠ QUAN CẤP</span><span>NGÀY NỘP ĐƠN</span><span>NGÀY CẤP</span><span>CHỦ BẰNG</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Hai chi tiết đáng chú ý trong hai bản phác trên.</b>
+    <ul class="tight">
+      <li>Cột <b>“Tạp chí / Số bằng”</b> hiện nay là một chỗ chắp vá: nó hiển thị tên tạp chí nếu là
+        bài báo, số bằng nếu là sáng chế — hai nghĩa khác nhau trong cùng một cột, và tiêu đề cột phải
+        ghi cả hai. Tách ra thì mỗi cột lại có đúng một nghĩa. Cột <b>“Chỉ số”</b> cũng đang bị dùng
+        theo kiểu tương tự.</li>
+      <li>Con số trên mỗi chip (<i>Trong nước · 1</i>) cho cô biết ngay có bao nhiêu hồ sơ mỗi loại
+        <b>trước khi bấm</b> — thứ mà hiện nay phải xuất Excel ra mới đếm được.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ══════════════════════════ F ══════════════════════════ -->
+<section id="f">
+  <div class="sec-head"><span class="letter">F</span><h2>File Excel sau khi tách</h2></div>
+  <p class="sec-sub">Mục tiêu cuối cùng của cả việc này. Thay một mục xuất 18 cột bằng hai mục,
+    mỗi mục chỉ mang cột của mình.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th style="width:26%">Mục xuất</th><th style="width:12%">Số cột</th><th>Cột</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="row-th">Bài báo<span class="sub">lọc thêm: trong nước / quốc tế / hội nghị</span></td>
+          <td class="mono">12</td>
+          <td>Tên công trình · Tác giả · Tạp chí/Kỷ yếu · Năm · Phạm vi · Chỉ số · SCIE · SSCI · Scopus · ACI · DOI · Đơn vị · Minh chứng</td>
+        </tr>
+        <tr>
+          <td class="row-th">Sáng chế &amp; GPHI<span class="sub">lọc thêm: SC / GPHI / giống cây trồng</span></td>
+          <td class="mono">10</td>
+          <td>Tên công trình · Tác giả · Loại · Số bằng · Số đơn · Ngày nộp đơn · Ngày cấp · Cơ quan cấp · Chủ bằng · Đơn vị · Minh chứng</td>
+        </tr>
+        <tr>
+          <td class="row-th">Bài báo &amp; Sáng chế <span class="chip cn">CŨ</span></td>
+          <td class="mono">18</td>
+          <td class="no">Giữ lại hay bỏ? — xem câu hỏi Q4.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>Bộ lọc theo năm học vẫn giữ nguyên.</b> Cơ chế xuất hiện tại đã lọc theo khoảng thời gian
+    (<i>Năm công bố</i>) và bỏ qua bản ghi không có mốc thời gian — hai mục mới thừa hưởng nguyên
+    cơ chế đó, không phải làm lại.
+  </div>
+</section>
+
+<!-- ══════════════════════════ G ══════════════════════════ -->
+<section id="g">
+  <div class="sec-head"><span class="letter">G</span><h2>Khối lượng công việc</h2></div>
+  <p class="sec-sub">Không có migration. Toàn bộ nằm ở giao diện và tầng xuất — nghĩa là rủi ro thấp
+    và có thể lùi lại dễ dàng.</p>
+
+  <div class="steps">
+    <div class="step"><span class="n">01</span><span class="b"><b>Chốt nguồn chân lý cho phạm vi</b> — form tự đặt <code>pub_scope</code> theo chỉ số đã chọn; rà lại hai mục <code>domestic</code>/<code>conference</code> trong danh mục Chỉ số.<span class="f">mục C · phải làm TRƯỚC khi tách</span></span><span class="chip c1">nửa ngày</span></div>
+    <div class="step"><span class="n">02</span><span class="b"><b>Tách trang</b> — hai trang mới dùng chung một component bảng, khác nhau ở cấu hình cột và bộ lọc mặc định.<span class="f">pages/Publications.tsx → Papers.tsx + Patents.tsx</span></span><span class="chip c1">1 ngày</span></div>
+    <div class="step"><span class="n">03</span><span class="b"><b>Menu + chuyển hướng</b> — thay 1 mục thành 2; <code>/research/publications</code> chuyển hướng sang trang Bài báo để link cũ và bookmark không hỏng.<span class="f">components/layout/nav.ts · App.tsx</span></span><span class="chip c3">2 giờ</span></div>
+    <div class="step"><span class="n">04</span><span class="b"><b>Tách mục xuất Excel</b> — thêm hai mục vào danh mục xuất, mỗi mục một bộ cột riêng.<span class="f">services/research_export_service.py</span></span><span class="chip c3">3 giờ</span></div>
+    <div class="step"><span class="n">05</span><span class="b"><b>Test</b> — hai màn hình cộng lại phải đúng bằng tổng cũ; phân quyền giữ nguyên; link cũ vẫn vào được.<span class="f">tests/routers · tests/services</span></span><span class="chip c3">3 giờ</span></div>
+  </div>
+
+  <div class="note ok">
+    <b>Tổng: khoảng 2,5 ngày công.</b> Không đụng cơ sở dữ liệu, không ảnh hưởng module nào khác,
+    và nếu cô không ưng thì lùi lại chỉ là gỡ hai trang mới.
+  </div>
+</section>
+
+<!-- ══════════════════════════ H ══════════════════════════ -->
+<section id="h">
+  <div class="sec-head"><span class="letter">H</span><h2>Bốn câu cần cô chốt</h2></div>
+  <p class="sec-sub">Ba câu đầu là về cách phân loại — đó là chuyên môn của cô, không phải của kỹ thuật.</p>
+
+  <div class="qlist">
+    <div class="qitem"><span class="qn">Q1</span><span>
+      <div class="qq">Báo cáo hội nghị / kỷ yếu để ở đâu?</div>
+      <div class="qw">Hệ thống đang có <b>2 bản ghi</b> loại này. Nó không phải bài báo tạp chí, cũng không phải sáng chế.
+        <b>Đề xuất:</b> để chung trang Bài báo, thành một chip lọc thứ ba, và đặt tên trang là “Bài báo &amp; báo cáo hội nghị”. Nếu cô muốn nó thành mục thứ ba riêng thì cũng làm được.</div>
+    </span></div>
+
+    <div class="qitem"><span class="qn">Q2</span><span>
+      <div class="qq">Giống cây trồng có nằm chung với Sáng chế không?</div>
+      <div class="qw">Cô nhắc “sáng chế và giải pháp hữu ích”, nhưng hệ thống có <b>3 loại</b> và đang có <b>1 bản ghi giống cây trồng</b>.
+        Chú thích trong mã nguồn ghi rằng file Excel gốc của Viện chia <b>ba mục I / II / III</b>: sáng chế · giải pháp hữu ích · giống cây trồng.
+        <b>Đề xuất:</b> giữ đủ ba, làm ba chip lọc — đúng với file gốc của Viện.</div>
+    </span></div>
+
+    <div class="qitem"><span class="qn">Q3</span><span>
+      <div class="qq">“Trong nước / quốc tế” lấy theo trường nào?</div>
+      <div class="qw">Xem mục C. <b>Đề xuất:</b> lấy theo <code>pub_scope</code>, và để danh mục “Chỉ số” quay về đúng nghĩa xếp hạng tạp chí. Nếu cô quen phân theo chỉ số (ISI/Scopus = quốc tế) thì cũng được — nhưng phải chọn <b>một</b>, không để hai.</div>
+    </span></div>
+
+    <div class="qitem"><span class="qn">Q4</span><span>
+      <div class="qq">Có giữ lại mục xuất Excel gộp cũ không?</div>
+      <div class="qw"><b>Đề xuất: giữ.</b> Có lúc cần một file duy nhất cho toàn bộ công bố trong năm (báo cáo tổng kết), và giữ lại không tốn gì. Nếu cô chắc chắn không dùng nữa thì bỏ cho gọn danh sách.</div>
+    </span></div>
+  </div>
+</section>
+
+<div style="border-top:1px solid var(--hairline); padding-top:18px; font-family:'IBM Plex Mono',monospace; font-size:.74rem; color:var(--ink-3); line-height:1.8">
+  Nguồn: CSDL production (bảng <b>publications</b>, <b>publication_categories</b>) ·
+  <b>lims-backend/app/models/research.py</b> ·
+  <b>lims-backend/app/services/research_export_service.py</b> ·
+  <b>lims-frontend/src/pages/Publications.tsx</b> · <b>components/layout/nav.ts</b>.<br>
+  Tài liệu mô tả thiết kế <b>đề xuất</b> — chưa có dòng mã nào được viết cho việc tách này.
+</div>
+
+</div>
+</body>
+</html>

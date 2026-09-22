@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { Lightbulb, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -37,7 +38,7 @@ export function Improvements() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<ImprovementItem | null>(null);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => riskApi.listImprovements({ q: dq || undefined, status: status || undefined, source: source || undefined, limit: 100 }),
     [dq, status, source],
   );
@@ -93,6 +94,7 @@ export function Improvements() {
           rows={data?.data ?? []}
           rowKey={(i) => i.id}
           onRowClick={(i) => setSelected(i)}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
         />

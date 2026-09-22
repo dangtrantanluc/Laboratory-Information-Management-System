@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useSearchParams } from 'react-router-dom';
 import { Inbox, Plus, Download, Send, FileDown, ClipboardEdit, Paperclip, Lock, ShieldCheck, Clock3, ListChecks, PencilLine, Receipt } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -16,7 +17,10 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { EmptyState } from '@/components/ui/States';
-import { canEnterDispatchResult, canManageIntake, canUpdateDispatch } from '@/lib/rbac';
+import {
+  canEnterDispatchResult, canManageIntake, canManageTestReports, canUpdateDispatch,
+  canViewTestReports,
+} from '@/lib/rbac';
 import {
   DISPATCH_STATUS_LABELS,
   INFO_REQUEST_STATUS_LABELS,
@@ -41,6 +45,7 @@ import {
 } from '@/components/sampleFlow/IntakeWorkflow';
 import { IntakeCreateModal } from '@/components/sampleFlow/IntakeCreateModal';
 import { IntakeContactsPanel } from '@/components/sampleFlow/IntakeContactsPanel';
+import { TestReportPanel } from '@/components/sampleFlow/TestReportPanel';
 
 const DISPATCH_TONE: Record<DispatchStatus, BadgeTone> = {
   sent: 'neutral',
@@ -127,6 +132,7 @@ export function SampleFlow() {
 
 // ===== Tab Phiếu nhận =====
 function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string | null }) {
+  const { user } = useAuth();
   const [q, setQ] = useState('');
   // Chỉ gọi API khi người dùng ngừng gõ — xem useDebounced (R5.3).
   const dq = useDebounced(q);
@@ -137,7 +143,7 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
     if (openId) setDetailId(openId);
   }, [openId]);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => flowApi.listIntakes({ q: dq || undefined, status: statusFilter || undefined, limit: 100 }),
     [dq, statusFilter],
   );
@@ -165,6 +171,16 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
     },
     { key: 'status', header: 'Trạng thái', render: (r) => <IntakeStatusBadge status={r.status} /> },
     { key: 'payment', header: 'Thanh toán', render: (r) => <PaymentBadge status={r.payment_status} /> },
+    {
+      // m46 — nhìn sổ là biết phiếu nào còn nợ khách chứng từ, thay vì phải mở từng
+      // phiếu ra xem. Cột chỉ có ý nghĩa với ba vai được thấy module (rbac m46).
+      key: 'kq', header: 'Kết quả',
+      render: (r) =>
+        !canViewTestReports(user) ? null
+          : r.has_test_report ? <Badge tone="success">Đã phát hành</Badge>
+          : r.status === 'dispatched' ? <Badge tone="warning">Chưa phát hành</Badge>
+          : <span className="text-subink">—</span>,
+    },
     {
       key: 'actions', header: '',
       render: (r) =>
@@ -196,6 +212,7 @@ function IntakesTab({ canManage, openId }: { canManage: boolean; openId?: string
         columns={columns}
         rows={data?.data ?? []}
         rowKey={(r) => r.id}
+        empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
         loading={loading}
         pageSize={12}
         onRowClick={(r) => setDetailId(r.id)}
@@ -225,6 +242,7 @@ function IntakeDetailModal({
   intakeId: string; canManage: boolean; onClose: () => void; onChanged: () => void;
 }) {
   const toast = useToast();
+  const { user } = useAuth();
   const [quoting, setQuoting] = useState(false);
   const [editDispatch, setEditDispatch] = useState<SampleDispatch | null>(null);
   const { data: intake, reload } = useAsync(() => flowApi.getIntake(intakeId), [intakeId]);
@@ -328,10 +346,19 @@ function IntakeDetailModal({
               <FileDown size={14} /> Xuất phiếu chuyển (PDF)
             </Button>
             {/* BM 7.8/01 — chỉ có nghĩa khi đã có ít nhất một kết quả; hiện nút khi
-                chưa có gì thì in ra một phiếu trống mang chữ ký lãnh đạo. */}
+                chưa có gì thì in ra một phiếu trống mang chữ ký lãnh đạo.
+                m46: bản in này là BẢN NHÁP hỗ trợ soạn thảo, KHÔNG phải chứng từ phát
+                hành — chứng từ là tệp tải lên ở khối "Kết quả thử nghiệm" bên dưới.
+                Hai đường cùng sinh ra một biểu mẫu mà không nói rõ cái nào có giá trị
+                hồ sơ là mơ hồ nguy hiểm, nên nhãn phải tự nói ra điều đó. */}
             {(intake.dispatches ?? []).some((d) => d.ket_qua) && (
-              <Button variant="secondary" size="sm" onClick={() => printResult(intake)}>
-                <FileDown size={14} /> Xuất phiếu kết quả (PDF)
+              <Button
+                variant="secondary"
+                size="sm"
+                title="Bản nháp hỗ trợ soạn thảo — không có giá trị hồ sơ. Chứng từ phát hành là tệp tải lên ở khối Kết quả thử nghiệm."
+                onClick={() => printResult(intake)}
+              >
+                <FileDown size={14} /> In bản nháp BM 7.8/01
               </Button>
             )}
             {canManage && (
@@ -373,6 +400,17 @@ function IntakeDetailModal({
           )}
           {/* m28: tiến trình phiếu + thanh toán + cảnh báo */}
           <IntakeWorkflow intake={intake} canManage={canManage} onChanged={() => { reload(); onChanged(); }} />
+
+          {/* m46: bước PHÁT HÀNH — đặt ngay sau tiến trình phiếu vì đó là bước cuối
+              của chính tiến trình đó. Quyền tách riêng khỏi canManageIntake: tệp
+              BM 7.8/01 chứa PII khách hàng nên chỉ reception/leader/admin thấy. */}
+          {canViewTestReports(user) && (
+            <TestReportPanel
+              intake={intake}
+              canManage={canManageTestReports(user)}
+              onChanged={() => { reload(); onChanged(); }}
+            />
+          )}
 
           <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 gap-y-2 text-sm">
             <div><span className="text-subink">Ngày hẹn trả KQ:</span> {intake.due_date ? formatDate(intake.due_date) : '—'}</div>
@@ -663,7 +701,7 @@ function DispatchesTab() {
   const canUpdate = canEnterDispatchResult(user);
   const [editing, setEditing] = useState<SampleDispatch | null>(null);
   const [detail, setDetail] = useState<SampleDispatch | null>(null);
-  const { data, loading, reload } = useAsync(() => flowApi.listDispatches({ limit: 100 }), []);
+  const { data, loading, error, reload } = useAsync(() => flowApi.listDispatches({ limit: 100 }), []);
 
   async function changeStatus(d: SampleDispatch, status: DispatchStatus) {
     try {
@@ -732,6 +770,7 @@ function DispatchesTab() {
         columns={columns}
         rows={data?.data ?? []}
         rowKey={(d) => d.id}
+        empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
         loading={loading}
         pageSize={12}
         onRowClick={(d) => setDetail(d)}
@@ -844,7 +883,7 @@ function CustomerInfoLocked({ intake, onRequested }: { intake: SampleIntake; onR
 function InfoRequestsTab() {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState('pending');
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => flowApi.listInfoRequests({ status: statusFilter || undefined, limit: 100 }),
     [statusFilter],
   );
@@ -919,7 +958,13 @@ function InfoRequestsTab() {
         rowKey={(r) => r.id}
         loading={loading}
         pageSize={12}
-        empty={<EmptyState title="Không có yêu cầu" description="Chưa có phòng lab nào xin xem thông tin khách hàng." />}
+        empty={
+          error ? (
+            <ErrorState error={error} onRetry={reload} />
+          ) : (
+            <EmptyState title="Không có yêu cầu" description="Chưa có phòng lab nào xin xem thông tin khách hàng." />
+          )
+        }
       />
     </Card>
   );

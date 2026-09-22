@@ -12,8 +12,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Hai họ phông trong MỘT request (Google Fonts nhận nhiều `family`): thêm
+         IBM Plex Mono không tốn thêm vòng mạng nào.
+
+         Vì sao phải nạp phông đơn cách thay vì dùng stack mặc định của Tailwind
+         (ui-monospace, SFMono-Regular, Menlo, Consolas…): stack đó rơi về phông
+         CÓ SẴN CỦA MÁY, nên cùng một mã phiếu hiện bằng SF Mono trên macOS,
+         Consolas trên Windows và DejaVu Sans Mono trên Linux — ba người nhìn ba mặt
+         chữ khác nhau. Tệ hơn, phần lớn phông đơn cách hệ thống thiếu dấu tiếng Việt
+         nên chữ có dấu rơi phông ngay giữa câu. IBM Plex Mono có subset vietnamese. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
       rel="stylesheet"
     />
     <title>Viện Sinh học — Quản lý Phòng Thí Nghiệm</title>

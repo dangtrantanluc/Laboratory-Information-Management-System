@@ -20,9 +20,10 @@ from app.core.request_meta import client_ip
 from app.core.deps import CurrentUser, get_current_user
 from app.core.rate_limit import rate_limit
 from app.db.database import get_db
-from app.schemas.reporting import PageViewRequest
+from app.schemas.reporting import PageViewRequest, CustomerReportResponse
 from app.services import (
     access_stat_service,
+    customer_report_service,
     dashboard_service,
     report_export_service,
     unified_report_service,
@@ -142,6 +143,26 @@ def report_chemicals(
         db, user=user, date_from=date_from, date_to=date_to,
         department_id=department_id, group_by=group_by,
         measurement_group=measurement_group, chemical_id=chemical_id, metric=metric,
+    )
+    return {"success": True, "data": data, "meta": meta}
+
+
+@router.get("/reports/customers", response_model=CustomerReportResponse)
+def report_customers(
+    date_from: Optional[date] = Query(default=None, alias="from"),
+    date_to: Optional[date] = Query(default=None, alias="to"),
+    group_by: str = Query(default="month"),
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Tổng hợp khách hàng theo kỳ — khách mới, khách hoạt động, số phiếu, giá trị.
+
+    Mở cho admin/leader/reception/office. Văn phòng ĐƯỢC xem đây dù bị chặn ở báo cáo
+    mẫu (B03): đó là dữ liệu thử nghiệm, còn đây là dữ liệu thương mại — hợp đồng và
+    hoá đơn vốn đã là việc của họ.
+    """
+    data, meta = customer_report_service.report_customers(
+        db, user=user, date_from=date_from, date_to=date_to, group_by=group_by,
     )
     return {"success": True, "data": data, "meta": meta}
 

@@ -1,0 +1,299 @@
+[
+ {
+  "stt": 1,
+  "ho_ten": "Huỳnh Văn Biết",
+  "nam_sinh": 1977,
+  "hoc_vi": "Tiến sĩ",
+  "ngach": "GVC",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 2,
+  "ho_ten": "Phùng Võ Cẩm Hồng",
+  "nam_sinh": 1973,
+  "hoc_vi": "Tiến sĩ",
+  "ngach": "GVC",
+  "chuyen_nganh": "Công nghệ hóa thực phẩm/ CNSH",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 3,
+  "ho_ten": "Nguyễn Ngọc Hà",
+  "nam_sinh": 1972,
+  "hoc_vi": "Tiến sĩ",
+  "ngach": "GV",
+  "chuyen_nganh": "Hoá phân tích",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 4,
+  "ho_ten": "Trịnh Thị Phi Ly",
+  "nam_sinh": 1983,
+  "hoc_vi": "Tiến sĩ",
+  "ngach": "GV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 5,
+  "ho_ten": "Trương Phước Thiên Hoàng",
+  "nam_sinh": 1979,
+  "hoc_vi": "Tiến sĩ",
+  "ngach": "CV",
+  "chuyen_nganh": "Vi sinh vật/Công nghệ sinh học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 6,
+  "ho_ten": "Nguyễn Minh Quang",
+  "nam_sinh": 1978,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "GV",
+  "chuyen_nganh": "Nông học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 7,
+  "ho_ten": "Nguyễn Thị Vân Khanh",
+  "nam_sinh": 1978,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Nông học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 8,
+  "ho_ten": "Nguyễn Công Mạnh",
+  "nam_sinh": 1983,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Môi trường",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 9,
+  "ho_ten": "Phan Thị Xuân Trang",
+  "nam_sinh": 1979,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "KTV",
+  "chuyen_nganh": "Kỹ thuật Môi trường",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 10,
+  "ho_ten": "Trần Thị Vân",
+  "nam_sinh": 1984,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Bảo vệ Thực vật",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 11,
+  "ho_ten": "Phan Hữu Tín",
+  "nam_sinh": 1989,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 12,
+  "ho_ten": "Nguyễn Lê Trúc Phương",
+  "nam_sinh": 1986,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "KS",
+  "chuyen_nganh": "Bác sĩ thú y",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 13,
+  "ho_ten": "Huỳnh Thị Ngọc Oanh",
+  "nam_sinh": 1984,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Kỹ thuật Môi trường",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 14,
+  "ho_ten": "Nguyễn Thị Thúy",
+  "nam_sinh": 1969,
+  "hoc_vi": null,
+  "ngach": null,
+  "chuyen_nganh": "Nhân viên phục vụ",
+  "dien": "civil_servant"
+ },
+ {
+  "stt": 15,
+  "ho_ten": "Trương Quang Toản",
+  "nam_sinh": 1997,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 16,
+  "ho_ten": "Võ Trần Quốc Thắng",
+  "nam_sinh": 1996,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 17,
+  "ho_ten": "Đào Uyên Trân Đa",
+  "nam_sinh": 1990,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Bảo vệ thực vật",
+  "dien": "contract"
+ },
+ {
+  "stt": 18,
+  "ho_ten": "Lê Hoàng Độ",
+  "nam_sinh": 1992,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 19,
+  "ho_ten": "Huỳnh Anh Tuấn",
+  "nam_sinh": 1991,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Kỹ thuật Môi trường",
+  "dien": "contract"
+ },
+ {
+  "stt": 20,
+  "ho_ten": "Thái Thị Thanh Thủy",
+  "nam_sinh": 1998,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 21,
+  "ho_ten": "Vũ Ngọc Khánh Như",
+  "nam_sinh": 1998,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Quản lý tài nguyên rừng",
+  "dien": "contract"
+ },
+ {
+  "stt": 22,
+  "ho_ten": "Nguyễn Thị Thùy Trang",
+  "nam_sinh": 2000,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 23,
+  "ho_ten": "Lê Quang Trường",
+  "nam_sinh": 2001,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 24,
+  "ho_ten": "Vũ Văn Tuấn",
+  "nam_sinh": 2001,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 25,
+  "ho_ten": "Phùng Thị Ngọc Hân",
+  "nam_sinh": 2001,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 26,
+  "ho_ten": "Trần Đình Phong",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 27,
+  "ho_ten": "Nguyễn Thị Bé Thư",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 28,
+  "ho_ten": "Nguyễn Minh Chánh",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 29,
+  "ho_ten": "Trần Phước Hên",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 30,
+  "ho_ten": "Trần Thị Thanh Lịch",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 31,
+  "ho_ten": "Phạm Phương Trinh",
+  "nam_sinh": 2002,
+  "hoc_vi": "Kỹ sư",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 32,
+  "ho_ten": "Đặng Xuân Đài",
+  "nam_sinh": 2000,
+  "hoc_vi": "Thạc sĩ",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ Sinh học",
+  "dien": "contract"
+ },
+ {
+  "stt": 33,
+  "ho_ten": "Vũ Đình Anh Tuấn",
+  "nam_sinh": 2002,
+  "hoc_vi": null,
+  "ngach": null,
+  "chuyen_nganh": null,
+  "dien": "contract"
+ }
+]

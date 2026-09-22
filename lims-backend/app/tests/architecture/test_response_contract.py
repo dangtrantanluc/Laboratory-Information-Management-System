@@ -15,6 +15,7 @@ Xem MAINTAINABILITY_PLAN.md §T0.1.
 """
 import pathlib
 
+from fastapi.datastructures import DefaultPlaceholder
 from fastapi.routing import APIRoute
 
 from app.main import app
@@ -41,6 +42,11 @@ def _endpoint_key(route: APIRoute) -> str:
 def _needs_contract(route: APIRoute) -> bool:
     """Endpoint có trả JSON body thì phải khai response_model."""
     if route.status_code == 204:  # No Content — không có body
+        return False
+    # Khai `response_class` riêng = KHÔNG trả JSON (tải file Excel/PDF, redirect…).
+    # response_model mô tả JSON schema nên với chúng là vô nghĩa. FastAPI bọc giá trị
+    # mặc định trong DefaultPlaceholder, nên "không phải placeholder" = khai tường minh.
+    if not isinstance(route.response_class, DefaultPlaceholder):
         return False
     return route.response_model is None
 

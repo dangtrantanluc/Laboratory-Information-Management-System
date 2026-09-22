@@ -33,6 +33,10 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Khai tường minh, không để Tailwind dùng stack mặc định: xem chú thích ở
+        // index.html. `font-mono` đang dùng cho mã phiếu, số bằng, mã biểu mẫu —
+        // những thứ phải trông GIỐNG NHAU trên mọi máy của Viện.
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
         xl: '12px',

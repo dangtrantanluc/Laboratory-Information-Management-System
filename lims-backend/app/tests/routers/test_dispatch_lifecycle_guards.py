@@ -63,15 +63,15 @@ class TestKhongGiaoViecTrenPhieuDaDong:
         assert sau == truoc, "phiếu đã hủy vẫn bắn thông báo giao việc cho phòng lab"
 
     def test_phieu_da_tra_ket_qua_khong_them_duoc_chi_tieu(
-        self, client, as_role, department
+        self, client, as_role, department, complete_intake
     ):
         as_role("reception", department_id=department.id)
         it = _intake(client)
         assert _add_dispatch(client, it["id"], department).status_code == 201
-        # received → (dispatched khi thêm chỉ tiêu) → completed
-        assert client.post(
-            f"{_INTAKES}/{it['id']}/status", json={"status": "completed"}
-        ).status_code == 200
+        # received → (dispatched khi thêm chỉ tiêu) → completed.
+        # m46: đóng phiếu giờ đòi một phiếu kết quả đã phát hành (BR-08), nên đường
+        # tới 'completed' đi qua fixture thay vì một lệnh đổi trạng thái trần.
+        complete_intake(it["id"])
 
         res = _add_dispatch(client, it["id"], department)
         assert res.status_code == 409, res.text

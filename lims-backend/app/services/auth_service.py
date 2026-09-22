@@ -57,7 +57,13 @@ def _check_lockout(email: str, ip: Optional[str]) -> None:
         )
 
 
-def _register_failed_login(email: str, ip: Optional[str]) -> None:
+def _register_failed_login(email: str, ip: Optional[str]) -> bool:
+    """Đếm một lần sai. Trả True nếu LẦN NÀY làm tài khoản bị khoá.
+
+    Giá trị trả về để phía gọi ghi được vết kiểm toán ACCOUNT_LOCKED (m49): trước đây
+    việc khoá chỉ để lại một khoá Redis có hạn, nên hết hạn là mất sạch dấu vết —
+    quản trị viên không trả lời được "hôm qua ai bị khoá, từ IP nào".
+    """
     r = get_redis()
     key = login_fail_key(email, ip)
     count = r.incr(key)
@@ -67,6 +73,8 @@ def _register_failed_login(email: str, ip: Optional[str]) -> None:
     if count >= settings.login_max_failed:
         r.setex(login_lock_key(email, ip), settings.login_lockout_minutes * 60, "1")
         r.delete(key)
+        return True
+    return False
 
 
 def _reset_failed_login(email: str, ip: Optional[str]) -> None:
@@ -140,7 +148,7 @@ def login(
     if user is None:
         security.verify_password(password, _DUMMY_PASSWORD_HASH)  # equalize timing
     if user is None or not security.verify_password(password, user.password_hash):
-        _register_failed_login(email_norm, ip)
+        just_locked = _register_failed_login(email_norm, ip)
         audit_service.log_action(
             db,
             action="AUTH_LOGIN_FAIL",
@@ -150,6 +158,21 @@ def login(
             ip=ip,
             detail={"email_attempt": email_norm},
         )
+        if just_locked:
+            # Vết RIÊNG cho sự kiện khoá, không lẫn vào hàng chục dòng đăng nhập sai:
+            # đây là thứ quản trị viên tra khi có người báo "không vào được".
+            audit_service.log_action(
+                db,
+                action="ACCOUNT_LOCKED",
+                resource="user",
+                user_id=user.id if user else None,
+                correlation_id=correlation_id,
+                ip=ip,
+                detail={
+                    "email_attempt": email_norm,
+                    "lockout_minutes": settings.login_lockout_minutes,
+                },
+            )
         db.commit()
         raise AppException(
             ErrorCode.INVALID_CREDENTIALS, "Email hoặc mật khẩu không đúng", 401

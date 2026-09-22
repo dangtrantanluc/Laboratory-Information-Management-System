@@ -6,6 +6,7 @@ import {
   ClipboardList,
   FlaskConical,
   ShieldCheck,
+  UserSquare2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -34,6 +35,7 @@ import {
   type DashboardMeta,
 } from '@/types';
 import {
+  canViewCustomerReport,
   canViewSampleReport,
   canViewChemicalReport,
   canViewSystemAccess,
@@ -41,23 +43,25 @@ import {
 } from '@/lib/rbac';
 import * as reportingApi from '@/api/reporting';
 import * as usersApi from '@/api/users';
-import { formatDateTime, formatNumber } from '@/lib/format';
+import { formatDateTime, formatMoney, formatNumber } from '@/lib/format';
 
-type TabKey = 'samples' | 'chemicals' | 'system-access';
+type TabKey = 'samples' | 'chemicals' | 'customers' | 'system-access';
 
 export function Reports() {
   const { user } = useAuth();
   const showSamples = canViewSampleReport(user);
   const showChem = canViewChemicalReport(user);
   const showR15 = canViewSystemAccess(user);
+  const showCustomers = canViewCustomerReport(user);
 
   const tabs = useMemo(() => {
     const t: { key: TabKey; label: string; icon: React.ReactNode }[] = [];
     if (showSamples) t.push({ key: 'samples', label: 'Báo cáo mẫu', icon: <ClipboardList size={15} /> });
     if (showChem) t.push({ key: 'chemicals', label: 'Báo cáo hóa chất', icon: <FlaskConical size={15} /> });
+    if (showCustomers) t.push({ key: 'customers', label: 'Khách hàng', icon: <UserSquare2 size={15} /> });
     if (showR15) t.push({ key: 'system-access', label: 'Truy cập hệ thống', icon: <ShieldCheck size={15} /> });
     return t;
-  }, [showSamples, showChem, showR15]);
+  }, [showSamples, showChem, showCustomers, showR15]);
 
   const [tab, setTab] = useState<TabKey>(tabs[0]?.key ?? 'chemicals');
 
@@ -94,6 +98,7 @@ export function Reports() {
 
           {tab === 'samples' && showSamples && <SamplesReportTab />}
           {tab === 'chemicals' && showChem && <ChemicalsReportTab />}
+          {tab === 'customers' && showCustomers && <CustomersReportTab />}
           {tab === 'system-access' && showR15 && <SystemAccessTab />}
         </>
       )}
@@ -599,5 +604,148 @@ function TopUsersCard({
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * Báo cáo tổng hợp khách hàng (m50) — phục vụ Văn phòng làm báo cáo tháng.
+ *
+ * "Khách mới" và "khách hoạt động" hiển thị TÁCH NHAU và không cộng vào nhau: một
+ * khách tạo từ năm ngoái mà tháng này gửi mẫu thì hoạt động chứ không mới. Đặt cạnh
+ * nhau mà không nói rõ là mời người đọc cộng nhầm.
+ */
+function CustomersReportTab() {
+  const chartH = useChartHeight();
+  const { xAxis, yAxis } = useChartCompact();
+  const toast = useToast();
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [applied, setApplied] = useState<reportingApi.ReportFilters | null>({});
+
+  function run() {
+    if (from && to && from >= to) {
+      toast.error('Từ ngày phải trước đến ngày');
+      return;
+    }
+    setApplied({ from: from || undefined, to: to || undefined });
+  }
+
+  const q = useAsync(
+    () => (applied ? reportingApi.getCustomersReport(applied) : Promise.resolve(null)),
+    [applied],
+  );
+  const d = q.data?.data;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <FilterBar from={from} to={to} setFrom={setFrom} setTo={setTo} onApply={run} />
+
+      {/* Dạng ba ngôi như các tab khác: `q.error` có kiểu `unknown`, nên `q.error && <JSX>`
+          trả về `unknown` và TypeScript từ chối coi đó là nội dung render được. */}
+      {q.loading ? (
+        <Card>
+          <CardBody>
+            <LoadingState />
+          </CardBody>
+        </Card>
+      ) : q.error ? (
+        <Card>
+          <EmptyState title="Không tải được báo cáo" description={describeError(q.error).title} />
+        </Card>
+      ) : !d ? (
+        <Card>
+          <EmptyState
+            title="Chưa có số liệu"
+            description="Chọn kỳ rồi bấm Xem báo cáo."
+          />
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <StatCard label="Khách mới trong kỳ" value={formatNumber(d.summary.new_customers)} />
+            <StatCard label="Khách có phát sinh" value={formatNumber(d.summary.active_customers)} />
+            <StatCard label="Tổng khách trong sổ" value={formatNumber(d.summary.total_customers)} />
+            <StatCard label="Phiếu nhận mẫu" value={formatNumber(d.summary.intakes)} />
+            <StatCard label="Đã thu" value={formatMoney(d.summary.paid_total, 'VND')} />
+          </div>
+
+          <Card>
+            <CardHeader
+              title="Diễn biến theo kỳ"
+              subtitle="Khách mới và khách có phát sinh là hai con số khác nhau — không cộng vào nhau."
+            />
+            <CardBody>
+              {d.series.length === 0 ? (
+                <EmptyState title="Chưa có số liệu" description="Kỳ đã chọn không có hoạt động nào." />
+              ) : (
+                <ResponsiveContainer width="100%" height={chartH}>
+                  <BarChart data={d.series}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="period" {...xAxis} />
+                    <YAxis allowDecimals={false} {...yAxis} />
+                    <Tooltip />
+                    <Bar dataKey="new_customers" name="Khách mới" fill="#2a78d6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="active_customers" name="Khách có phát sinh" fill="#eb6834" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="intakes" name="Phiếu nhận mẫu" fill="#1baf7a" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Khách hàng nhiều phiếu nhất"
+              subtitle="Tối đa 10 khách, xếp theo số phiếu nhận mẫu trong kỳ."
+            />
+            <CardBody>
+              {d.top_customers.length === 0 ? (
+                <EmptyState title="Chưa có khách hàng nào phát sinh trong kỳ" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[560px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-hairline bg-plate">
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-stem">
+                          Khách hàng
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-stem">
+                          Số phiếu
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-stem">
+                          Giá trị báo giá
+                        </th>
+                        <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-stem">
+                          Đã thu
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-hairline">
+                      {d.top_customers.map((c) => (
+                        <tr key={`${c.customer_id ?? c.name}`}>
+                          <td className="px-3 py-2">
+                            <span className="font-medium text-ink">{c.name}</span>
+                            {/* Khách vãng lai không có trong sổ — nói rõ để người làm báo
+                                cáo biết con số này không tra ngược được sang master data. */}
+                            {c.is_walk_in && (
+                              <span className="ml-2 text-xs text-subink">(khách vãng lai)</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">{formatNumber(c.intakes)}</td>
+                          <td className="px-3 py-2 text-right">{formatMoney(c.quoted_total, 'VND')}</td>
+                          <td className="px-3 py-2 text-right">{formatMoney(c.paid_total, 'VND')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          <MetaLine meta={q.data?.meta} />
+        </>
+      )}
+    </div>
   );
 }

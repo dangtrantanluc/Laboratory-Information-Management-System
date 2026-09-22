@@ -1,4 +1,4 @@
-import { apiDelete, apiGetPaged, apiPatch, apiPost } from '@/lib/api';
+import { apiDelete, apiGet, apiGetPaged, apiPatch, apiPost } from '@/lib/api';
 import type { Department, Role, RoleMeta, UserListItem } from '@/types';
 
 export interface UserFilters {
@@ -88,4 +88,33 @@ export async function approveUser(id: string, body: ApproveUserBody): Promise<vo
 /** Từ chối yêu cầu mở tài khoản (chuyển 'disabled', gửi mail báo lý do). */
 export async function rejectUser(id: string, reason: string): Promise<void> {
   await apiPost(`/users/${id}/reject`, { reason });
+}
+
+/* ═══════════ m49: tài khoản bị khoá đăng nhập (chỉ admin) ═══════════ */
+
+export interface LockoutEntry {
+  email: string;
+  /** Khoá đặt theo cặp (email, IP) — một người có thể bị khoá ở nhiều IP. */
+  ip: string;
+  remaining_seconds: number;
+  failed_attempts?: number | null;
+  user_id?: string | null;
+  full_name?: string | null;
+  /** false = email không ứng với tài khoản nào → dấu hiệu có người dò email. */
+  is_known_account: boolean;
+}
+
+export interface LockoutSnapshot {
+  locked: LockoutEntry[];
+  failing: LockoutEntry[];
+}
+
+/** Ảnh chụp hiện tại. Khoá nằm ở Redis và tự hết hạn — lịch sử xem ở Nhật ký hệ thống. */
+export function listLockouts() {
+  return apiGet<LockoutSnapshot>('/users/lockouts');
+}
+
+/** Mở khoá ngay, xoá khoá ở MỌI IP của tài khoản đó kèm bộ đếm sai. */
+export async function unlockUser(id: string): Promise<void> {
+  await apiPost(`/users/${id}/unlock`, {});
 }

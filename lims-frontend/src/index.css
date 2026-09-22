@@ -33,6 +33,15 @@
     font-feature-settings: 'cv11', 'ss01';
   }
 
+  /* Chữ số bề rộng cố định trong MỌI bảng dữ liệu.
+     Trước đây chỉ vài cột ngày được đặt `tabular-nums` lẻ tẻ, nên trong cùng một
+     bảng có hai kiểu chữ số: cột ngày thẳng hàng, các cột số khác so le. Đặt ở đây
+     là một luật cho toàn bộ bảng, thay vì nhớ thêm class ở từng cột mới. */
+  table td,
+  table th {
+    font-variant-numeric: tabular-nums;
+  }
+
   * {
     -webkit-tap-highlight-color: transparent;
   }

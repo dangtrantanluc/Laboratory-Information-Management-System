@@ -59,7 +59,7 @@ def export_stats_xlsx(
     ws.append(["Đề tài NCKH", stats["projects"]["total"]])
     for lv, cnt in stats["projects"]["by_level"].items():
         ws.append([f"  - Cấp {lv}", cnt])
-    ws.append(["Bài báo", stats["publications"]["total"]])
+    ws.append(["Công bố khoa học", stats["publications"]["total"]])
     for idx, cnt in stats["publications"]["by_index"].items():
         ws.append([f"  - {idx}", cnt])
     ws.append(["Sáng chế / GPHI", stats["patents"]])

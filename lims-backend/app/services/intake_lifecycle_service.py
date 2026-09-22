@@ -67,6 +67,26 @@ def change_status(
             409,
         )
 
+    # BR-08 (m46) — "Đã trả kết quả" phải có chứng từ, không chỉ là một nhãn.
+    #
+    # Trước m46 bước này chỉ ghi một chuỗi ký tự vào cột `status`: không tệp, không số
+    # hiệu, không người ký. Khách khiếu nại thì không có gì đối chiếu.
+    #
+    # CỐ Ý chỉ áp cho lần chuyển trạng thái MỚI: phiếu đã 'completed' từ trước m46 không
+    # backfill được (chứng từ của chúng nằm trong hộp thư và tủ hồ sơ giấy), và ép chúng
+    # vào luật mới chỉ khoá cứng dữ liệu cũ chứ không làm nó đúng hơn.
+    if new_status == "completed":
+        from app.services import test_report_service
+
+        if not test_report_service.has_issued_report(db, it.id):
+            raise AppException(
+                ErrorCode.INVALID_STATE,
+                f"Phiếu {it.code} chưa có phiếu kết quả nào được phát hành. "
+                "Tải phiếu kết quả (BM 7.8/01) lên và phát hành trước khi đánh dấu "
+                "đã trả kết quả.",
+                409,
+            )
+
     reason = (note or "").strip()
     if new_status in _REASON_REQUIRED and not reason:
         raise AppException(

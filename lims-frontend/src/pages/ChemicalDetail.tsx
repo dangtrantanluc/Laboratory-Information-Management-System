@@ -216,13 +216,13 @@ export function ChemicalDetail() {
                       {canTxn && (
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1.5">
-                            <Button size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'in' })} title="Nhập">
+                            <Button aria-label="Nhập" size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'in' })} title="Nhập">
                               <ArrowDownToLine size={14} />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'out' })} title="Xuất">
+                            <Button aria-label="Xuất" size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'out' })} title="Xuất">
                               <ArrowUpFromLine size={14} />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'adjust' })} title="Điều chỉnh">
+                            <Button aria-label="Điều chỉnh" size="sm" variant="ghost" onClick={() => setTxnModal({ lot, type: 'adjust' })} title="Điều chỉnh">
                               <Scale size={14} />
                             </Button>
                           </div>

@@ -49,12 +49,14 @@ from app.routers import (
     rbac,
     reporting,
     research,
+    research_exports,
     results,
     risk_crons,
     risks,
     sample_crons,
     sample_reports,
     samples,
+    test_reports,
     test_requests,
     users,
 )
@@ -216,6 +218,7 @@ app.include_router(documents.router, prefix=api)
 # --- M4: HR & Research Achievement ---
 app.include_router(hr_profiles.router, prefix=api)
 app.include_router(research.router, prefix=api)
+app.include_router(research_exports.router, prefix=api)
 app.include_router(activities.router, prefix=api)  # m23: hợp đồng/công tác khác/chứng nhận
 app.include_router(activity_reports.router, prefix=api)  # m25: báo cáo hoạt động tháng
 app.include_router(hr_catalogs.router, prefix=api)
@@ -237,6 +240,8 @@ app.include_router(forms.router, prefix=api)
 app.include_router(sample_flow.router, prefix=api)
 # --- m29: Báo giá (quotation) — Phòng nhận mẫu lập, xuất Excel theo mẫu Viện ---
 app.include_router(quotations.router, prefix=api)
+# --- m46: Phát hành phiếu kết quả thử nghiệm (BM 7.8/01) — tải tệp lên ---
+app.include_router(test_reports.router, prefix=api)
 # --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
 app.include_router(lab_access.router, prefix=api)
 # --- M6: Reporting & Analytics (module cuối, tầng tổng hợp chéo) ---

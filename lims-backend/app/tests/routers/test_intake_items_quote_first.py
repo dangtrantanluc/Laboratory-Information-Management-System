@@ -76,7 +76,9 @@ class TestDonHangTachKhoiGiaoViec:
         assert res.status_code == 400, res.text
         assert res.json()["error"]["code"] == ErrorCode.NO_ITEMS
 
-    def test_di_tron_sau_buoc_cua_m28(self, client, as_role, department):
+    def test_di_tron_sau_buoc_cua_m28(
+        self, client, as_role, department, complete_intake
+    ):
         """tiếp nhận → báo giá → khách đồng ý → thanh toán → chuyển lab → trả KQ."""
         as_role("reception", department_id=department.id)
         it = _intake(client)
@@ -93,10 +95,14 @@ class TestDonHangTachKhoiGiaoViec:
         ).status_code == 200
         assert client.get(f"{_INTAKES}/{it['id']}").json()["data"]["status"] == "quote_accepted"
 
-        # Thanh toán → chuyển lab → trả kết quả
-        for nxt in ("paid", "dispatched", "completed"):
+        # Thanh toán → chuyển lab
+        for nxt in ("paid", "dispatched"):
             res = client.post(f"{_INTAKES}/{it['id']}/status", json={"status": nxt})
             assert res.status_code == 200, f"{nxt}: {res.text}"
+
+        # → trả kết quả. m46 (BR-08) chèn một bước THẬT vào giữa: bước cuối chỉ đi
+        # được khi đã phát hành phiếu kết quả, nên "trả kết quả" thôi làm một cái nhãn.
+        complete_intake(it["id"])
         assert client.get(f"{_INTAKES}/{it['id']}").json()["data"]["status"] == "completed"
 
     def test_gia_chup_tu_danh_muc_khong_doi_khi_bang_gia_doi(

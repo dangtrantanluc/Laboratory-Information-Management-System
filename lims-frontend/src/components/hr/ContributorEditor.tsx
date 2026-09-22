@@ -125,7 +125,7 @@ export function ContributorEditor({
               </>
             )}
 
-            <Button variant="ghost" size="sm" onClick={() => remove(i)} className="h-10">
+            <Button aria-label="Xóa" variant="ghost" size="sm" onClick={() => remove(i)} className="h-10">
               <Trash2 size={15} />
             </Button>
           </div>

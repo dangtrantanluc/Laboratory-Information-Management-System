@@ -30,6 +30,8 @@ VALID_OWNER_TYPES = (
     "teaching_course",
     "staff_activity",
     "training_certificate",
+    # m46 — tệp phiếu kết quả thử nghiệm đã phát hành (BM 7.8/01/RIBE)
+    "test_report",
 )
 
 
@@ -61,7 +63,7 @@ class Attachment(Base):
             "'chem_lot', 'document', 'document_version', 'equipment', 'calibration', "
             "'hr_profile', 'publication', 'form_template', 'form_submission', "
             "'sample_intake', 'sample_dispatch', 'research_project', 'research_contract', "
-            "'teaching_course', 'staff_activity', 'training_certificate')",
+            "'teaching_course', 'staff_activity', 'training_certificate', 'test_report')",
             name="ck_att_owner_type",
         ),
         CheckConstraint("size IS NULL OR size >= 0", name="ck_att_size"),

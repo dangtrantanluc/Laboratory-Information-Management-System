@@ -18,7 +18,7 @@ import * as hrApi from '@/api/hr';
 import * as usersApi from '@/api/users';
 
 interface Props {
-  userId: string;
+  profileId: string;
   profile: HrProfile;
   onProfileChange: () => void;
   canManage: boolean;
@@ -52,7 +52,7 @@ function DueBadge({ iso, warnWithin }: { iso?: string | null; warnWithin: number
 }
 
 export function HrProfileView({
-  userId,
+  profileId,
   profile,
   onProfileChange,
   canManage,
@@ -79,6 +79,7 @@ export function HrProfileView({
             <Row label="Email" value={profile.email ?? '—'} />
             <Row label="Phòng ban" value={profile.department_name ?? '—'} />
             <Row label="Chức danh" value={profile.job_title ?? '—'} />
+            {profile.position && <Row label="Chức vụ" value={profile.position} />}
             <Row label="Số điện thoại" value={profile.phone ?? '—'} />
             <Row label="Ngày vào làm" value={profile.hired_date ? formatDate(profile.hired_date) : '—'} />
             {hasPII && (
@@ -185,16 +186,16 @@ export function HrProfileView({
       </div>
 
       {/* Lịch sử nâng lương */}
-      {hasSalary && <SalaryHistorySection userId={userId} />}
+      {hasSalary && <SalaryHistorySection profileId={profileId} />}
 
       {/* Hồ sơ năng lực */}
       {canViewCompetence && (
-        <CompetenceSection userId={userId} canManage={canManageCompetence} />
+        <CompetenceSection profileId={profileId} canManage={canManageCompetence} />
       )}
 
       {contractOpen && (
         <ContractModal
-          userId={userId}
+          profileId={profileId}
           profile={profile}
           onClose={() => setContractOpen(false)}
           onSaved={() => {
@@ -205,7 +206,7 @@ export function HrProfileView({
       )}
       {cycleOpen && (
         <SalaryCycleModal
-          userId={userId}
+          profileId={profileId}
           current={profile.salary_cycle_years ?? 3}
           onClose={() => setCycleOpen(false)}
           onSaved={() => {
@@ -216,7 +217,7 @@ export function HrProfileView({
       )}
       {raiseOpen && (
         <SalaryRaiseModal
-          userId={userId}
+          profileId={profileId}
           profile={profile}
           onClose={() => setRaiseOpen(false)}
           onSaved={() => {
@@ -230,8 +231,8 @@ export function HrProfileView({
 }
 
 // ── Lịch sử nâng lương ──────────────────────────────────────────
-function SalaryHistorySection({ userId }: { userId: string }) {
-  const { data, loading } = useAsync(() => hrApi.listSalaryHistory(userId), [userId]);
+function SalaryHistorySection({ profileId }: { profileId: string }) {
+  const { data, loading } = useAsync(() => hrApi.listSalaryHistory(profileId), [profileId]);
   const items = data?.data ?? [];
   return (
     <Card>
@@ -287,9 +288,9 @@ function SalaryHistorySection({ userId }: { userId: string }) {
 }
 
 // ── Hồ sơ năng lực ──────────────────────────────────────────────
-function CompetenceSection({ userId, canManage }: { userId: string; canManage: boolean }) {
+function CompetenceSection({ profileId, canManage }: { profileId: string; canManage: boolean }) {
   const toast = useToast();
-  const { data, loading, reload } = useAsync(() => hrApi.listCompetences(userId), [userId]);
+  const { data, loading, reload } = useAsync(() => hrApi.listCompetences(profileId), [profileId]);
   const [createOpen, setCreateOpen] = useState(false);
   const items = data ?? [];
 
@@ -326,7 +327,7 @@ function CompetenceSection({ userId, canManage }: { userId: string; canManage: b
 
       {createOpen && (
         <CompetenceModal
-          userId={userId}
+          profileId={profileId}
           onClose={() => setCreateOpen(false)}
           onSaved={() => {
             setCreateOpen(false);
@@ -400,14 +401,14 @@ function CompetenceRow({
               }}
             />
           </label>
-          <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)}>
+          <Button aria-label="Sửa" size="sm" variant="ghost" onClick={() => setEditOpen(true)}>
             <Pencil size={13} />
           </Button>
         </div>
       )}
       {editOpen && (
         <CompetenceModal
-          userId=""
+          profileId=""
           competence={comp}
           onClose={() => setEditOpen(false)}
           onSaved={() => {
@@ -422,12 +423,12 @@ function CompetenceRow({
 
 // ── Modals ──────────────────────────────────────────────────────
 function ContractModal({
-  userId,
+  profileId,
   profile,
   onClose,
   onSaved,
 }: {
-  userId: string;
+  profileId: string;
   profile: HrProfile;
   onClose: () => void;
   onSaved: () => void;
@@ -444,7 +445,7 @@ function ContractModal({
     if (!type) return toast.error('Chọn loại hợp đồng');
     setSubmitting(true);
     try {
-      await hrApi.updateContract(userId, {
+      await hrApi.updateContract(profileId, {
         contract_signed_date: signed,
         contract_type: type,
         contract_end_date: end || null,
@@ -497,12 +498,12 @@ function ContractModal({
 }
 
 function SalaryCycleModal({
-  userId,
+  profileId,
   current,
   onClose,
   onSaved,
 }: {
-  userId: string;
+  profileId: string;
   current: number;
   onClose: () => void;
   onSaved: () => void;
@@ -516,7 +517,7 @@ function SalaryCycleModal({
     if (!Number.isInteger(n) || n < 1) return toast.error('Chu kỳ phải là số nguyên ≥ 1');
     setSubmitting(true);
     try {
-      await hrApi.updateSalaryCycle(userId, n);
+      await hrApi.updateSalaryCycle(profileId, n);
       toast.success('Đã cập nhật chu kỳ nâng lương');
       onSaved();
     } catch (err) {
@@ -552,12 +553,12 @@ function SalaryCycleModal({
 }
 
 function SalaryRaiseModal({
-  userId,
+  profileId,
   profile,
   onClose,
   onSaved,
 }: {
-  userId: string;
+  profileId: string;
   profile: HrProfile;
   onClose: () => void;
   onSaved: () => void;
@@ -577,7 +578,7 @@ function SalaryRaiseModal({
     if (!raiseDate) return toast.error('Chọn ngày nâng lương');
     setSubmitting(true);
     try {
-      await hrApi.createSalaryRaise(userId, {
+      await hrApi.createSalaryRaise(profileId, {
         salary_grade: grade.trim(),
         salary_coefficient: coefficient.trim(),
         base_salary_amount: base.trim(),
@@ -637,12 +638,12 @@ function SalaryRaiseModal({
 }
 
 function CompetenceModal({
-  userId,
+  profileId,
   competence,
   onClose,
   onSaved,
 }: {
-  userId: string;
+  profileId: string;
   competence?: Competence;
   onClose: () => void;
   onSaved: () => void;
@@ -677,7 +678,7 @@ function CompetenceModal({
     };
     try {
       if (editing) await hrApi.updateCompetence(competence!.id, body);
-      else await hrApi.createCompetence(userId, body);
+      else await hrApi.createCompetence(profileId, body);
       onSaved();
     } catch (err) {
       toast.error(describeError(err).title);

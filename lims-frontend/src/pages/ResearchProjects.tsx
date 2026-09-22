@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { FolderKanban, Plus, Pencil, Trash2, Users2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { FolderKanban, Plus, Pencil, Trash2, Users2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -37,6 +39,7 @@ import { canManageResearch } from '@/lib/rbac';
 import type { ResearchProject } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 // Trạng thái đề tài → nhãn + màu badge (dễ quét trong bảng)
 const PROJECT_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
@@ -63,7 +66,7 @@ export function ResearchProjects() {
   const [deleteTarget, setDeleteTarget] = useState<ResearchProject | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => researchApi.listProjects({ q: dq || undefined, level: level || undefined, limit: 100 }),
     [dq, level],
   );
@@ -115,7 +118,7 @@ export function ResearchProjects() {
     { key: 'status', priority: 1, header: 'Trạng thái', render: (p) => <ProjectStatusBadge status={p.status} /> },
     {
       key: 'time',
-      header: 'Thời gian',
+      header: 'Thời gian thực hiện',
       render: (p) => `${p.start_date ? formatDate(p.start_date) : '—'} → ${p.end_date ? formatDate(p.end_date) : '—'}`,
     },
     ...(canManage
@@ -125,13 +128,18 @@ export function ResearchProjects() {
             header: '',
             align: 'right' as const,
             render: (p: ResearchProject) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(p)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(p)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(p)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${p.title}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(p) },
+                    { label: 'Xóa đề tài', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(p), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -146,11 +154,14 @@ export function ResearchProjects() {
         description="Quản lý đề tài nghiên cứu khoa học và thành viên tham gia"
         icon={<FolderKanban size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm đề tài
-            </Button>
-          )
+          <>
+            <ExportExcelButton kind="research-projects" />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} /> Thêm đề tài
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -170,6 +181,7 @@ export function ResearchProjects() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(p) => p.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           onRowClick={(p) => setViewTarget(p)}

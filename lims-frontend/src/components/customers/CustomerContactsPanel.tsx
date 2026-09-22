@@ -148,7 +148,7 @@ export function CustomerContactsPanel({ customerId }: { customerId: string }) {
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => startEdit(c)}>
                 <Pencil size={14} /> Sửa
               </Button>
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => setRemoving(c)}>
+              <Button aria-label="Xóa" variant="ghost" size="sm" disabled={busy} onClick={() => setRemoving(c)}>
                 <Trash2 size={14} />
               </Button>
             </li>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Phone, Printer, Mail, Facebook, Leaf, Eye, ChevronDown } from 'lucide-react';
+import { MapPin, Phone, Globe, Mail, Facebook, Leaf, Eye, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAsync } from '@/lib/useAsync';
 import { formatNumber } from '@/lib/format';
@@ -116,16 +116,24 @@ function ContactList() {
           <Phone size={12} className="shrink-0 text-yogurt" /> 028 3722 0294
         </a>
       </li>
-      <li className="flex items-center gap-2 py-0.5 text-white/85" title="Số fax">
-        <Printer size={12} className="shrink-0 text-yogurt" /> 028 3724 6019
-      </li>
       <li className="min-w-0">
         <a
-          href="mailto:vphanhchinh@hcmuaf.edu.vn"
+          href="mailto:ribe@hcmuaf.edu.vn"
           className="flex min-w-0 items-center gap-2 py-0.5 text-white/85 hover:text-white"
         >
           <Mail size={12} className="shrink-0 text-yogurt" />
-          <span className="truncate">vphanhchinh@hcmuaf.edu.vn</span>
+          <span className="truncate">ribe@hcmuaf.edu.vn</span>
+        </a>
+      </li>
+      <li className="min-w-0">
+        <a
+          href="https://ribe.nlu.edu.vn"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-w-0 items-center gap-2 py-0.5 text-white/85 hover:text-white"
+        >
+          <Globe size={12} className="shrink-0 text-yogurt" />
+          <span className="truncate">ribe.nlu.edu.vn</span>
         </a>
       </li>
       <li>

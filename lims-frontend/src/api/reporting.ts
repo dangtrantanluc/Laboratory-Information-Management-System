@@ -102,6 +102,44 @@ export function getChemicalsReport(params: ChemicalsReportFilters = {}) {
   }) as Promise<ChemicalsReportResponse>;
 }
 
+// ── m50: Báo cáo tổng hợp khách hàng (Văn phòng) ────────────────
+export interface CustomerReportRow {
+  period: string;
+  new_customers: number;
+  active_customers: number;
+  intakes: number;
+  quoted_total: string;
+  paid_total: string;
+}
+export interface TopCustomer {
+  customer_id: string | null;
+  name: string;
+  intakes: number;
+  quoted_total: string;
+  paid_total: string;
+  /** Phiếu không gắn sổ khách — gộp theo tên đã chụp trên phiếu. */
+  is_walk_in: boolean;
+}
+export interface CustomersReportData {
+  summary: {
+    new_customers: number;
+    active_customers: number;
+    total_customers: number;
+    intakes: number;
+    quoted_total: string;
+    paid_total: string;
+  };
+  series: CustomerReportRow[];
+  top_customers: TopCustomer[];
+}
+export type CustomersReportResponse = { data: CustomersReportData; meta: DashboardMeta };
+
+export function getCustomersReport(params: ReportFilters = {}) {
+  return getAggregate<CustomersReportData, DashboardMeta>('/reports/customers', {
+    ...params,
+  }) as Promise<CustomersReportResponse>;
+}
+
 // ── #10 Thống kê truy cập hệ thống (R15) ────────────────────────
 export interface SystemAccessFilters {
   from?: string;

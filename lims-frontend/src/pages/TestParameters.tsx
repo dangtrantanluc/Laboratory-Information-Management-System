@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
@@ -119,11 +120,17 @@ export function TestParameters() {
             header: '',
             align: 'right' as const,
             render: (p: TestParameter) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(p)}><Pencil size={14} /></Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(p)}>
-                  <Trash2 size={14} className="text-overdue" />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(p)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${p.name}`}
+                  items={[
+                    { label: 'Xóa chỉ tiêu', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(p), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },

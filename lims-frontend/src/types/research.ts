@@ -74,9 +74,20 @@ export const CERT_KIND_LABELS: Record<CertKind, string> = {
 export type AuthorRole = 'main' | 'co' | 'corresponding';
 
 export const PUBLICATION_TYPE_LABELS: Record<PublicationType, string> = {
-  paper: 'Bài báo',
+  // Danh mục gọi chung là "Công bố khoa học"; nhãn ở đây phân biệt NƠI công bố,
+  // nên không dùng lại từ "bài báo" cho một nhánh của chính nó.
+  paper: 'Tạp chí',
   patent: 'Sáng chế / GPHI',
-  conference: 'Báo cáo hội nghị/kỷ yếu',
+  conference: 'Hội nghị / kỷ yếu',
+};
+
+// m47 — phạm vi công bố. Đây là NGUỒN CHÂN LÝ cho "trong nước / quốc tế"; danh mục
+// "Chỉ số" (category) chỉ nói về xếp hạng tạp chí. Trước m47 hai thứ này lẫn vào nhau
+// vì danh mục Chỉ số có sẵn mục 'domestic', nên cùng một sự thật được lưu hai chỗ mà
+// không có gì ép chúng khớp.
+export const PUB_SCOPE_LABELS: Record<PubScope, string> = {
+  domestic: 'Trong nước',
+  international: 'Quốc tế',
 };
 
 export const AUTHOR_ROLE_LABELS: Record<AuthorRole, string> = {

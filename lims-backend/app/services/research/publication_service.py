@@ -114,12 +114,24 @@ def _validate_pub_fields(db: Session, payload: dict) -> None:
             raise AppException(ErrorCode.VALIDATION_ERROR, "DOI sai định dạng (10.xxxx/...)", 400)
     if ptype == "paper":
         cat = payload.get("category")
-        if not cat:
-            raise AppException(ErrorCode.INVALID_INDEX, "Thiếu chỉ số bài báo (category)", 400)
-        if db.get(PublicationCategory, cat) is None:
-            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số bài báo ngoài danh mục", 400)
+        # m47 — CHỈ SỐ KHÔNG CÒN BẮT BUỘC.
+        #
+        # Trước đây bắt buộc, mà danh mục chỉ số lại có sẵn mục 'domestic' — nên cách
+        # duy nhất để lưu một công bố trên tạp chí trong nước (vốn không có xếp hạng
+        # ISI/Scopus nào) là chọn 'domestic' vào ô XẾP HẠNG. Đó chính là đường khiến
+        # phạm vi lọt vào ô chỉ số và cùng một sự thật được lưu ở hai chỗ.
+        #
+        # Thứ THỰC SỰ bắt buộc là phạm vi: hai danh mục "Công bố khoa học" tách theo nó.
+        if cat is not None and db.get(PublicationCategory, cat) is None:
+            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số ngoài danh mục", 400)
+        if not payload.get("pub_scope"):
+            raise AppException(
+                ErrorCode.VALIDATION_ERROR,
+                "Thiếu phạm vi công bố (pub_scope): trong nước hay quốc tế",
+                400,
+            )
         if not payload.get("journal"):
-            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu journal (bài báo)", 400)
+            raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu tên tạp chí (journal)", 400)
     if ptype == "conference":
         # Báo cáo hội nghị/kỷ yếu: cần tên kỷ yếu/hội nghị (journal), KHÔNG cần category.
         if not payload.get("journal"):
@@ -156,7 +168,15 @@ def list_publications(
     if q:
         conditions.append(Publication.title.ilike(f"%{q.strip()}%"))
     if type_filter:
-        conditions.append(Publication.type == type_filter)
+        # Nhận NHIỀU loại, ngăn cách bằng dấu phẩy ("paper,conference"). Màn hình
+        # "Công bố khoa học" gom công bố tạp chí và báo cáo hội nghị làm một, nên nếu
+        # chỉ nhận một giá trị thì nó buộc phải lọc ở phía trình duyệt — và lọc phía
+        # trình duyệt thì phân trang, đếm tổng và xuất Excel đều sai theo.
+        wanted = [t.strip() for t in type_filter.split(",") if t.strip()]
+        if len(wanted) == 1:
+            conditions.append(Publication.type == wanted[0])
+        elif wanted:
+            conditions.append(Publication.type.in_(wanted))
     if year:
         conditions.append(Publication.year == year)
     if category:
@@ -270,7 +290,7 @@ def create_publication(
 
 
 def _get_pub_or_404(db: Session, pub_id: uuid.UUID) -> Publication:
-    return get_or_404(db, Publication, pub_id, "Bài báo/sáng chế không tồn tại", code=ErrorCode.PUBLICATION_NOT_FOUND)
+    return get_or_404(db, Publication, pub_id, "Công bố khoa học / sáng chế không tồn tại", code=ErrorCode.PUBLICATION_NOT_FOUND)
 
 
 def _assert_pub_scope(db: Session, user: CurrentUser, p: Publication) -> None:
@@ -307,7 +327,7 @@ def update_publication(
         raise AppException(ErrorCode.VALIDATION_ERROR, "Body rỗng", 400)
     if "category" in changes and changes["category"]:
         if db.get(PublicationCategory, changes["category"]) is None:
-            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số bài báo ngoài danh mục", 400)
+            raise AppException(ErrorCode.INVALID_INDEX, "Chỉ số ngoài danh mục", 400)
     if "patent_no" in changes and changes["patent_no"] and p.type == "patent":
         existing = db.execute(
             select(Publication.id).where(

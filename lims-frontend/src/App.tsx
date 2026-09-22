@@ -36,7 +36,10 @@ const Nonconformities = lazy(() => import('@/pages/Nonconformities').then((m) =>
 const NonconformityDetail = lazy(() => import('@/pages/NonconformityDetail').then((m) => ({ default: m.NonconformityDetail })));
 const Notifications = lazy(() => import('@/pages/Notifications').then((m) => ({ default: m.Notifications })));
 const Profile = lazy(() => import('@/pages/Profile').then((m) => ({ default: m.Profile })));
-const Publications = lazy(() => import('@/pages/Publications').then((m) => ({ default: m.Publications })));
+// m47 — một tệp, hai trang: chúng dùng chung khung bảng và cả hai modal (xem/sửa),
+// nên tách tệp chỉ tạo ra hai bản sao phải sửa song song.
+const Papers = lazy(() => import('@/pages/Publications').then((m) => ({ default: m.Papers })));
+const Patents = lazy(() => import('@/pages/Publications').then((m) => ({ default: m.Patents })));
 const Quotations = lazy(() => import('@/pages/Quotations').then((m) => ({ default: m.Quotations })));
 const Register = lazy(() => import('@/pages/Register').then((m) => ({ default: m.Register })));
 const Reports = lazy(() => import('@/pages/Reports').then((m) => ({ default: m.Reports })));
@@ -282,13 +285,23 @@ export default function App() {
           }
         />
         <Route
-          path="/research/publications"
+          path="/research/papers"
           element={
             <RequireAccess allow={canViewResearch}>
-              <Publications />
+              <Papers />
             </RequireAccess>
           }
         />
+        <Route
+          path="/research/patents"
+          element={
+            <RequireAccess allow={canViewResearch}>
+              <Patents />
+            </RequireAccess>
+          }
+        />
+        {/* Đường dẫn cũ — giữ chuyển hướng để link đã gửi đi và bookmark không hỏng. */}
+        <Route path="/research/publications" element={<Navigate to="/research/papers" replace />} />
         <Route
           path="/research/mentorships"
           element={

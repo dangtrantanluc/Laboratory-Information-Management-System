@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { ClipboardCheck, Plus, Check, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -24,7 +25,7 @@ export function LabRegistrations() {
   const [createOpen, setCreateOpen] = useState(false);
   const [decide, setDecide] = useState<{ reg: LabRegistration; action: 'approve' | 'reject' } | null>(null);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => researchApi.listRegistrations({ status: status || undefined, limit: 100 }),
     [status],
   );
@@ -88,7 +89,7 @@ export function LabRegistrations() {
             <option value="rejected">Đã từ chối</option>
           </Select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(r) => r.id} loading={loading} pageSize={12} />
+        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(r) => r.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={12} />
       </Card>
 
       {createOpen && (

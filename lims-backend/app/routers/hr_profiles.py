@@ -2,7 +2,7 @@
 
 Field-level RBAC lương/HĐ/PII strip ở service (hr_common.strip_profile). Quyền sửa lương/HĐ
 = admin/office (SALARY_FORBIDDEN). LƯU Ý thứ tự đăng ký: /hr-profiles/me tĩnh đăng ký
-trước /hr-profiles/{user_id} động.
+trước /hr-profiles/{profile_id} động.
 """
 import uuid
 from typing import Optional
@@ -20,6 +20,9 @@ from app.db.database import get_db
 from app.schemas.hr import (
     CreateCompetenceRequest,
     CreateProfileRequest,
+    HrProfileResponse,
+    LinkAccountRequest,
+    ProfileSuggestionListResponse,
     CreateSalaryRaiseRequest,
     UpdateCompetenceRequest,
     UpdateContractRequest,
@@ -76,7 +79,10 @@ def create_profile(
     data = hr_service.create_profile(
         db,
         user=user,
-        target_user_id=body.user_id,
+        full_name=body.full_name,
+        link_user_id=body.user_id,
+        birth_year=body.birth_year,
+        department_id=body.department_id,
         job_title=body.job_title,
         hired_date=body.hired_date,
         phone=body.phone,
@@ -86,7 +92,7 @@ def create_profile(
     return ok(data)
 
 
-# ===================== #4 GET me (tĩnh — trước /{user_id}) =====================
+# ===================== #4 GET me (tĩnh — phải đứng TRƯỚC /{profile_id}) =====================
 @router.get("/hr-profiles/me")
 def get_my_profile(
     user: CurrentUser = Depends(get_current_user),
@@ -96,19 +102,19 @@ def get_my_profile(
 
 
 # ===================== #3 GET detail =====================
-@router.get("/hr-profiles/{user_id}")
+@router.get("/hr-profiles/{profile_id}")
 def get_profile(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return ok(hr_service.get_profile(db, user=user, target_user_id=user_id))
+    return ok(hr_service.get_profile(db, user=user, profile_id=profile_id))
 
 
 # ===================== #5 PATCH =====================
-@router.patch("/hr-profiles/{user_id}")
+@router.patch("/hr-profiles/{profile_id}")
 def update_profile(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     body: UpdateProfileRequest,
     request: Request,
     user: CurrentUser = Depends(get_current_user),
@@ -118,7 +124,7 @@ def update_profile(
     data = hr_service.update_profile(
         db,
         user=user,
-        target_user_id=user_id,
+        profile_id=profile_id,
         changes=changes,
         correlation_id=_cid(request),
         ip=client_ip(request),
@@ -127,9 +133,9 @@ def update_profile(
 
 
 # ===================== #6 PATCH contract =====================
-@router.patch("/hr-profiles/{user_id}/contract")
+@router.patch("/hr-profiles/{profile_id}/contract")
 def update_contract(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     body: UpdateContractRequest,
     request: Request,
     user: CurrentUser = Depends(get_current_user),
@@ -138,7 +144,7 @@ def update_contract(
     data = hr_service.update_contract(
         db,
         user=user,
-        target_user_id=user_id,
+        profile_id=profile_id,
         contract_signed_date=body.contract_signed_date,
         contract_type=body.contract_type,
         contract_end_date=body.contract_end_date,
@@ -149,9 +155,9 @@ def update_contract(
 
 
 # ===================== #7 PATCH salary-cycle =====================
-@router.patch("/hr-profiles/{user_id}/salary-cycle")
+@router.patch("/hr-profiles/{profile_id}/salary-cycle")
 def update_salary_cycle(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     body: UpdateSalaryCycleRequest,
     request: Request,
     user: CurrentUser = Depends(get_current_user),
@@ -160,7 +166,7 @@ def update_salary_cycle(
     data = hr_service.update_salary_cycle(
         db,
         user=user,
-        target_user_id=user_id,
+        profile_id=profile_id,
         salary_cycle_years=body.salary_cycle_years,
         correlation_id=_cid(request),
         ip=client_ip(request),
@@ -168,10 +174,54 @@ def update_salary_cycle(
     return ok(data)
 
 
+# ===================== m48: gắn hồ sơ ↔ tài khoản =====================
+@router.get("/users/{target_user_id}/profile-suggestions",
+            response_model=ProfileSuggestionListResponse)
+def suggest_profiles(
+    target_user_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Hồ sơ nhân sự CHƯA GẮN trùng tên với tài khoản này — để người duyệt chọn.
+
+    Chỉ gợi ý, không tự gắn: trùng họ tên là chuyện bình thường, gắn nhầm là nối hồ sơ
+    lương của người này vào tài khoản người khác.
+    """
+    return ok(hr_service.suggest_profiles_for_user(db, user=user, target_user_id=target_user_id))
+
+
+@router.post("/hr-profiles/{profile_id}/link", response_model=HrProfileResponse)
+def link_profile_account(
+    profile_id: uuid.UUID,
+    body: LinkAccountRequest,
+    request: Request,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return ok(hr_service.link_account(
+        db, user=user, profile_id=profile_id, target_user_id=body.user_id,
+        correlation_id=_cid(request), ip=client_ip(request),
+    ))
+
+
+@router.post("/hr-profiles/{profile_id}/unlink", response_model=HrProfileResponse)
+def unlink_profile_account(
+    profile_id: uuid.UUID,
+    request: Request,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Gỡ liên kết. Hồ sơ Ở LẠI sổ nhân sự — người vẫn làm ở Viện."""
+    return ok(hr_service.unlink_account(
+        db, user=user, profile_id=profile_id,
+        correlation_id=_cid(request), ip=client_ip(request),
+    ))
+
+
 # ===================== #8 POST salary-raises =====================
-@router.post("/hr-profiles/{user_id}/salary-raises", status_code=status.HTTP_201_CREATED)
+@router.post("/hr-profiles/{profile_id}/salary-raises", status_code=status.HTTP_201_CREATED)
 def create_salary_raise(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     body: CreateSalaryRaiseRequest,
     request: Request,
     user: CurrentUser = Depends(get_current_user),
@@ -180,7 +230,7 @@ def create_salary_raise(
     data = hr_service.create_salary_raise(
         db,
         user=user,
-        target_user_id=user_id,
+        profile_id=profile_id,
         salary_grade=body.salary_grade,
         salary_coefficient=body.salary_coefficient,
         base_salary_amount=body.base_salary_amount,
@@ -193,9 +243,9 @@ def create_salary_raise(
 
 
 # ===================== #9 GET salary-history =====================
-@router.get("/hr-profiles/{user_id}/salary-history")
+@router.get("/hr-profiles/{profile_id}/salary-history")
 def list_salary_history(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
@@ -203,30 +253,30 @@ def list_salary_history(
 ):
     page, limit = normalize_pagination(page, limit)
     items, total = hr_service.list_salary_history(
-        db, user=user, target_user_id=user_id, page=page, limit=limit
+        db, user=user, profile_id=profile_id, page=page, limit=limit
     )
     return paginated(items, page=page, limit=limit, total=total)
 
 
 # ===================== #10 GET competences =====================
-@router.get("/hr-profiles/{user_id}/competences")
+@router.get("/hr-profiles/{profile_id}/competences")
 def list_competences(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     kind: Optional[str] = Query(default=None),
     status_filter: Optional[str] = Query(default=None, alias="status"),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     items = hr_service.list_competences(
-        db, user=user, target_user_id=user_id, kind=kind, status_filter=status_filter
+        db, user=user, profile_id=profile_id, kind=kind, status_filter=status_filter
     )
     return ok(items)
 
 
 # ===================== #11 POST competences =====================
-@router.post("/hr-profiles/{user_id}/competences", status_code=status.HTTP_201_CREATED)
+@router.post("/hr-profiles/{profile_id}/competences", status_code=status.HTTP_201_CREATED)
 def create_competence(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     body: CreateCompetenceRequest,
     request: Request,
     user: CurrentUser = Depends(get_current_user),
@@ -235,7 +285,7 @@ def create_competence(
     data = hr_service.create_competence(
         db,
         user=user,
-        target_user_id=user_id,
+        profile_id=profile_id,
         payload=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request),
         ip=client_ip(request),
@@ -244,15 +294,15 @@ def create_competence(
 
 
 # ===================== #15 GET competence-summary =====================
-@router.get("/hr-profiles/{user_id}/competence-summary")
+@router.get("/hr-profiles/{profile_id}/competence-summary")
 def competence_summary(
-    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     from app.services.research import competence_service
 
-    return ok(competence_service.competence_summary(db, user=user, target_user_id=user_id))
+    return ok(competence_service.competence_summary(db, user=user, profile_id=profile_id))
 
 
 # ===================== #12 PATCH competence =====================
@@ -312,12 +362,12 @@ def upload_competence_attachment(
                 ErrorCode.INVALID_FILE_TYPE, "Định dạng file không hợp lệ (PDF/PNG/JPG)", 422
             )
         content = file.file.read()
-        # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = user_id của năng lực)
+        # owner = hồ sơ nhân sự (owner_type='hr_profile', owner_id = profile_id của năng lực)
         data = attachment_service.create_attachment(
             db,
             user=user,
             owner_type="hr_profile",
-            owner_id=comp.user_id,
+            owner_id=comp.profile_id,
             file_name=file.filename or "competence",
             content=content,
             mime=file.content_type,

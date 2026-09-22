@@ -1,0 +1,290 @@
+[
+ {
+  "stt": 1,
+  "ho_ten": "Huỳnh Văn Biết",
+  "phong": "LAB-SHPT",
+  "chuc_vu": "Ban Lãnh đạo",
+  "hoc_vi": "TS",
+  "ngach": "GVC",
+  "chuyen_nganh": "Sinh học phân tử"
+ },
+ {
+  "stt": 2,
+  "ho_ten": "Phùng Võ Cẩm Hồng",
+  "phong": "BGD",
+  "chuc_vu": "Ban Lãnh đạo",
+  "hoc_vi": "TS",
+  "ngach": "GVC",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 3,
+  "ho_ten": "Trương Quang Toản",
+  "phong": "LAB-SHPT",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 4,
+  "ho_ten": "Nguyễn Minh Chánh",
+  "phong": "LAB-SHPT",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 5,
+  "ho_ten": "Trần Đình Phong",
+  "phong": "LAB-SHPT",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 6,
+  "ho_ten": "Đặng Xuân Đài",
+  "phong": "LAB-SHPT",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 7,
+  "ho_ten": "Nguyễn Thị Vân Khanh",
+  "phong": "LAB-CNTB",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Khoa học cây trồng"
+ },
+ {
+  "stt": 8,
+  "ho_ten": "Lê Hoàng Độ",
+  "phong": "LAB-CNTB",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 9,
+  "ho_ten": "Trần Phước Hên",
+  "phong": "LAB-CNTB",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 10,
+  "ho_ten": "Trần Thị Thanh Lịch",
+  "phong": "LAB-CNTB",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 11,
+  "ho_ten": "Trương Phước Thiên Hoàng",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "TS",
+  "ngach": "CV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 12,
+  "ho_ten": "Đào Uyên Trân Đa",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Bảo vệ thực vật"
+ },
+ {
+  "stt": 13,
+  "ho_ten": "Võ Trần Quốc Thắng",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 14,
+  "ho_ten": "Vũ Ngọc Khánh Như",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 15,
+  "ho_ten": "Vũ Văn Tuấn",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 16,
+  "ho_ten": "Phùng Thị Ngọc Hân",
+  "phong": "LAB-CNVS",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 17,
+  "ho_ten": "Trần Thị Vân",
+  "phong": "LAB-SKCT",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Bảo vệ thực vật"
+ },
+ {
+  "stt": 18,
+  "ho_ten": "Phan Hữu Tín",
+  "phong": "LAB-NAM",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 19,
+  "ho_ten": "Nguyễn Minh Quang",
+  "phong": "LAB-NNTH",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "TG",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 20,
+  "ho_ten": "Nguyễn Thị Thuỳ Trang",
+  "phong": "LAB-NNTH",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 21,
+  "ho_ten": "Trịnh Thị Phi Ly",
+  "phong": "LAB-HS",
+  "chuc_vu": null,
+  "hoc_vi": "TS",
+  "ngach": "GV",
+  "chuyen_nganh": "Sinh hoá"
+ },
+ {
+  "stt": 22,
+  "ho_ten": "Nguyễn Thị Bé Thư",
+  "phong": "LAB-HS",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 23,
+  "ho_ten": "Phạm Phương Trinh",
+  "phong": "LAB-HS",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 24,
+  "ho_ten": "Nguyễn Công Mạnh",
+  "phong": "LAB-KTMT",
+  "chuc_vu": null,
+  "hoc_vi": "NCS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Quản lý môi trường"
+ },
+ {
+  "stt": 25,
+  "ho_ten": "Huỳnh Thị Ngọc Oanh",
+  "phong": "LAB-KTMT",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Kỹ thuật môi trường"
+ },
+ {
+  "stt": 26,
+  "ho_ten": "Huỳnh Anh Tuấn",
+  "phong": "LAB-KTMT",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Kỹ thuật môi trường"
+ },
+ {
+  "stt": 27,
+  "ho_ten": "Nguyễn Ngọc Hà",
+  "phong": "LAB-MTD",
+  "chuc_vu": null,
+  "hoc_vi": "TS",
+  "ngach": "Giảng viên",
+  "chuyen_nganh": "Hóa môi trường"
+ },
+ {
+  "stt": 28,
+  "ho_ten": "Thái Thị Thanh Thuỷ",
+  "phong": "LAB-MTD",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 29,
+  "ho_ten": "Lê Quang Trường",
+  "phong": "LAB-MTD",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "NCV",
+  "chuyen_nganh": "Công nghệ sinh học"
+ },
+ {
+  "stt": 30,
+  "ho_ten": "Phan Thị Xuân Trang",
+  "phong": "VP",
+  "chuc_vu": null,
+  "hoc_vi": "ThS",
+  "ngach": "KTV",
+  "chuyen_nganh": "Môi trường"
+ },
+ {
+  "stt": 31,
+  "ho_ten": "Nguyễn Lê Trúc Phương",
+  "phong": "VP",
+  "chuc_vu": null,
+  "hoc_vi": "KS",
+  "ngach": "KS",
+  "chuyen_nganh": "Thú y"
+ },
+ {
+  "stt": 32,
+  "ho_ten": "Nguyễn Thị Thuý",
+  "phong": "VP",
+  "chuc_vu": null,
+  "hoc_vi": null,
+  "ngach": null,
+  "chuyen_nganh": null
+ }
+]

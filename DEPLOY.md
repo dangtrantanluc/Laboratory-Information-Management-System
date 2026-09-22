@@ -2,6 +2,12 @@
 
 Kiểm tra lại ngày **26/07/2026**. Phần Cloudflare chi tiết: [DEPLOY_CLOUDFLARE.md](./DEPLOY_CLOUDFLARE.md).
 
+> **Máy đích chạy Windows?** Dùng [DEPLOY_WINDOWS.md](./DEPLOY_WINDOWS.md) thay cho
+> tài liệu này. Tài liệu đó bao gồm cả việc **mang dữ liệu thật sang** (Postgres +
+> MinIO) và bốn khác biệt của Windows sẽ làm hỏng bản deploy nếu bỏ qua: kết thúc
+> dòng CRLF trong `entrypoint.sh`, dấu phân cách `COMPOSE_FILE`, tên volume phụ
+> thuộc tên thư mục, và tài nguyên WSL2 chứ không phải tài nguyên máy.
+
 ---
 
 ## GIAI ĐOẠN 0 — Kiểm tra trước khi rời máy dev

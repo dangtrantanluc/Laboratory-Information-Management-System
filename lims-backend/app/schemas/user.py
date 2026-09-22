@@ -48,3 +48,40 @@ class RejectUserRequest(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
     model_config = {"extra": "forbid"}
+
+# ===================== m49: tài khoản bị khoá đăng nhập =====================
+class LockoutEntry(BaseModel):
+    """Một cặp (email, IP) đang bị khoá hoặc đang đếm sai.
+
+    `is_known_account` = False nghĩa là email không ứng với tài khoản nào — dấu hiệu có
+    người dò email, và là lý do danh sách KHÔNG lọc bỏ những dòng như vậy.
+    """
+
+    email: str
+    ip: str
+    remaining_seconds: int
+    failed_attempts: Optional[int] = None
+    user_id: Optional[uuid.UUID] = None
+    full_name: Optional[str] = None
+    is_known_account: bool
+
+
+class LockoutSnapshot(BaseModel):
+    locked: list[LockoutEntry]
+    failing: list[LockoutEntry]
+
+
+class LockoutListResponse(BaseModel):
+    success: bool
+    data: LockoutSnapshot
+
+
+class UnlockOut(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    keys_removed: int
+
+
+class UnlockResponse(BaseModel):
+    success: bool
+    data: UnlockOut

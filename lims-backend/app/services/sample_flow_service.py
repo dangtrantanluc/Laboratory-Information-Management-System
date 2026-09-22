@@ -18,7 +18,7 @@ from app.models.customer import Customer
 from app.models.department import Department
 from app.models.sample_flow import (
     DISPATCH_NEXT, DISPATCH_STATUS_LABELS,
-    INTAKE_NEXT, INTAKE_STATUS_LABELS, VALID_PAYMENT_STATUS,
+    INTAKE_NEXT, INTAKE_STATUS_LABELS,
     SampleDispatch, SampleIntake, TestParameter,
 )
 from app.models.user import User
@@ -149,6 +149,17 @@ def _files_of(db: Session, owner_type: str, owner_id: uuid.UUID) -> list[dict]:
     ]
 
 
+def _has_test_report(db: Session, intake_id: uuid.UUID) -> bool:
+    """m46 — phiếu có chứng từ kết quả đã phát hành chưa (BR-08 dùng cùng luật này).
+
+    Import cục bộ theo quy ước của codebase: test_report_service đọc models của luồng
+    nhận mẫu, nên import ở đầu file tạo ra một vòng chỉ chờ file thứ ba đóng lại.
+    """
+    from app.services import test_report_service
+
+    return test_report_service.has_issued_report(db, intake_id)
+
+
 def _dept_name(db: Session, dept_id: Optional[uuid.UUID]) -> Optional[str]:
     if not dept_id:
         return None
@@ -246,6 +257,10 @@ def _serialize_intake(
         "received_at": it.received_at,
         "created_at": it.created_at,
         "files": _files_of(db, "sample_intake", it.id),
+        # m46 — phiếu đã có chứng từ kết quả phát hành chưa. Bảng danh sách hiện badge
+        # "KQ" từ cờ này, nên nhân viên quầy nhìn sổ là biết phiếu nào còn nợ khách,
+        # thay vì phải mở từng phiếu ra xem.
+        "has_test_report": _has_test_report(db, it.id),
     }
     if with_dispatches:
         rows = db.execute(

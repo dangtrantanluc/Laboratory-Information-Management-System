@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { UserCog, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { UserCog, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Select } from '@/components/ui/Field';
@@ -18,6 +20,7 @@ import { canManageResearch } from '@/lib/rbac';
 import type { StudentMentorship } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 export function StudentMentorships() {
   const { user } = useAuth();
@@ -29,7 +32,7 @@ export function StudentMentorships() {
   const [deleteTarget, setDeleteTarget] = useState<StudentMentorship | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => researchApi.listMentorships({ type: typeFilter || undefined, limit: 100 }),
     [typeFilter],
   );
@@ -65,13 +68,18 @@ export function StudentMentorships() {
             header: '',
             align: 'right' as const,
             render: (m: StudentMentorship) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(m)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(m)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(m)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${m.student_name}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(m) },
+                    { label: 'Xóa hướng dẫn', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(m), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -86,11 +94,14 @@ export function StudentMentorships() {
         description="Khóa luận, luận văn, luận án và NCKH sinh viên"
         icon={<UserCog size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm
-            </Button>
-          )
+          <>
+            <ExportExcelButton kind="student-mentorships" />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} /> Thêm
+              </Button>
+            )}
+          </>
         }
       />
       <Card>
@@ -108,6 +119,7 @@ export function StudentMentorships() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(m) => m.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           // Bấm hàng mở modal XEM, không nhảy thẳng vào form ghi — đồng bộ với

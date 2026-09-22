@@ -95,6 +95,9 @@ from app.models.sample_flow import (
     TestParameter,
 )
 
+# --- m46: Phát hành phiếu kết quả thử nghiệm (BM 7.8/01) ---
+from app.models.test_report import TestReport
+
 # --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
 from app.models.lab_access import LabAccessCard
 
@@ -180,6 +183,8 @@ __all__ = [
     "Quotation",
     "QuotationItem",
     "QuotationVersion",
+    # m46
+    "TestReport",
     # M19
     "LabAccessCard",
     # M20

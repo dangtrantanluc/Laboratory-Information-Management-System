@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { FileSignature, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { FileSignature, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -25,6 +27,7 @@ import { formatDate, formatMoney, truncate } from '@/lib/format';
 import type { ResearchContract } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 /** Bốn giá trị duy nhất xuất hiện ở cột "Loại hợp đồng" của file Excel 2024-2025. */
 const CONTRACT_TYPES = ['Nghiên cứu KHCN', 'Tư vấn KHCN', 'Tư vấn chuyển giao', 'Tư vấn'];
@@ -38,7 +41,7 @@ export function ResearchContracts() {
   const [deleteTarget, setDeleteTarget] = useState<ResearchContract | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(() => activityApi.listContracts({ limit: 100 }), []);
+  const { data, loading, error, reload } = useAsync(() => activityApi.listContracts({ limit: 100 }), []);
   const canManage = canManageActivities(user);
 
   async function doDelete() {
@@ -62,7 +65,24 @@ export function ResearchContracts() {
     { key: 'contract_type', header: 'Loại', render: (c) => c.contract_type ?? '—' },
     { key: 'value', header: 'Giá trị', align: 'right', render: (c) => formatMoney(c.value_amount, c.currency ?? 'VND') },
     { key: 'partner', header: 'Đơn vị phối hợp', render: (c) => c.partner_org ?? '—' },
-    { key: 'year', header: 'Năm học', render: (c) => c.academic_year ?? '—' },
+    {
+      // Cột này trước đây chỉ hiện `academic_year` ("2024-2025") dưới nhãn "Năm học".
+      // Hợp đồng vốn ĐÃ CÓ start_date/end_date, nên hiển thị đúng khoảng thực hiện
+      // và dùng chung nhãn với bảng Đề tài NCKH — hai bảng cùng một nghĩa thì phải
+      // cùng một tiêu đề. Năm học xuống dòng phụ: nó vẫn là tiêu chí lọc khi xuất Excel.
+      key: 'time',
+      header: 'Thời gian thực hiện',
+      render: (c) => (
+        <div className="leading-tight">
+          <div>
+            {c.start_date ? formatDate(c.start_date) : '—'} → {c.end_date ? formatDate(c.end_date) : '—'}
+          </div>
+          {c.academic_year && (
+            <div className="text-xs text-subink">NH {c.academic_year}</div>
+          )}
+        </div>
+      ),
+    },
     {
       key: 'evidence',
       header: 'Minh chứng',
@@ -83,13 +103,18 @@ export function ResearchContracts() {
             header: '',
             align: 'right' as const,
             render: (c: ResearchContract) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(c)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${c.title}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(c) },
+                    { label: 'Xóa hợp đồng', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(c), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -104,11 +129,14 @@ export function ResearchContracts() {
         description="Danh mục hợp đồng nghiên cứu / tư vấn / chuyển giao KHCN"
         icon={<FileSignature size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm hợp đồng
-            </Button>
-          )
+          <>
+            <ExportExcelButton kind="research-contracts" />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} /> Thêm hợp đồng
+              </Button>
+            )}
+          </>
         }
       />
       <Card>
@@ -116,6 +144,7 @@ export function ResearchContracts() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(c) => c.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           onRowClick={(c) => setViewTarget(c)}

@@ -1,0 +1,22 @@
+{
+  "artboards": [
+    { "file": "Current.dc.html", "x": 0,    "y": 0,    "w": 1180, "h": 430, "title": "Trước khi sửa" },
+    { "file": "Main.dc.html",    "x": 1280, "y": 0,    "w": 1180, "h": 430, "title": "A · Nút Sửa + menu" },
+    { "file": "OptionB.dc.html", "x": 0,    "y": 570,  "w": 1180, "h": 430, "title": "B · Sửa tại chỗ" },
+    { "file": "OptionC.dc.html", "x": 1280, "y": 570,  "w": 1180, "h": 560, "title": "C · Ngăn kéo bên phải" },
+    { "file": "OptionD.dc.html", "x": 0,    "y": 1270, "w": 1180, "h": 480, "title": "D · Thẻ thay bảng" }
+  ],
+  "annotations": [
+    { "id": "note-brief", "x": 0, "y": -190, "w": 620,
+      "text": "Câu hỏi thiết kế: sửa một báo giá thì bấm vào đâu, và sửa ở đâu?\nBốn phương án bên dưới khác nhau ở TRỤC đó, không phải ở màu sắc.\nMàu, chữ, bo góc, chiều cao nút lấy đúng từ token của app." },
+    { "id": "note-a", "x": 2500, "y": 0, "w": 300,
+      "text": "A — ĐÃ TRIỂN KHAI\nHành động chính có nhãn; xem/xuất/xóa vào menu.\n\n+ Xóa không còn sát nút Sửa\n+ Luôn 2 control, vị trí cố định\n− Sửa vẫn mở modal, vẫn rời danh sách" },
+    { "id": "note-b", "x": 0, "y": 1050, "w": 620,
+      "text": "B — Sửa tại chỗ\n+ Nhanh nhất cho sửa vặt (ngày hiệu lực, trạng thái)\n+ Không mất ngữ cảnh, so sánh được với hàng khác\n− Không đủ chỗ cho bảng chỉ tiêu → vẫn cần modal cho sửa sâu\n− Hàng đang sửa làm lệch nhịp bảng" },
+    { "id": "note-c", "x": 2500, "y": 570, "w": 300,
+      "text": "C — Ngăn kéo\n+ Xem và sửa cùng chỗ, hết ngõ cụt\n+ Đủ chỗ cho chỉ tiêu và tổng tiền\n+ Dùng lại được cho Nhận mẫu, Khách hàng\n− Ăn ~420px bề ngang\n− Thêm một tầng phải học" },
+    { "id": "note-d", "x": 1280, "y": 1270, "w": 300,
+      "text": "D — Thẻ\n+ Vùng bấm lớn nhất, hợp máy tính bảng ở quầy\n+ Số tiền và trạng thái nổi bật\n− Ít bản ghi/màn hơn, khó so sánh theo cột\n− Không sắp xếp theo cột được" }
+  ],
+  "launch": { "view": "canvas" }
+}

@@ -129,7 +129,10 @@ export const NAV_GROUPS: NavGroup[] = [
         label: 'Nghiên cứu',
         items: [
           { to: '/research/projects', label: 'Đề tài NCKH', icon: FolderKanban, roles: RESEARCH_VIEW },
-          { to: '/research/publications', label: 'Bài báo & Sáng chế', icon: BookText, roles: RESEARCH_VIEW },
+          // m47 — tách làm hai: bài báo và văn bằng bảo hộ là hai loại hồ sơ khác nhau,
+          // với bộ cột khác nhau và file Excel khác nhau.
+          { to: '/research/papers', label: 'Công bố khoa học', icon: BookText, roles: RESEARCH_VIEW },
+          { to: '/research/patents', label: 'Sáng chế & GPHI', icon: Award, roles: RESEARCH_VIEW },
           { to: '/research/contracts', label: 'Hợp đồng NCKH', icon: FileSignature, roles: ['admin', 'leader', 'office'] },
           { to: '/research/community', label: 'Phục vụ cộng đồng', icon: HeartHandshake, roles: RESEARCH_VIEW },
         ],

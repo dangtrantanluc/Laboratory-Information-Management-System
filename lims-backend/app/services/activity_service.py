@@ -22,6 +22,17 @@ def _assert_can_write(user: CurrentUser) -> None:
 
 
 # ===================== research_contracts =====================
+def assert_contract_read(user: CurrentUser) -> None:
+    """Hợp đồng NCKH có GIÁ TRỊ TIỀN — chỉ nhóm quản lý xem: admin/leader/office.
+
+    Luật đặt ở service chứ không ở router vì có HAI đường tới cùng dữ liệu này:
+    danh sách trên màn hình và file Excel xuất ra. Để mỗi đường tự kiểm là sớm muộn
+    một đường bị bỏ quên, và khi đó xuất Excel trở thành cách đi vòng qua phân quyền.
+    """
+    if user.role not in ("admin", "leader", "office"):
+        raise hc.forbidden("Chỉ Quản trị/Lãnh đạo/Văn phòng được xem hợp đồng NCKH")
+
+
 def _contract_dict(db: Session, c: ResearchContract) -> dict:
     return {
         "id": c.id,

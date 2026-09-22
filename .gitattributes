@@ -1,0 +1,52 @@
+# Kết thúc dòng — file này quyết định repo có deploy được trên Windows hay không.
+#
+# Git for Windows cài mặc định core.autocrlf=true. Không có file này, mọi lần
+# `git clone` trên Windows sẽ đổi LF → CRLF cho toàn bộ file text, trong đó có
+# lims-backend/entrypoint.sh. File đó được COPY thẳng vào image Linux và dùng làm
+# ENTRYPOINT, nên dòng shebang trở thành "#!/usr/bin/env bash\r" — kernel đi tìm
+# một interpreter tên "bash\r" không tồn tại và container chết ngay lúc khởi động:
+#
+#   exec /app/entrypoint.sh: no such file or directory
+#
+# Thông báo lỗi nói "no such file" trong khi file rõ ràng có ở đó, nên đây là lỗi
+# rất tốn thời gian nếu không biết trước. Ép LF từ phía repo là cách chặn duy nhất
+# không phụ thuộc vào việc người deploy có cấu hình git đúng hay không.
+* text=auto eol=lf
+
+# Chạy trong container Linux hoặc do Docker đọc → BẮT BUỘC LF.
+*.sh            text eol=lf
+*.conf          text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.cron          text eol=lf
+Dockerfile      text eol=lf
+*.Dockerfile    text eol=lf
+entrypoint.sh   text eol=lf
+.env.example    text eol=lf
+.env.*.example  text eol=lf
+
+# Chạy trên chính Windows → CRLF. Với .bat/.cmd đây không phải chuyện thẩm mỹ:
+# cmd.exe đọc file batch theo từng byte, nhãn và `goto` có thể hỏng khi gặp LF.
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Nhị phân — không được đụng vào, và không hiện diff rác khi thay đổi.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.xlsx   binary
+*.xls    binary
+*.docx   binary
+*.doc    binary
+*.zip    binary
+*.gz     binary
+*.tar    binary
+*.dump   binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary

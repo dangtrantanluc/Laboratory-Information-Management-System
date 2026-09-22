@@ -438,6 +438,9 @@ class IntakeOut(BaseModel):
     created_at: Optional[datetime] = None
     files: list[DispatchFileOut] = []
     dispatches: Optional[list[DispatchOut]] = None
+    # m46 — đã phát hành phiếu kết quả (BM 7.8/01) hay chưa. Cùng luật với BR-08 chặn
+    # chuyển phiếu sang "Đã trả kết quả".
+    has_test_report: Optional[bool] = None
 
 
 class IntakeResponse(BaseModel):

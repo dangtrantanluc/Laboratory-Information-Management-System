@@ -143,7 +143,7 @@ function RowShell({ onRemove, children }: { onRemove: () => void; children: Reac
   return (
     <div className="flex items-start gap-3 p-4">
       <div className="grid flex-1 gap-3 md:grid-cols-2 lg:grid-cols-4">{children}</div>
-      <Button size="sm" variant="ghost" onClick={onRemove} className="mt-1"><Trash2 size={14} className="text-overdue" /></Button>
+      <Button aria-label="Xóa" size="sm" variant="ghost" onClick={onRemove} className="mt-1"><Trash2 size={14} className="text-overdue" /></Button>
     </div>
   );
 }
@@ -239,7 +239,7 @@ export function MonthlyReport() {
     // validate bắt buộc
     if (teaching.some((t) => !t.course_name.trim())) return toast.error('Môn giảng dạy: thiếu tên môn');
     if (projects.some((p) => !p.title.trim())) return toast.error('Đề tài: thiếu tên đề tài');
-    if (publications.some((p) => !p.title.trim())) return toast.error('Bài báo: thiếu tiêu đề');
+    if (publications.some((p) => !p.title.trim())) return toast.error('Công bố khoa học: thiếu tiêu đề');
     if (contracts.some((c) => !c.title.trim())) return toast.error('Hợp đồng: thiếu tên hợp đồng');
     if (activities.some((a) => !a.content.trim())) return toast.error('Công tác khác: thiếu nội dung');
 
@@ -370,7 +370,7 @@ export function MonthlyReport() {
       </Section>
 
       {/* Bài báo */}
-      <Section icon={<BookText size={16} />} title="Bài báo & Báo cáo khoa học" hint="Bài báo trong nước / quốc tế / hội nghị" count={publications.length}
+      <Section icon={<BookText size={16} />} title="Công bố khoa học" hint="Tạp chí trong nước / quốc tế / hội nghị" count={publications.length}
         onAdd={() => setPublications((r) => [...r, { pub_kind: 'domestic', title: '' }])}>
         {publications.map((p, i) => (
           <RowShell key={i} onRemove={() => rm(setPublications, i)}>

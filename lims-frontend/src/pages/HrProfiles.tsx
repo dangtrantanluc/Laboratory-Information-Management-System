@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -44,7 +45,7 @@ export function HrProfiles() {
   const [departmentId, setDepartmentId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       hrApi.listProfiles({
         q: dq || undefined,
@@ -133,10 +134,11 @@ export function HrProfiles() {
         <DataTable
           columns={columns}
           rows={data?.data ?? []}
-          rowKey={(p) => p.user_id}
+          rowKey={(p) => p.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
-          onRowClick={(p) => navigate(`/hr/${p.user_id}`)}
+          onRowClick={(p) => navigate(`/hr/${p.id}`)}
         />
       </Card>
 
@@ -156,21 +158,36 @@ export function HrProfiles() {
 
 function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const toast = useToast();
+  // m48 — tên là bắt buộc, tài khoản là TUỲ CHỌN: phần lớn người trong sổ nhân sự
+  // chưa có tài khoản, và ép chọn tài khoản chính là thứ làm bế tắc đợt nhập danh sách.
+  const [fullName, setFullName] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   const [userId, setUserId] = useState('');
+  // m49 — phòng công tác là dữ liệu của hồ sơ, nên chọn được ngay cả khi không gắn
+  // tài khoản; trước đó phòng ban chỉ tới được qua tài khoản.
+  const [deptId, setDeptId] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [hiredDate, setHiredDate] = useState('');
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   // Liệt kê user để chọn gắn 1-1 (BE từ chối nếu user đã có hồ sơ)
   const { data: users } = useAsync(() => usersApi.listUsers({ limit: 100 }), []);
+  const { data: depts } = useAsync(() => usersApi.listDepartments(), []);
 
   async function submit() {
-    if (!userId) return toast.error('Chọn người dùng');
+    if (!fullName.trim()) return toast.error('Nhập họ và tên');
     if (!jobTitle.trim()) return toast.error('Nhập chức danh');
+    const by = birthYear.trim() ? Number(birthYear) : null;
+    if (by !== null && (!Number.isInteger(by) || by < 1900 || by > 2100)) {
+      return toast.error('Năm sinh không hợp lệ');
+    }
     setSubmitting(true);
     try {
       await hrApi.createProfile({
-        user_id: userId,
+        full_name: fullName.trim(),
+        birth_year: by,
+        user_id: userId || null,
+        department_id: deptId || null,
         job_title: jobTitle.trim(),
         hired_date: hiredDate || null,
         phone: phone || null,
@@ -188,7 +205,7 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
       open
       onClose={onClose}
       title="Thêm hồ sơ nhân sự"
-      description="Gắn hồ sơ với một tài khoản người dùng (1-1). Lương ghi nhận sau khi tạo hồ sơ."
+      description="Hồ sơ mô tả con người. Tài khoản đăng nhập là tuỳ chọn — gắn ngay hoặc gắn sau."
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
@@ -201,12 +218,37 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
       }
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Field label="Người dùng" required className="md:col-span-2">
+        <Field label="Họ và tên" required>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </Field>
+        <Field label="Năm sinh">
+          <Input
+            value={birthYear}
+            onChange={(e) => setBirthYear(e.target.value)}
+            inputMode="numeric"
+            placeholder="1990"
+          />
+        </Field>
+        <Field
+          label="Tài khoản đăng nhập"
+          className="md:col-span-2"
+          hint="Bỏ trống nếu người này chưa có tài khoản — gắn sau ở màn hình chi tiết"
+        >
           <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
-            <option value="">— Chọn người dùng —</option>
+            <option value="">— Chưa có tài khoản —</option>
             {(users?.data ?? []).map((u) => (
               <option key={u.id} value={u.id}>
                 {u.full_name} ({u.email})
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Phòng công tác" hint="Để trống nếu chưa xếp phòng">
+          <Select value={deptId} onChange={(e) => setDeptId(e.target.value)}>
+            <option value="">— Chưa xếp phòng —</option>
+            {(depts?.data ?? []).map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
               </option>
             ))}
           </Select>

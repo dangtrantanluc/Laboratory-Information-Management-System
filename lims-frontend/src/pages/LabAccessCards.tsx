@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { CreditCard, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Textarea } from '@/components/ui/Field';
@@ -30,7 +32,7 @@ export function LabAccessCards() {
   const [deleteTarget, setDeleteTarget] = useState<LabAccessCard | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () =>
       labAccessApi.listLabAccessCards({
         q: dq || undefined,
@@ -87,13 +89,17 @@ export function LabAccessCards() {
             header: '',
             align: 'right' as const,
             render: (c: LabAccessCard) => (
-              <div className="flex justify-end gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(c)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${c.student_name}`}
+                  items={[
+                    { label: 'Xóa thẻ', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(c), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -130,7 +136,7 @@ export function LabAccessCards() {
             className="w-full sm:max-w-[260px]"
           />
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} loading={loading} pageSize={12} />
+        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={12} />
       </Card>
 
       {createOpen && (

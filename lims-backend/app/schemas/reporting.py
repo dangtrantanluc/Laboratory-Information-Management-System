@@ -1,5 +1,7 @@
 """Schemas M6 — Báo cáo & Thống kê."""
 import re
+import uuid
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -21,3 +23,47 @@ class PageViewRequest(BaseModel):
         if not _PATH_RE.match(base):
             raise ValueError("path không hợp lệ (chỉ path nội bộ)")
         return base
+
+
+# ═══════════ m50: báo cáo tổng hợp khách hàng (Văn phòng) ═══════════
+class CustomerReportRow(BaseModel):
+    period: str
+    new_customers: int
+    active_customers: int
+    intakes: int
+    # Tiền là CHUỖI, không phải float: Decimal qua float mất độ chính xác, và con số
+    # này đi thẳng vào báo cáo tháng gửi lãnh đạo.
+    quoted_total: str
+    paid_total: str
+
+
+class TopCustomerOut(BaseModel):
+    customer_id: Optional[uuid.UUID] = None
+    name: str
+    intakes: int
+    quoted_total: str
+    paid_total: str
+    # Phiếu không gắn sổ khách — gộp theo tên đã chụp trên phiếu, nên không tra ngược
+    # sang master data được. Nói rõ để người làm báo cáo không tưởng là thiếu dữ liệu.
+    is_walk_in: bool
+
+
+class CustomerReportSummary(BaseModel):
+    new_customers: int
+    active_customers: int
+    total_customers: int
+    intakes: int
+    quoted_total: str
+    paid_total: str
+
+
+class CustomerReportData(BaseModel):
+    summary: CustomerReportSummary
+    series: list[CustomerReportRow]
+    top_customers: list[TopCustomerOut]
+
+
+class CustomerReportResponse(BaseModel):
+    success: bool
+    data: CustomerReportData
+    meta: dict

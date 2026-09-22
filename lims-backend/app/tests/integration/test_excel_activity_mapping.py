@@ -261,12 +261,15 @@ def test_publication_patch_persists_index_flags(db, as_role):
     admin = as_role("admin")
     created = publication_service.create_publication(
         db, user=admin,
+        # m47 — pub_scope bắt buộc từ lúc tạo; test này quan tâm tới CỜ CHỈ MỤC
+        # (is_scie/is_scopus) nên đặt sẵn phạm vi rồi kiểm cờ vẫn còn bằng False.
         payload={"type": "paper", "title": "Cellulose nanofibers", "year": 2025,
                  "journal": "Catena", "category": "isi_q1",
+                 "pub_scope": "international",
                  "authors": [{"user_id": admin.id, "author_order": 1}]},
         correlation_id=None, ip=None,
     )
-    assert created["pub_scope"] is None and created["is_scie"] is False
+    assert created["is_scie"] is False
 
     updated = publication_service.update_publication(
         db, user=admin, pub_id=created["id"],

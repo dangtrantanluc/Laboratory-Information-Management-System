@@ -199,7 +199,7 @@ function HrSelfProfile() {
         </Card>
       ) : (
         <HrProfileView
-          userId={profileQ.data.user_id}
+          profileId={profileQ.data.id}
           profile={profileQ.data}
           onProfileChange={() => profileQ.reload()}
           // Chính chủ chỉ XEM (không tự nâng lương/sửa HĐ) trừ khi là admin/office

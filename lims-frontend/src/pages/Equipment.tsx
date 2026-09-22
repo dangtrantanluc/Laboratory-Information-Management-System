@@ -198,7 +198,7 @@ export function Equipment() {
             setDepartmentId('');
           }}
           extra={
-            <Button
+            <Button aria-label="Lọc thiết bị sắp/đã quá hạn hiệu chuẩn"
               variant={onlyDue ? 'danger' : 'secondary'}
               onClick={() => setOnlyDue((v) => !v)}
               title="Lọc thiết bị sắp/đã quá hạn hiệu chuẩn"

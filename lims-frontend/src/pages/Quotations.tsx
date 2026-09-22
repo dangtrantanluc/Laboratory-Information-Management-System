@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Receipt, Plus, Pencil, Trash2, FileSpreadsheet, Send, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -57,7 +59,7 @@ export function Quotations() {
   const [deleteTarget, setDeleteTarget] = useState<Quotation | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => quoApi.listQuotations({ q: dq || undefined, status: statusFilter || undefined, limit: 100 }),
     [dq, statusFilter],
   );
@@ -107,27 +109,44 @@ export function Quotations() {
     },
     { key: 'status', header: 'Trạng thái', render: (r) => <QuotationStatusBadge status={r.status} /> },
     {
+      // Cột hành động: MỘT nút có nhãn + menu "⋯", thay cho dãy 4 icon 38×32 sát nhau.
+      //
+      // Ba lý do, theo thứ tự quan trọng:
+      //  1. AN TOÀN — "Sửa" từng nằm cách "Xóa" đúng 4px (gap-1), cùng kích thước,
+      //     chỉ khác màu icon. Bấm trượt một chút là từ sửa thành xóa. Nay Xóa nằm
+      //     trong menu, phải mở menu rồi mới chạm tới được.
+      //  2. VỊ TRÍ ỔN ĐỊNH — báo giá đã chốt chỉ hiện 2 icon, chưa chốt hiện 4, nên
+      //     cây bút đổi chỗ theo từng dòng. Nay luôn đúng 2 control ở cùng một chỗ.
+      //  3. VÙNG BẤM — nút có chữ ~78×32 thay vì icon trần 38×32, khỏi giải mã hình.
       key: 'actions', header: '', align: 'right',
-      render: (r) => (
-        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" title="Xem chi tiết" onClick={() => setViewId(r.id)}>
-            <Eye size={14} />
-          </Button>
-          <Button size="sm" variant="ghost" title="Xuất Excel" onClick={() => exportXlsx(r)}>
-            <FileSpreadsheet size={14} className="text-success" />
-          </Button>
-          {canManage && r.status !== 'accepted' && (
-            <>
-              <Button size="sm" variant="ghost" title="Sửa" onClick={() => setEditTarget(r)}>
-                <Pencil size={14} />
+      render: (r) => {
+        const editable = canManage && r.status !== 'accepted';
+        return (
+          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            {editable && (
+              <Button size="sm" variant="secondary" onClick={() => setEditTarget(r)}>
+                <Pencil size={14} /> Sửa
               </Button>
-              <Button size="sm" variant="ghost" title="Xóa" onClick={() => setDeleteTarget(r)}>
-                <Trash2 size={14} className="text-overdue" />
-              </Button>
-            </>
-          )}
-        </div>
-      ),
+            )}
+            <OverflowMenu
+              compact
+              label={`Hành động khác cho ${r.code}`}
+              items={[
+                { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewId(r.id) },
+                { label: 'Xuất Excel', icon: <FileSpreadsheet size={15} />, onClick: () => exportXlsx(r) },
+                ...(editable
+                  ? [{
+                      label: 'Xóa báo giá',
+                      icon: <Trash2 size={15} />,
+                      onClick: () => setDeleteTarget(r),
+                      tone: 'danger' as const,
+                    }]
+                  : []),
+              ]}
+            />
+          </div>
+        );
+      },
     },
   ];
 
@@ -154,6 +173,7 @@ export function Quotations() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(r) => r.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={15}
           onRowClick={(r) => setViewId(r.id)}
@@ -179,6 +199,14 @@ export function Quotations() {
           canManage={canManage}
           onClose={() => setViewId(null)}
           onChanged={reload}
+          onEdit={
+            canManage
+              ? (q) => {
+                  setViewId(null);
+                  setEditTarget(q);
+                }
+              : undefined
+          }
         />
       )}
       <ConfirmDialog
@@ -195,10 +223,19 @@ export function Quotations() {
 }
 
 // ===== Chi tiết + đổi trạng thái + xuất Excel =====
+/**
+ * Modal xem chi tiết báo giá.
+ *
+ * `onEdit` là lối THOÁT KHỎI NGÕ CỤT: trước đây footer chỉ có "Đóng" + "Xuất Excel",
+ * nên người dùng mở chi tiết, thấy cần sửa, phải đóng modal rồi dò lại nút Sửa ngoài
+ * bảng. 6/11 modal chi tiết khác trong ứng dụng đã có nút Sửa — chỗ này thiếu.
+ */
 function QuotationDetail({
-  quotationId, canManage, onClose, onChanged,
+  quotationId, canManage, onClose, onChanged, onEdit,
 }: {
   quotationId: string; canManage: boolean; onClose: () => void; onChanged: () => void;
+  /** Bỏ trống khi báo giá không sửa được (đã chốt, hoặc thiếu quyền). */
+  onEdit?: (q: Quotation) => void;
 }) {
   const toast = useToast();
   const { data: q, loading, reload } = useAsync(() => quoApi.getQuotation(quotationId), [quotationId]);
@@ -229,6 +266,11 @@ function QuotationDetail({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Đóng</Button>
+          {q && onEdit && q.status !== 'accepted' && (
+            <Button variant="secondary" onClick={() => onEdit(q)}>
+              <Pencil size={15} /> Sửa
+            </Button>
+          )}
           {q && (
             <Button
               onClick={async () => {
@@ -472,7 +514,7 @@ function QuotationModal({
                     <Input value={r.unit_price} onChange={(e) => upRow(r._key, { unit_price: e.target.value })} />
                   </Field>
                   <div className="col-span-2 sm:col-span-1">
-                    <Button size="sm" variant="ghost" onClick={() => setRows((p) => p.filter((x) => x._key !== r._key))}>
+                    <Button aria-label="Xóa" size="sm" variant="ghost" onClick={() => setRows((p) => p.filter((x) => x._key !== r._key))}>
                       <Trash2 size={14} className="text-overdue" />
                     </Button>
                   </div>

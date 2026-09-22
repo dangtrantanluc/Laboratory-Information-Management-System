@@ -346,7 +346,17 @@ function DesktopTable<T>({
                       <button
                         onClick={() => onToggleSort(col.key)}
                         className={cn(
-                          'inline-flex items-center gap-1 hover:text-ink',
+                          // [text-transform:inherit] — BẮT BUỘC, không phải trang trí.
+                          // Trình duyệt đặt `text-transform: none` cho thẻ form trong
+                          // UA stylesheet, và Tailwind preflight tuy kế thừa
+                          // font-family/font-weight/letter-spacing/color cho button
+                          // lại KHÔNG kế thừa text-transform. Hậu quả: `uppercase` trên
+                          // <th> không tới được chữ bên trong <button>, nên cột SẮP XẾP
+                          // ĐƯỢC hiện chữ thường còn cột thường hiện CHỮ HOA — lệch nhau
+                          // ngay trên cùng một hàng tiêu đề, ở mọi bảng của hệ thống.
+                          // Dùng `inherit` chứ không viết cứng `uppercase`: đổi kiểu chữ
+                          // ở <th> thì nút tự theo, không phải sửa hai chỗ.
+                          'inline-flex items-center gap-1 hover:text-ink [text-transform:inherit]',
                           col.align === 'right' && 'flex-row-reverse',
                           active && 'text-ink',
                         )}

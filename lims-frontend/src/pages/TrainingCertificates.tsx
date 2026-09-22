@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ErrorState } from '@/components/ui/States';
 import { Award, Plus, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
@@ -25,6 +26,7 @@ import { CERT_KIND_LABELS } from '@/types';
 import type { CertKind, TrainingCertificate } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 
 /** Sheet PHỤC VỤ CỘNG ĐỒNG có hai danh sách GCN cùng cấu trúc, tách bằng tiêu đề. */
@@ -41,7 +43,7 @@ export function TrainingCertificates() {
   const [deleteTarget, setDeleteTarget] = useState<TrainingCertificate | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(() => activityApi.listCertificates({ limit: 100 }), []);
+  const { data, loading, error, reload } = useAsync(() => activityApi.listCertificates({ limit: 100 }), []);
   const canManage = canManageActivities(user);
 
   async function doDelete() {
@@ -74,8 +76,8 @@ export function TrainingCertificates() {
             align: 'right' as const,
             render: (c: TrainingCertificate) => (
               <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}><Pencil size={14} /></Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}><Trash2 size={14} className="text-overdue" /></Button>
+                <Button aria-label="Sửa" size="sm" variant="ghost" onClick={() => setEditTarget(c)}><Pencil size={14} /></Button>
+                <Button aria-label="Xóa" size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}><Trash2 size={14} className="text-overdue" /></Button>
               </div>
             ),
           },
@@ -89,10 +91,15 @@ export function TrainingCertificates() {
         title="Chứng nhận đào tạo"
         description="Danh sách học viên lớp ngắn hạn được cấp giấy chứng nhận (GCN)"
         icon={<Award size={20} />}
-        actions={canManage && <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Thêm chứng nhận</Button>}
+        actions={
+          <>
+            <ExportExcelButton kind="training-certificates" />
+            {canManage && <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Thêm chứng nhận</Button>}
+          </>
+        }
       />
       <Card>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} loading={loading} pageSize={12} onRowClick={(c) => setViewTarget(c)} />
+        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={12} onRowClick={(c) => setViewTarget(c)} />
       </Card>
 
       {createOpen && <CertModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); reload(); toast.success('Đã thêm'); }} />}

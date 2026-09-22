@@ -48,6 +48,15 @@ def engine():
 
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     command.upgrade(Config("alembic.ini"), "head")
+
+    # Đúng thao tác mà README §Triển khai bắt buộc sau mỗi lần chạy migration đụng tới
+    # roles_permissions: bảng đó được cache Redis TTL 300s và không có ai gọi
+    # invalidate tự động. Bỏ bước này thì một migration cấp quyền mới (vd m46) sẽ báo
+    # 403 ở test đầu tiên khi Redis còn giữ ma trận quyền của lần chạy trước — một
+    # thất bại nhìn giống lỗi phân quyền nhưng thật ra là cache cũ.
+    from app.core.rbac import invalidate_role_cache
+
+    invalidate_role_cache()
     yield eng
     eng.dispose()
 
@@ -191,6 +200,42 @@ def department(db):
     db.add(d)
     db.flush()
     return d
+
+
+@pytest.fixture
+def complete_intake(client, monkeypatch):
+    """Đưa một phiếu nhận mẫu tới 'completed' theo đúng luật hiện hành.
+
+    Từ m46, "Đã trả kết quả" đòi có ít nhất MỘT phiếu kết quả đã phát hành (BR-08) —
+    trước đó bước này chỉ ghi một chuỗi ký tự vào cột `status`. Test nào chỉ cần một
+    phiếu ĐÃ ĐÓNG để dựng bối cảnh thì gọi fixture này thay vì lặp lại bốn lệnh gọi
+    API; khi luật đóng phiếu đổi tiếp, chỉ phải sửa một chỗ.
+
+    Người gọi phải đang đăng nhập bằng vai có `test_report:manage`
+    (reception/leader/admin) — cùng điều kiện mà người dùng thật phải có.
+    """
+    monkeypatch.setattr("app.services.storage_service.put_object", lambda *a, **kw: None)
+
+    def _complete(intake_id: str) -> None:
+        rep = client.post(f"/api/v1/intakes/{intake_id}/test-reports", json={})
+        assert rep.status_code == 201, rep.text
+        report_id = rep.json()["data"]["id"]
+
+        up = client.post(
+            f"/api/v1/test-reports/{report_id}/files",
+            files={"file": ("kq.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+        assert up.status_code == 201, up.text
+
+        issued = client.post(f"/api/v1/test-reports/{report_id}/issue", json={})
+        assert issued.status_code == 200, issued.text
+
+        done = client.post(
+            f"/api/v1/intakes/{intake_id}/status", json={"status": "completed"}
+        )
+        assert done.status_code == 200, done.text
+
+    return _complete
 
 
 @pytest.fixture

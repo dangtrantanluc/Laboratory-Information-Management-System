@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Landmark, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { Landmark, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
@@ -23,6 +25,7 @@ import { STAFF_ACTIVITY_KIND_LABELS } from '@/types';
 import type { StaffActivity, StaffActivityKind } from '@/types';
 import { canManageActivities } from '@/lib/rbac';
 import * as activityApi from '@/api/activity';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 const KINDS: StaffActivityKind[] = ['dang', 'cong_doan', 'vilas', 'khac'];
 
@@ -37,7 +40,7 @@ export function StaffActivities() {
   const [deleteTarget, setDeleteTarget] = useState<StaffActivity | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(
+  const { data, loading, error, reload } = useAsync(
     () => activityApi.listActivities({ limit: 100, kind: kindFilter || undefined }),
     [kindFilter],
   );
@@ -83,9 +86,18 @@ export function StaffActivities() {
             header: '',
             align: 'right' as const,
             render: (a: StaffActivity) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(a)}><Pencil size={14} /></Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(a)}><Trash2 size={14} className="text-overdue" /></Button>
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(a)}>
+                  <Pencil size={14} /> Sửa
+                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${a.content}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(a) },
+                    { label: 'Xóa hoạt động', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(a), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -99,7 +111,12 @@ export function StaffActivities() {
         title="Công tác khác"
         description="Công tác Đảng / Công đoàn / VILAS và các hoạt động khác"
         icon={<Landmark size={20} />}
-        actions={canManage && <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Thêm hoạt động</Button>}
+        actions={
+          <>
+            <ExportExcelButton kind="staff-activities" />
+            {canManage && <Button onClick={() => setCreateOpen(true)}><Plus size={16} /> Thêm hoạt động</Button>}
+          </>
+        }
       />
       <Card>
         <div className="flex flex-wrap items-center gap-3 border-b border-hairline p-4">
@@ -113,7 +130,7 @@ export function StaffActivities() {
             {KINDS.map((k) => <option key={k} value={k}>{STAFF_ACTIVITY_KIND_LABELS[k]}</option>)}
           </Select>
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(a) => a.id} loading={loading} pageSize={12} onRowClick={(a) => setViewTarget(a)} />
+        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(a) => a.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={12} onRowClick={(a) => setViewTarget(a)} />
       </Card>
 
       {createOpen && <ActivityModal onClose={() => setCreateOpen(false)} onSaved={() => { setCreateOpen(false); reload(); toast.success('Đã thêm'); }} />}

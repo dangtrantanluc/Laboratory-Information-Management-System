@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Presentation, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ErrorState } from '@/components/ui/States';
+import { Presentation, Plus, Pencil, Trash2, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
+import { OverflowMenu } from '@/components/ui/OverflowMenu';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
@@ -26,6 +28,7 @@ import { TRAINING_LEVEL_LABELS } from '@/types';
 import type { TeachingCourse, TrainingLevel } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
+import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 
 /** Sheet ĐÀO TẠO tách hai bảng cùng cấu trúc cột — HK3 là bổ sung của m34. */
 const SEMESTERS = ['HK1', 'HK2', 'HK3'];
@@ -53,7 +56,7 @@ export function TeachingCourses() {
   const [deleteTarget, setDeleteTarget] = useState<TeachingCourse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { data, loading, reload } = useAsync(() => researchApi.listTeaching({ limit: 100 }), []);
+  const { data, loading, error, reload } = useAsync(() => researchApi.listTeaching({ limit: 100 }), []);
   const canManage = canManageResearch(user);
 
   async function doDelete() {
@@ -114,13 +117,18 @@ export function TeachingCourses() {
             header: '',
             align: 'right' as const,
             render: (c: TeachingCourse) => (
-              <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" onClick={() => setEditTarget(c)}>
-                  <Pencil size={14} />
+              <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                <Button size="sm" variant="secondary" onClick={() => setEditTarget(c)}>
+                  <Pencil size={14} /> Sửa
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(c)}>
-                  <Trash2 size={14} className="text-overdue" />
-                </Button>
+                <OverflowMenu
+                  compact
+                  label={`Hành động khác cho ${c.course_name}`}
+                  items={[
+                    { label: 'Xem chi tiết', icon: <Eye size={15} />, onClick: () => setViewTarget(c) },
+                    { label: 'Xóa môn học', icon: <Trash2 size={15} />, onClick: () => setDeleteTarget(c), tone: 'danger' },
+                  ]}
+                />
               </div>
             ),
           },
@@ -135,11 +143,14 @@ export function TeachingCourses() {
         description="Các môn học được phân công giảng dạy theo học kỳ"
         icon={<Presentation size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm môn
-            </Button>
-          )
+          <>
+            <ExportExcelButton kind="teaching-courses" />
+            {canManage && (
+              <Button onClick={() => setCreateOpen(true)}>
+                <Plus size={16} /> Thêm môn
+              </Button>
+            )}
+          </>
         }
       />
       <Card>
@@ -147,6 +158,7 @@ export function TeachingCourses() {
           columns={columns}
           rows={data?.data ?? []}
           rowKey={(c) => c.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
           loading={loading}
           pageSize={12}
           // Bấm hàng mở modal XEM, không nhảy thẳng vào form ghi: bảng chỉ hiện

@@ -183,7 +183,7 @@ export function AchievementStats() {
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             <StatCard label="Đề tài" value={stats.projects?.total ?? 0} />
-            <StatCard label="Bài báo" value={stats.publications?.total ?? 0} />
+            <StatCard label="Công bố khoa học" value={stats.publications?.total ?? 0} />
             <StatCard label="Sáng chế / GPHI" value={stats.patents ?? 0} />
             <StatCard label="Hướng dẫn SV" value={stats.mentorships ?? 0} />
             <StatCard label="Đăng ký lab (đã duyệt)" value={stats.lab_registrations_approved ?? 0} />
@@ -192,7 +192,7 @@ export function AchievementStats() {
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Breakdown title="Đề tài theo cấp" data={stats.projects?.by_level ?? {}} />
-            <Breakdown title="Bài báo theo chỉ số" data={stats.publications?.by_index ?? {}} />
+            <Breakdown title="Công bố theo chỉ số" data={stats.publications?.by_index ?? {}} />
           </div>
         </>
       )}

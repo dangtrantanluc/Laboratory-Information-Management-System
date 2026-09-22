@@ -45,7 +45,7 @@ export function HrProfileDetail() {
       />
 
       <HrProfileView
-        userId={userId}
+        profileId={userId}
         profile={profile}
         onProfileChange={() => profileQ.reload()}
         canManage={canManageHr(user)}

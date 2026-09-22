@@ -18,11 +18,13 @@ from app.db.database import get_db
 from app.schemas.user import (
     ApproveUserRequest,
     CreateUserRequest,
+    LockoutListResponse,
     RejectUserRequest,
     ResetPasswordRequest,
+    UnlockResponse,
     UpdateUserRequest,
 )
-from app.services import user_service
+from app.services import lockout_service, user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -81,6 +83,38 @@ def create_user(
         ip=client_ip(request),
     )
     return ok(data)
+
+
+# ===================== m49: tài khoản bị khoá đăng nhập =====================
+#
+# ĐẶT TRƯỚC `/{user_id}` là bắt buộc, không phải thói quen: FastAPI khớp tuyến theo thứ
+# tự khai báo, nên nếu đứng sau thì "lockouts" bị đem đi phân giải thành UUID và trả 422.
+@router.get("/lockouts", response_model=LockoutListResponse)
+def list_lockouts(
+    user: CurrentUser = Depends(admin_only),
+    db: Session = Depends(get_db),
+):
+    """Ai đang bị khoá đăng nhập, và ai đang sai mật khẩu liên tiếp nhưng chưa khoá.
+
+    Trạng thái khoá nằm ở Redis và TỰ HẾT HẠN, nên đây là ảnh chụp hiện tại. Lịch sử
+    tra ở Nhật ký hệ thống với hành động ACCOUNT_LOCKED / ACCOUNT_UNLOCKED.
+    """
+    return ok(lockout_service.list_lockouts(db, user=user))
+
+
+@router.post("/{user_id}/unlock", response_model=UnlockResponse)
+def unlock_user(
+    user_id: uuid.UUID,
+    request: Request,
+    user: CurrentUser = Depends(admin_only),
+    db: Session = Depends(get_db),
+):
+    """Mở khoá ngay, không chờ hết hạn. Xoá khoá ở MỌI IP của tài khoản đó."""
+    return ok(lockout_service.unlock_user(
+        db, user=user, target_user_id=user_id,
+        correlation_id=getattr(request.state, "correlation_id", None),
+        ip=client_ip(request),
+    ))
 
 
 @router.get("/{user_id}")

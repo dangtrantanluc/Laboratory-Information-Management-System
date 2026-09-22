@@ -192,7 +192,7 @@ class TestNguoiLienHeTheoVaiTro:
 @requires_db
 class TestKhoaPhieuSauKhiDong:
     def test_phieu_da_tra_ket_qua_khong_sua_duoc_thong_tin_khach(
-        self, client, as_role, department
+        self, client, as_role, department, complete_intake
     ):
         """Bản chụp mà sửa được sau khi phát hành thì không còn giá trị pháp lý."""
         as_role("reception", department_id=department.id)
@@ -201,7 +201,8 @@ class TestKhoaPhieuSauKhiDong:
             f"{_INTAKES}/{it['id']}/dispatches",
             json={"chi_tieu": "pH", "target_department_id": str(department.id)},
         )
-        client.post(f"{_INTAKES}/{it['id']}/status", json={"status": "completed"})
+        # m46 — BR-08: đóng phiếu đòi chứng từ kết quả đã phát hành.
+        complete_intake(it["id"])
 
         res = client.patch(f"{_INTAKES}/{it['id']}", json={"customer_name": "Tên Khác"})
         assert res.status_code == 409, res.text

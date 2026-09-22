@@ -188,7 +188,7 @@ export function FormFileManager({
                   />
                 </Field>
                 <div className="flex justify-end">
-                  <Button
+                  <Button aria-label="Tải lên"
                     onClick={() => (currentFile ? setConfirmReplace(true) : doUpload())}
                     loading={busy}
                     disabled={!file}

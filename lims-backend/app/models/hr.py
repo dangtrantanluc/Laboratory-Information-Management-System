@@ -63,19 +63,50 @@ class ContractType(CatalogBase, Base):
 
 # ===================== TABLE 1: hr_profiles =====================
 class HrProfile(Base):
-    """Hồ sơ nhân sự 1-1 với users (user_id PK=FK, D3). Lương = coefficient × base (D4)."""
+    """Hồ sơ nhân sự — mô tả CON NGƯỜI, không phải tài khoản (m48).
+
+    Trước m48 `user_id` vừa là khoá chính vừa là khoá ngoại sang `users`, tức lược đồ
+    phát biểu "một hồ sơ nhân sự CHÍNH LÀ một tài khoản". Danh sách CBVC-NLĐ 2026 cho
+    thấy điều đó sai: 33 người, chỉ 6 có tài khoản. Muốn ghi một người vào sổ nhân sự
+    thì buộc phải tạo lối đăng nhập kèm email bịa ra — nên việc nhập danh sách bế tắc.
+
+    Nay `user_id` là liên kết TUỲ CHỌN và DUY NHẤT:
+        NULL  → có trong sổ nhân sự, chưa có tài khoản
+        <id>  → đã gắn, quan hệ một-một
+
+    `full_name` sống ở đây chứ không đọc từ `users`: hồ sơ chưa gắn thì không có hàng
+    `users` nào để lấy tên. Lương = coefficient × base (D4).
+    """
 
     __tablename__ = "hr_profiles"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    # Gắn tài khoản là thao tác CÓ NGƯỜI XÁC NHẬN, không suy theo tên: trùng họ tên là
+    # chuyện bình thường, gắn tự động sẽ nối hồ sơ lương người này vào tài khoản người kia.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
-        primary_key=True,
+        nullable=True,
     )
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    birth_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     job_title: Mapped[str] = mapped_column(String(255), nullable=False)
     hired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Phòng công tác CỦA CON NGƯỜI (m49), không suy từ tài khoản. Trước m49 phòng ban
+    # của hồ sơ đọc qua `users.department_id`; hồ sơ chưa gắn tài khoản — tức 32/33
+    # người trong danh sách 2026 — nên không thuộc phòng nào, dù danh sách của Viện
+    # xếp từng người vào đúng một phòng nghiên cứu.
+    #
+    # NULL vẫn hợp lệ: người chưa được xếp phòng. Khi hồ sơ đã gắn tài khoản mà cột
+    # này trống, tầng dịch vụ lùi về phòng của tài khoản — xem hr_service._profile_dict.
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
+    )
 
     contract_type: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("contract_types.code", ondelete="RESTRICT"), nullable=True
@@ -110,6 +141,11 @@ class HrProfile(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("user_id", name="uq_hrp_user"),
+        CheckConstraint(
+            "birth_year IS NULL OR (birth_year >= 1900 AND birth_year <= 2100)",
+            name="ck_hrp_birth_year",
+        ),
         CheckConstraint(
             "salary_coefficient IS NULL OR salary_coefficient > 0", name="ck_hrp_coeff"
         ),
@@ -132,9 +168,9 @@ class SalaryHistory(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("hr_profiles.user_id", ondelete="RESTRICT"),
+        ForeignKey("hr_profiles.id", ondelete="RESTRICT"),
         nullable=False,
     )
     old_grade: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -173,9 +209,9 @@ class Competence(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("hr_profiles.user_id", ondelete="RESTRICT"),
+        ForeignKey("hr_profiles.id", ondelete="RESTRICT"),
         nullable=False,
     )
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -218,9 +254,9 @@ class HrNotificationDedup(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    profile_user_id: Mapped[uuid.UUID] = mapped_column(
+    profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("hr_profiles.user_id", ondelete="CASCADE"),
+        ForeignKey("hr_profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -232,7 +268,7 @@ class HrNotificationDedup(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "profile_user_id", "kind", "milestone_days", "fire_date", name="uq_hrdedup"
+            "profile_id", "kind", "milestone_days", "fire_date", name="uq_hrdedup"
         ),
         CheckConstraint(
             "kind IN ('SALARY_RAISE_DUE', 'CONTRACT_EXPIRY')", name="ck_hrdedup_kind"

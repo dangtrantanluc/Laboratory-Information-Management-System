@@ -22,19 +22,13 @@ from app.schemas.activity import (
     UpdateContractRequest,
     UpdateStaffActivityRequest,
 )
-from app.services import activity_service, hr_common as hc
+from app.services import activity_service
 
 router = APIRouter(tags=["m4-activities"])
 
 
 def _cid(request: Request) -> Optional[str]:
     return getattr(request.state, "correlation_id", None)
-
-
-def _assert_contract_read(user: CurrentUser) -> None:
-    """Hợp đồng NCKH (có giá trị tiền) — chỉ nhóm quản lý xem: admin/leader/office."""
-    if user.role not in ("admin", "leader", "office"):
-        raise hc.forbidden("Chỉ Quản trị/Lãnh đạo/Văn phòng được xem hợp đồng NCKH")
 
 
 # ===================== research_contracts (NCKH → Hợp đồng) =====================
@@ -48,7 +42,7 @@ def list_contracts(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _assert_contract_read(user)  # admin/leader/office quản lý hợp đồng
+    activity_service.assert_contract_read(user)  # admin/leader/office quản lý hợp đồng
     page, limit = normalize_pagination(page, limit)
     items, total = activity_service.list_contracts(
         db, academic_year=academic_year, department_id=department_id, q=q, page=page, limit=limit
@@ -61,7 +55,7 @@ def create_contract(
     body: CreateContractRequest, request: Request,
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
-    _assert_contract_read(user)
+    activity_service.assert_contract_read(user)
     return ok(activity_service.create_contract(
         db, user=user, payload=body.model_dump(), correlation_id=_cid(request), ip=client_ip(request)))
 
@@ -71,7 +65,7 @@ def update_contract(
     contract_id: uuid.UUID, body: UpdateContractRequest, request: Request,
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
-    _assert_contract_read(user)
+    activity_service.assert_contract_read(user)
     return ok(activity_service.update_contract(
         db, user=user, contract_id=contract_id, changes=body.model_dump(exclude_unset=True),
         correlation_id=_cid(request), ip=client_ip(request)))
@@ -82,7 +76,7 @@ def delete_contract(
     contract_id: uuid.UUID, request: Request,
     user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db),
 ):
-    _assert_contract_read(user)
+    activity_service.assert_contract_read(user)
     activity_service.delete_contract(
         db, user=user, contract_id=contract_id, correlation_id=_cid(request), ip=client_ip(request))
 

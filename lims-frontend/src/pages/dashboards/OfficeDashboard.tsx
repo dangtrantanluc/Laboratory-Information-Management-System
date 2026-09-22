@@ -84,7 +84,7 @@ export function OfficeDashboard() {
               title="Tổng hợp thành tích NCKH (toàn hệ thống)"
               rows={[
                 { label: 'Đề tài NCKH', value: agg.projects, tone: 'success', to: '/research/projects' },
-                { label: 'Bài báo & sáng chế', value: agg.publications, tone: 'success', to: '/research/publications' },
+                { label: 'Công bố & sáng chế', value: agg.publications, tone: 'success', to: '/research/papers' },
                 { label: 'Hợp đồng NCKH', value: agg.contracts, tone: 'success', to: '/research/contracts' },
               ]}
             />

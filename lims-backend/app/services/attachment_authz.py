@@ -408,9 +408,38 @@ def _write_dispatch(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None
         )
 
 
+# ═══════════════════════════ m46 — phiếu kết quả thử nghiệm ═══════════════════════════
+
+
+def _read_test_report(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
+    """Tệp phiếu kết quả — CHỈ ba vai có `test_report:read` (reception/leader/admin).
+
+    CỐ Ý không mượn `intake:read`: quyền đó đang cấp cho staff và lab_manager với scope
+    'all', mà tệp BM 7.8/01 chứa nguyên văn tên và địa chỉ khách hàng ở bảng đầu phiếu —
+    đúng những trường m26 che với khối lab. Đây chính là kịch bản `_assert_customer_info_visible`
+    được viết ra để chặn, chỉ khác là ở module này không có cơ chế xin duyệt: khối lab
+    không có việc gì với chứng từ đã phát hành.
+    """
+    from app.services import test_report_service
+
+    test_report_service.assert_can_read_files(db, user=user, report_id=owner_id)
+
+
+def _write_test_report(db: Session, user: CurrentUser, owner_id: uuid.UUID) -> None:
+    """Gắn tệp — cùng luật với POST /test-reports/{id}/files: quyền manage + còn là nháp.
+
+    Gọi lại đúng hàm mà module sở hữu đang dùng, để đường generic và đường riêng không
+    lệch nhau: nếu ở đây chỉ kiểm quyền mà quên kiểm trạng thái, `POST /attachments` sẽ
+    ghi đè được tệp của một phiếu đã trao cho khách — thứ mà BR-06 tồn tại để cấm.
+    """
+    from app.services import test_report_service
+
+    test_report_service.assert_can_write_files(db, user=user, report_id=owner_id)
+
+
 # ═══════════════════════════ Bảng định tuyến ═══════════════════════════
 #
-# CHỈ những owner_type có mặt ở đây mới truy cập được. 8 giá trị còn lại trong
+# CHỈ những owner_type có mặt ở đây mới truy cập được. Các giá trị còn lại trong
 # Attachment.VALID_OWNER_TYPES (research_project, research_contract, teaching_course,
 # staff_activity, training_certificate, document, ...) chưa từng được ghi ở bất kỳ đâu
 # trong backend — cố ý để rơi vào _deny() cho tới khi có module thật sự dùng.
@@ -430,6 +459,7 @@ _READ_GUARDS: dict[str, Guard] = {
     "calibration": _read_calibration,
     "sample_intake": _read_intake,
     "sample_dispatch": _read_dispatch,
+    "test_report": _read_test_report,
 }
 
 _WRITE_GUARDS: dict[str, Guard] = {
@@ -447,6 +477,7 @@ _WRITE_GUARDS: dict[str, Guard] = {
     "calibration": _write_calibration,
     "sample_intake": _write_intake,
     "sample_dispatch": _write_dispatch,
+    "test_report": _write_test_report,
 }
 
 

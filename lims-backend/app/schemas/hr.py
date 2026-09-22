@@ -1,12 +1,13 @@
 """Schemas M4 — HR & Research Achievement (request bodies).
 
-KHÔNG nhận từ client: next_salary_raise_date (server tự tính), department_id của hồ sơ
-(suy từ users), created_by/updated_by, status duyệt (qua endpoint approve/reject).
+KHÔNG nhận từ client: next_salary_raise_date (server tự tính), created_by/updated_by,
+status duyệt (qua endpoint approve/reject). Từ m49 department_id LÀ trường của hồ sơ
+(nhận từ client), không còn suy từ users.
 Số tiền/hệ số nhận STRING-decimal để KHÔNG mất chính xác float (contract §0.12);
 validate + Decimal ở service.
 """
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -23,16 +24,91 @@ TrainingLevel = Literal["undergraduate", "postgraduate"]
 
 # ===================== Hồ sơ nhân sự =====================
 class CreateProfileRequest(BaseModel):
-    user_id: uuid.UUID
+    """Lập hồ sơ nhân sự (m48).
+
+    `full_name` BẮT BUỘC, `user_id` TUỲ CHỌN — đảo ngược so với trước. Hồ sơ mô tả con
+    người; tài khoản đăng nhập là thứ có thể chưa tồn tại (và với phần lớn danh sách
+    CBVC thì chưa).
+    """
+
+    full_name: str = Field(min_length=1, max_length=255)
+    # Gắn ngay nếu người này đã có tài khoản; bỏ trống thì gắn sau qua /link.
+    user_id: Optional[uuid.UUID] = None
+    birth_year: Optional[int] = Field(default=None, ge=1900, le=2100)
     job_title: str = Field(min_length=1, max_length=255)
+    # Phòng công tác ghi thẳng lên hồ sơ (m49) — không còn suy từ tài khoản, vì hồ sơ
+    # có thể chưa gắn tài khoản nào.
+    department_id: Optional[uuid.UUID] = None
     hired_date: Optional[date] = None
     phone: Optional[str] = Field(default=None, max_length=32)
 
     model_config = {"extra": "forbid"}
 
 
+class HrProfileOut(BaseModel):
+    """Khớp hr_service._profile_dict(). Trường của TÀI KHOẢN là tuỳ chọn vì hồ sơ có
+    thể chưa gắn; trường lương bị `strip_profile` gỡ với vai không được xem tài chính."""
+
+    id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None
+    has_account: bool
+    full_name: str
+    birth_year: Optional[int] = None
+    email: Optional[str] = None
+    department_id: Optional[uuid.UUID] = None
+    department_name: Optional[str] = None
+    job_title: str
+    hired_date: Optional[str] = None
+    phone: Optional[str] = None
+    position: Optional[str] = None
+    contract_type: Optional[str] = None
+    contract_signed_date: Optional[str] = None
+    contract_end_date: Optional[str] = None
+    salary_grade: Optional[str] = None
+    salary_coefficient: Optional[str] = None
+    base_salary_amount: Optional[str] = None
+    computed_salary_amount: Optional[str] = None
+    currency: Optional[str] = None
+    salary_cycle_years: Optional[int] = None
+    last_salary_raise_date: Optional[str] = None
+    next_salary_raise_date: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class HrProfileResponse(BaseModel):
+    success: bool
+    data: HrProfileOut
+
+
+class ProfileSuggestionOut(BaseModel):
+    """Hồ sơ chưa gắn, trùng tên với một tài khoản — chỉ đủ để người duyệt nhận ra ai."""
+
+    id: uuid.UUID
+    full_name: str
+    birth_year: Optional[int] = None
+    job_title: str
+    contract_type: Optional[str] = None
+
+
+class ProfileSuggestionListResponse(BaseModel):
+    success: bool
+    data: list[ProfileSuggestionOut]
+
+
+class LinkAccountRequest(BaseModel):
+    """Gắn hồ sơ nhân sự với một tài khoản — thao tác CÓ NGƯỜI XÁC NHẬN."""
+
+    user_id: uuid.UUID
+
+    model_config = {"extra": "forbid"}
+
+
 class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    birth_year: Optional[int] = Field(default=None, ge=1900, le=2100)
     job_title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    department_id: Optional[uuid.UUID] = None
     hired_date: Optional[date] = None
     phone: Optional[str] = Field(default=None, max_length=32)
     position: Optional[str] = Field(default=None, max_length=255)
