@@ -33,6 +33,13 @@ import { ExportExcelButton } from '@/components/research/ExportExcelButton';
 /** Sheet ĐÀO TẠO tách hai bảng cùng cấu trúc cột — HK3 là bổ sung của m34. */
 const SEMESTERS = ['HK1', 'HK2', 'HK3'];
 
+/** "HK1/2025" khi có học kỳ, "2025" khi không — học kỳ là trường tuỳ chọn và phần lớn
+ *  bản ghi nhập từ Excel của Viện không ghi, nên không bịa HK1 để lấp chỗ trống. */
+function formatTerm(c: { semester?: string | null; year: number | null }): string {
+  if (c.year == null) return c.semester || '—';
+  return c.semester ? `${c.semester}/${c.year}` : String(c.year);
+}
+
 function levelLabel(v?: TrainingLevel | null): string {
   return v ? TRAINING_LEVEL_LABELS[v] : '—';
 }
@@ -78,7 +85,14 @@ export function TeachingCourses() {
     { key: 'course', header: 'Môn học', sortValue: (c) => c.course_name, render: (c) => <span className="font-semibold text-ink">{c.course_name}</span> },
     { key: 'user', header: 'Người phụ trách', render: (c) => c.user_name ?? '—' },
     { key: 'level', header: 'Bậc', render: (c) => (c.training_level ? <Badge tone="info">{levelLabel(c.training_level)}</Badge> : '—') },
-    { key: 'year', header: 'Năm', align: 'center', sortValue: (c) => c.year, render: (c) => c.year },
+    {
+      key: 'year',
+      header: 'HK/Năm',
+      align: 'center',
+      // Sắp theo năm rồi học kỳ; bản ghi không ghi học kỳ xếp trước trong cùng năm.
+      sortValue: (c) => (c.year ?? 0) * 10 + (SEMESTERS.indexOf(c.semester ?? '') + 1),
+      render: (c) => formatTerm(c),
+    },
     {
       // Excel có 3 cặp cột LT/TH theo học kỳ; bảng danh sách hiện tổng, chi tiết ở modal.
       key: 'hours',
