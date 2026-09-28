@@ -43,6 +43,7 @@ def _pub_dict(db: Session, p: Publication) -> dict:
         "title": p.title,
         "journal": p.journal,
         "year": p.year,
+        "month": p.month,
         "doi": p.doi,
         "category": p.category,
         "pub_scope": p.pub_scope,
@@ -106,6 +107,10 @@ def _validate_pub_fields(db: Session, payload: dict) -> None:
         raise AppException(ErrorCode.VALIDATION_ERROR, "Thiếu year", 400)
     if not (1900 <= int(year) <= date.today().year + 1):
         raise AppException(ErrorCode.VALIDATION_ERROR, "year ngoài khoảng hợp lệ", 400)
+    # Tháng tuỳ chọn, nhưng đã khai thì phải là tháng có thật.
+    month = payload.get("month")
+    if month is not None and not (1 <= int(month) <= 12):
+        raise AppException(ErrorCode.VALIDATION_ERROR, "month phải từ 1 đến 12", 400)
     doi = payload.get("doi")
     if doi:
         import re
@@ -234,6 +239,7 @@ def create_publication(
         title=str(payload["title"]).strip(),
         journal=payload.get("journal"),
         year=payload.get("year"),
+        month=payload.get("month"),
         doi=payload.get("doi"),
         category=payload.get("category") if ptype == "paper" else None,
         type=ptype,
@@ -352,6 +358,7 @@ def update_publication(
         "title",
         "journal",
         "year",
+        "month",
         "doi",
         "category",
         "pub_scope",

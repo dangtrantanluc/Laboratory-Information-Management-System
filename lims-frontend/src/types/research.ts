@@ -106,12 +106,19 @@ export interface PublicationAuthor {
   author_role?: AuthorRole | null;
 }
 
+/** "3/2025" khi biết tháng, "2025" khi không — không bịa tháng 1 để lấp chỗ trống. */
+export function formatPubTime(p: { year: number; month?: number | null }): string {
+  return p.month ? `${p.month}/${p.year}` : String(p.year);
+}
+
 export interface Publication {
   id: string;
   type: PublicationType;
   title: string;
   journal: string | null;
   year: number;
+  /** m51 — tháng công bố; null = chỉ biết năm (dữ liệu cũ chỉ ghi năm). */
+  month?: number | null;
   doi: string | null;
   index_code: string | null;
   category: string | null;
