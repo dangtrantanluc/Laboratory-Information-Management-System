@@ -858,6 +858,14 @@ export interface Attachment {
  * VẮNG MẶT (không null) khi người gọi không đủ quyền — luôn dùng `'field' in obj`.
  * Số tiền / hệ số là STRING — không parseFloat.
  */
+export interface ProfileDepartment {
+  id: string;
+  name: string;
+  code: string;
+  /** Phòng được kể tới khi chỉ có chỗ cho một phòng (tiêu đề, đếm đầu người). */
+  is_primary: boolean;
+}
+
 export interface HrProfile {
   /** m48 — khoá của HỒ SƠ. Trước đây trùng với user_id; nay là id riêng. */
   id: string;
@@ -867,8 +875,11 @@ export interface HrProfile {
   full_name: string;
   birth_year?: number | null;
   email?: string | null;
+  /** Phòng CHÍNH — dùng ở chỗ chỉ hiển thị được một phòng. */
   department_id?: string | null;
   department_name?: string | null;
+  /** m50 — toàn bộ phòng công tác, phòng chính đứng đầu. Người kiêm nhiệm có >1. */
+  departments?: ProfileDepartment[];
   job_title?: string | null;
   position?: string | null;
   hired_date?: string | null;

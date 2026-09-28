@@ -262,6 +262,20 @@ def assert_user_exists(db: Session, user_id: uuid.UUID) -> None:
         raise err("USER_NOT_FOUND", "Người dùng không tồn tại", 404)
 
 
+def assert_department_exists(db: Session, dept_id: Optional[uuid.UUID]) -> None:
+    """Phòng phải có thật (m49). None hợp lệ — nghĩa là chưa xếp phòng.
+
+    FK cũng chặn, nhưng vi phạm FK nổi lên từ tầng DB thành 500; người đang nhập hồ sơ
+    cần đọc được "Phòng ban không tồn tại".
+    """
+    if dept_id is None:
+        return
+    from app.models.department import Department
+
+    if db.get(Department, dept_id) is None:
+        raise err("VALIDATION_ERROR", "Phòng ban không tồn tại", 400)
+
+
 # ===== Scope research (BR-HR-023) =====
 # THAY ĐỔI CHÍNH SÁCH (m34, thay QUYẾT ĐỊNH #5): Văn phòng ĐƯỢC thêm/sửa/xoá toàn bộ
 # nhóm NCKH, ngang admin và lãnh đạo. Lý do: Văn phòng là bộ phận tổng hợp file

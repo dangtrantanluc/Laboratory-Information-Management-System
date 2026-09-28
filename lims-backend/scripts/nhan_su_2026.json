@@ -2,7 +2,10 @@
  {
   "stt": 1,
   "ho_ten": "Huỳnh Văn Biết",
-  "phong": "LAB-SHPT",
+  "phong": [
+   "BGD",
+   "LAB-SHPT"
+  ],
   "chuc_vu": "Ban Lãnh đạo",
   "hoc_vi": "TS",
   "ngach": "GVC",
@@ -11,7 +14,9 @@
  {
   "stt": 2,
   "ho_ten": "Phùng Võ Cẩm Hồng",
-  "phong": "BGD",
+  "phong": [
+   "BGD"
+  ],
   "chuc_vu": "Ban Lãnh đạo",
   "hoc_vi": "TS",
   "ngach": "GVC",
@@ -20,7 +25,9 @@
  {
   "stt": 3,
   "ho_ten": "Trương Quang Toản",
-  "phong": "LAB-SHPT",
+  "phong": [
+   "LAB-SHPT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -29,7 +36,9 @@
  {
   "stt": 4,
   "ho_ten": "Nguyễn Minh Chánh",
-  "phong": "LAB-SHPT",
+  "phong": [
+   "LAB-SHPT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -38,7 +47,9 @@
  {
   "stt": 5,
   "ho_ten": "Trần Đình Phong",
-  "phong": "LAB-SHPT",
+  "phong": [
+   "LAB-SHPT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -47,7 +58,9 @@
  {
   "stt": 6,
   "ho_ten": "Đặng Xuân Đài",
-  "phong": "LAB-SHPT",
+  "phong": [
+   "LAB-SHPT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -56,7 +69,9 @@
  {
   "stt": 7,
   "ho_ten": "Nguyễn Thị Vân Khanh",
-  "phong": "LAB-CNTB",
+  "phong": [
+   "LAB-CNTB"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -65,7 +80,9 @@
  {
   "stt": 8,
   "ho_ten": "Lê Hoàng Độ",
-  "phong": "LAB-CNTB",
+  "phong": [
+   "LAB-CNTB"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -74,7 +91,9 @@
  {
   "stt": 9,
   "ho_ten": "Trần Phước Hên",
-  "phong": "LAB-CNTB",
+  "phong": [
+   "LAB-CNTB"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -83,7 +102,9 @@
  {
   "stt": 10,
   "ho_ten": "Trần Thị Thanh Lịch",
-  "phong": "LAB-CNTB",
+  "phong": [
+   "LAB-CNTB"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -92,7 +113,9 @@
  {
   "stt": 11,
   "ho_ten": "Trương Phước Thiên Hoàng",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "TS",
   "ngach": "CV",
@@ -101,7 +124,9 @@
  {
   "stt": 12,
   "ho_ten": "Đào Uyên Trân Đa",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -110,7 +135,9 @@
  {
   "stt": 13,
   "ho_ten": "Võ Trần Quốc Thắng",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -119,7 +146,9 @@
  {
   "stt": 14,
   "ho_ten": "Vũ Ngọc Khánh Như",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -128,7 +157,9 @@
  {
   "stt": 15,
   "ho_ten": "Vũ Văn Tuấn",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -137,7 +168,9 @@
  {
   "stt": 16,
   "ho_ten": "Phùng Thị Ngọc Hân",
-  "phong": "LAB-CNVS",
+  "phong": [
+   "LAB-CNVS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -146,7 +179,9 @@
  {
   "stt": 17,
   "ho_ten": "Trần Thị Vân",
-  "phong": "LAB-SKCT",
+  "phong": [
+   "LAB-SKCT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -155,7 +190,9 @@
  {
   "stt": 18,
   "ho_ten": "Phan Hữu Tín",
-  "phong": "LAB-NAM",
+  "phong": [
+   "LAB-NAM"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "NCV",
@@ -164,7 +201,9 @@
  {
   "stt": 19,
   "ho_ten": "Nguyễn Minh Quang",
-  "phong": "LAB-NNTH",
+  "phong": [
+   "LAB-NNTH"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "TG",
@@ -173,7 +212,9 @@
  {
   "stt": 20,
   "ho_ten": "Nguyễn Thị Thuỳ Trang",
-  "phong": "LAB-NNTH",
+  "phong": [
+   "LAB-NNTH"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -182,7 +223,9 @@
  {
   "stt": 21,
   "ho_ten": "Trịnh Thị Phi Ly",
-  "phong": "LAB-HS",
+  "phong": [
+   "LAB-HS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "TS",
   "ngach": "GV",
@@ -191,7 +234,9 @@
  {
   "stt": 22,
   "ho_ten": "Nguyễn Thị Bé Thư",
-  "phong": "LAB-HS",
+  "phong": [
+   "LAB-HS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -200,7 +245,9 @@
  {
   "stt": 23,
   "ho_ten": "Phạm Phương Trinh",
-  "phong": "LAB-HS",
+  "phong": [
+   "LAB-HS"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -209,7 +256,9 @@
  {
   "stt": 24,
   "ho_ten": "Nguyễn Công Mạnh",
-  "phong": "LAB-KTMT",
+  "phong": [
+   "LAB-KTMT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "NCS",
   "ngach": "NCV",
@@ -218,7 +267,9 @@
  {
   "stt": 25,
   "ho_ten": "Huỳnh Thị Ngọc Oanh",
-  "phong": "LAB-KTMT",
+  "phong": [
+   "LAB-KTMT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -227,7 +278,9 @@
  {
   "stt": 26,
   "ho_ten": "Huỳnh Anh Tuấn",
-  "phong": "LAB-KTMT",
+  "phong": [
+   "LAB-KTMT"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -236,7 +289,9 @@
  {
   "stt": 27,
   "ho_ten": "Nguyễn Ngọc Hà",
-  "phong": "LAB-MTD",
+  "phong": [
+   "LAB-MTD"
+  ],
   "chuc_vu": null,
   "hoc_vi": "TS",
   "ngach": "Giảng viên",
@@ -245,7 +300,9 @@
  {
   "stt": 28,
   "ho_ten": "Thái Thị Thanh Thuỷ",
-  "phong": "LAB-MTD",
+  "phong": [
+   "LAB-MTD"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -254,7 +311,9 @@
  {
   "stt": 29,
   "ho_ten": "Lê Quang Trường",
-  "phong": "LAB-MTD",
+  "phong": [
+   "LAB-MTD"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "NCV",
@@ -263,7 +322,9 @@
  {
   "stt": 30,
   "ho_ten": "Phan Thị Xuân Trang",
-  "phong": "VP",
+  "phong": [
+   "VP"
+  ],
   "chuc_vu": null,
   "hoc_vi": "ThS",
   "ngach": "KTV",
@@ -272,7 +333,9 @@
  {
   "stt": 31,
   "ho_ten": "Nguyễn Lê Trúc Phương",
-  "phong": "VP",
+  "phong": [
+   "VP"
+  ],
   "chuc_vu": null,
   "hoc_vi": "KS",
   "ngach": "KS",
@@ -281,7 +344,9 @@
  {
   "stt": 32,
   "ho_ten": "Nguyễn Thị Thuý",
-  "phong": "VP",
+  "phong": [
+   "VP"
+  ],
   "chuc_vu": null,
   "hoc_vi": null,
   "ngach": null,

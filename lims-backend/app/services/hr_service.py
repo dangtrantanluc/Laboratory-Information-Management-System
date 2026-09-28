@@ -10,14 +10,21 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, delete, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.db_helpers import get_or_404
 from app.core.error_codes import ErrorCode
 from app.core.deps import CurrentUser
 from app.core.exceptions import AppException
-from app.models.hr import Competence, ContractType, HrProfile, SalaryHistory
+from app.models.department import Department
+from app.models.hr import (
+    Competence,
+    ContractType,
+    HrProfile,
+    HrProfileDepartment,
+    SalaryHistory,
+)
 from app.models.user import User
 from app.services import audit_service, hr_common as hc
 
@@ -28,9 +35,13 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
     # từ CHÍNH HỒ SƠ, không từ `users`: hồ sơ chưa gắn thì không có hàng users nào.
     u = db.get(User, p.user_id) if p.user_id else None
     computed = hc.compute_salary_amount(p.salary_coefficient, p.base_salary_amount)
-    # m49 — phòng công tác nằm TRÊN HỒ SƠ. Đường lùi về phòng của tài khoản giữ cho
-    # những hồ sơ gắn tài khoản trước m49 (chưa kịp xếp phòng) không mất phòng ban.
-    dept_id = p.department_id or (u.department_id if u else None)
+    depts = _list_departments(db, p.id)
+    # m50 — kiêm nhiệm. `department_id`/`department_name` giữ nghĩa "PHÒNG CHÍNH" để
+    # những chỗ chỉ chứa được một phòng (tiêu đề hồ sơ, đếm đầu người theo phòng) không
+    # phải đoán. Đường lùi về phòng của tài khoản giữ cho hồ sơ gắn tài khoản từ trước
+    # m49 — chưa kịp xếp phòng — không mất phòng ban đang hiển thị.
+    chinh = next((d for d in depts if d["is_primary"]), None)
+    dept_id = chinh["id"] if chinh else (u.department_id if u else None)
     return {
         "id": p.id,
         "user_id": p.user_id,
@@ -39,7 +50,11 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
         "birth_year": p.birth_year,
         "email": str(u.email) if u else None,
         "department_id": dept_id,
-        "department_name": hc.dept_name(db, dept_id) if dept_id else None,
+        "department_name": chinh["name"] if chinh else (
+            hc.dept_name(db, dept_id) if dept_id else None
+        ),
+        # Danh sách ĐẦY ĐỦ, phòng chính đứng đầu. Người kiêm nhiệm có nhiều hơn một.
+        "departments": depts,
         "job_title": p.job_title,
         "hired_date": p.hired_date.isoformat() if p.hired_date else None,
         "phone": p.phone,
@@ -70,15 +85,48 @@ def _profile_dict(db: Session, p: HrProfile) -> dict:
     }
 
 
-def _assert_department_exists(db: Session, department_id: Optional[uuid.UUID]) -> None:
-    """Phòng phải có thật. FK cũng chặn, nhưng lỗi FK bật lên ở tầng DB thành 500 —
-    người nhập cần biết "phòng không tồn tại", không phải một lỗi máy chủ."""
-    if department_id is None:
-        return
-    from app.models.department import Department
+def _list_departments(db: Session, profile_id: uuid.UUID) -> list[dict]:
+    """Phòng ban của một hồ sơ — phòng chính trước, còn lại theo tên."""
+    rows = db.execute(
+        select(HrProfileDepartment, Department)
+        .join(Department, Department.id == HrProfileDepartment.department_id)
+        .where(HrProfileDepartment.profile_id == profile_id)
+        .order_by(HrProfileDepartment.is_primary.desc(), Department.name.asc())
+    ).all()
+    return [
+        {"id": d.id, "name": d.name, "code": d.code, "is_primary": pd.is_primary}
+        for pd, d in rows
+    ]
 
-    if db.get(Department, department_id) is None:
-        raise AppException(ErrorCode.VALIDATION_ERROR, "Phòng ban không tồn tại", 400)
+
+def _set_departments(
+    db: Session, profile_id: uuid.UUID, department_ids: list[uuid.UUID]
+) -> None:
+    """Thay TOÀN BỘ danh sách phòng của hồ sơ. Phần tử ĐẦU TIÊN là phòng chính.
+
+    Thay cả cụm chứ không vá từng dòng: người gọi gửi lên trạng thái mong muốn, nên
+    "gỡ khỏi phòng" và "thêm phòng" là cùng một thao tác và không có đường nào để sót
+    lại một dòng cũ. Danh sách rỗng = chưa xếp phòng.
+    """
+    seen: list[uuid.UUID] = []
+    for did in department_ids:
+        hc.assert_department_exists(db, did)
+        if did not in seen:  # gửi trùng không nên thành lỗi, chỉ cần bỏ qua
+            seen.append(did)
+
+    db.execute(
+        delete(HrProfileDepartment).where(HrProfileDepartment.profile_id == profile_id)
+    )
+    # Xoá trước khi chèn PHẢI được đẩy xuống DB ngay, nếu không chỉ mục uq_hrpd_primary
+    # thấy phòng chính cũ vẫn còn và lần chèn dưới đây vi phạm ràng buộc.
+    db.flush()
+    for i, did in enumerate(seen):
+        db.add(
+            HrProfileDepartment(
+                profile_id=profile_id, department_id=did, is_primary=(i == 0)
+            )
+        )
+    db.flush()
 
 
 def _get_profile_or_404(db: Session, user_id: uuid.UUID) -> HrProfile:
@@ -115,16 +163,21 @@ def list_profiles(
         # Tìm theo tên trên HỒ SƠ (luôn có), email chỉ là điều kiện phụ khi đã gắn.
         conditions.append(or_(HrProfile.full_name.ilike(like), User.email.ilike(like)))
     if department_id:
-        # Khớp theo cùng quy tắc mà _profile_dict hiển thị: phòng trên hồ sơ trước,
-        # phòng của tài khoản chỉ tính khi hồ sơ chưa xếp phòng. Lọc thẳng trên
-        # User.department_id sẽ bỏ sót toàn bộ hồ sơ chưa gắn tài khoản.
+        # Lọc "ai thuộc phòng này" khớp BẤT KỲ phòng nào của hồ sơ, không riêng phòng
+        # chính: người kiêm nhiệm phải hiện ra ở cả hai phòng, nếu không thì phòng
+        # nghiên cứu mở danh sách nhân sự của mình lại không thấy người kiêm nhiệm.
+        thuoc_phong = select(HrProfileDepartment.profile_id).where(
+            HrProfileDepartment.department_id == department_id
+        )
+        co_phong = select(HrProfileDepartment.profile_id).where(
+            HrProfileDepartment.profile_id == HrProfile.id
+        )
         conditions.append(
             or_(
-                HrProfile.department_id == department_id,
-                and_(
-                    HrProfile.department_id.is_(None),
-                    User.department_id == department_id,
-                ),
+                HrProfile.id.in_(thuoc_phong),
+                # Đường lùi, cùng quy tắc với _profile_dict: hồ sơ CHƯA xếp phòng nào
+                # thì tính theo phòng của tài khoản đã gắn.
+                and_(~exists(co_phong), User.department_id == department_id),
             )
         )
     if job_title:
@@ -174,7 +227,7 @@ def create_profile(
     ip: Optional[str],
     link_user_id: Optional[uuid.UUID] = None,
     birth_year: Optional[int] = None,
-    department_id: Optional[uuid.UUID] = None,
+    department_ids: Optional[list[uuid.UUID]] = None,
 ) -> dict:
     hc.assert_can_manage_profile(user)
     if not full_name or not full_name.strip():
@@ -198,13 +251,10 @@ def create_profile(
                 409,
             )
 
-    _assert_department_exists(db, department_id)
-
     p = HrProfile(
         user_id=link_user_id,
         full_name=full_name.strip(),
         birth_year=birth_year,
-        department_id=department_id,
         job_title=job_title.strip(),
         hired_date=hired_date,
         phone=phone,
@@ -213,6 +263,8 @@ def create_profile(
     )
     db.add(p)
     db.flush()
+    if department_ids:
+        _set_departments(db, p.id, department_ids)
     audit_service.log_action(
         db,
         action="HR_PROFILE_CREATE",
@@ -374,12 +426,16 @@ def update_profile(
             400,
         )
 
-    if "department_id" in changes:
-        _assert_department_exists(db, changes["department_id"])
+    # Phòng ban sống ở bảng nối, không phải cột của hồ sơ — xử lý riêng rồi loại khỏi
+    # vòng gán thuộc tính bên dưới.
+    department_ids = changes.pop("department_ids", None)
 
     changed_fields = []
+    if department_ids is not None:
+        _set_departments(db, p.id, department_ids)
+        changed_fields.append("department_ids")
     for field in ("full_name", "job_title", "hired_date", "phone", "position",
-                  "birth_year", "department_id"):
+                  "birth_year"):
         if field in changes:
             value = changes[field]
             if field in ("job_title", "full_name") and (not value or not str(value).strip()):
