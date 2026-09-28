@@ -104,7 +104,7 @@ export function ResearchProjects() {
     },
     { key: 'level', priority: 1, header: 'Cấp', render: (p) => <Badge tone="info">{levelLabel(p.level)}</Badge> },
     { key: 'lead', header: 'Chủ nhiệm', render: (p) => p.lead_user_name ?? '—' },
-    { key: 'department', header: 'Phòng', render: (p) => p.department_name ?? '—' },
+    { key: 'department', header: 'Phòng nghiên cứu', render: (p) => p.department_name ?? '—' },
     {
       key: 'members',
       header: 'Thành viên',

@@ -167,6 +167,9 @@ class Publication(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     journal: Mapped[str | None] = mapped_column(String(255), nullable=True)
     year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    # m51 — tháng công bố. NULL nghĩa là chỉ biết năm (dữ liệu Excel cũ của Viện
+    # chỉ ghi năm); không suy ra tháng 1 để lấp chỗ trống.
+    month: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     doi: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category: Mapped[str | None] = mapped_column(
         String(32),

@@ -254,6 +254,8 @@ class CreatePublicationRequest(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     journal: Optional[str] = Field(default=None, max_length=255)
     year: int = Field(ge=1900, le=2100)
+    # Tháng TUỲ CHỌN (m51): nhiều bản ghi cũ chỉ biết năm.
+    month: Optional[int] = Field(default=None, ge=1, le=12)
     doi: Optional[str] = Field(default=None, max_length=255)
     index_code: Optional[str] = Field(default=None, max_length=32)  # alias category
     category: Optional[str] = Field(default=None, max_length=32)
@@ -281,6 +283,7 @@ class UpdatePublicationRequest(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=512)
     journal: Optional[str] = Field(default=None, max_length=255)
     year: Optional[int] = Field(default=None, ge=1900, le=2100)
+    month: Optional[int] = Field(default=None, ge=1, le=12)
     doi: Optional[str] = Field(default=None, max_length=255)
     index_code: Optional[str] = Field(default=None, max_length=32)
     category: Optional[str] = Field(default=None, max_length=32)

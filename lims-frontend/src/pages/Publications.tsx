@@ -35,7 +35,7 @@ import { useDebounced } from '@/lib/useDebounced';
 import { describeError } from '@/lib/errors';
 import { canManageResearch } from '@/lib/rbac';
 import { formatDate } from '@/lib/format';
-import { PATENT_KIND_LABELS, PUB_SCOPE_LABELS } from '@/types';
+import { PATENT_KIND_LABELS, PUB_SCOPE_LABELS, formatPubTime } from '@/types';
 import type { PatentKind, Publication, PublicationType } from '@/types';
 import * as researchApi from '@/api/research';
 import * as usersApi from '@/api/users';
@@ -215,7 +215,15 @@ function PublicationRegister({ variant }: { variant: RegisterVariant }) {
           titleColumn,
           { key: 'type', priority: 1, header: 'Loại', render: (p) => <PublicationTypeBadge type={p.type} /> },
           { key: 'venue', header: 'Tạp chí / Kỷ yếu', render: (p) => p.journal ?? '—' },
-          { key: 'year', priority: 1, header: 'Năm', align: 'center', sortValue: (p) => p.year, render: (p) => p.year },
+          {
+            key: 'year',
+            priority: 1,
+            header: 'Tháng/Năm',
+            align: 'center',
+            // Sắp theo năm rồi tháng; bản ghi chỉ có năm xếp trước trong cùng năm.
+            sortValue: (p) => p.year * 100 + (p.month ?? 0),
+            render: (p) => formatPubTime(p),
+          },
           {
             key: 'scope',
             header: 'Phạm vi',
@@ -454,8 +462,8 @@ function PublicationDetailModal({
               ))}
             </>
           }
-          metricLabel="Năm công bố"
-          metric={p.year}
+          metricLabel="Thời gian công bố"
+          metric={formatPubTime(p)}
         />
 
         {!isPatent && (
@@ -536,6 +544,8 @@ function PublicationModal({
   const [title, setTitle] = useState(publication?.title ?? '');
   const [journal, setJournal] = useState(publication?.journal ?? '');
   const [year, setYear] = useState(String(publication?.year ?? new Date().getFullYear()));
+  // Rỗng = chỉ biết năm. Không mặc định tháng hiện tại: đó là bịa dữ liệu.
+  const [month, setMonth] = useState(publication?.month ? String(publication.month) : '');
   const [doi, setDoi] = useState(publication?.doi ?? '');
   const [indexCode, setIndexCode] = useState(publication?.index_code ?? '');
   const [patentNo, setPatentNo] = useState(publication?.patent_no ?? '');
@@ -592,6 +602,9 @@ function PublicationModal({
     setIndexCode(code);
     if (!code) return;
     if (code.startsWith('isi_') || code === 'scopus') setPubScope('international');
+    // Danh mục Hội đồng Giáo sư Nhà nước là công nhận TRONG NƯỚC — gợi ý sẵn phạm vi
+    // cho khỏi phải chọn hai lần. Vẫn sửa được: ô Phạm vi ngay bên dưới không bị khoá.
+    if (code === 'hdgsnn') setPubScope('domestic');
   }
 
   const isPatent = type === 'patent';
@@ -622,6 +635,7 @@ function PublicationModal({
       title: title.trim(),
       journal: needsVenue ? journal.trim() || null : null,
       year: y,
+      month: month ? Number(month) : null,
       doi: doi.trim() || null,
       index_code: type === 'paper' ? indexCode || null : null,
       pub_scope: isPatent ? null : (pubScope || null),
@@ -683,8 +697,18 @@ function PublicationModal({
             <option value="patent">Sáng chế / GPHI / Giống cây trồng</option>
           </Select>
         </Field>
-        <Field label="Năm" required>
+        <Field label="Năm công bố" required>
           <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
+        </Field>
+        <Field label="Tháng công bố" hint="Để trống nếu chỉ biết năm">
+          <Select value={month} onChange={(e) => setMonth(e.target.value)}>
+            <option value="">— Không rõ tháng —</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                Tháng {m}
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -698,7 +722,7 @@ function PublicationModal({
               <Input value={journal} onChange={(e) => setJournal(e.target.value)} />
             </Field>
             {type === 'paper' ? (
-              <Field label="Chỉ số" hint="Tạp chí trong nước không có xếp hạng thì để trống">
+              <Field label="Chỉ số" hint="Tạp chí trong nước thì chọn mức công nhận của Hội đồng Giáo sư Nhà nước, không có thì để trống">
                 <Select value={indexCode} onChange={(e) => pickIndex(e.target.value)}>
                   <option value="">— Chọn —</option>
                   {(indexes ?? []).map((i) => (

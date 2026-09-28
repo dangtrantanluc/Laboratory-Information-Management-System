@@ -98,6 +98,8 @@ export interface CreatePublicationBody {
   title: string;
   journal?: string | null;
   year: number;
+  /** m51 — tháng công bố (1–12). Bỏ trống/null = chỉ biết năm. */
+  month?: number | null;
   doi?: string | null;
   index_code?: string | null;
   category?: string | null;
