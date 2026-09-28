@@ -68,7 +68,26 @@ export function HrProfiles() {
         </div>
       ),
     },
-    { key: 'department_name', header: 'Phòng', render: (p) => p.department_name ?? '—' },
+    {
+      key: 'department_name',
+      header: 'Phòng',
+      // Kiêm nhiệm (m50): liệt kê đủ, phòng chính đứng đầu. Chỉ hiện chữ "chính" khi
+      // có từ hai phòng — người một phòng thì nhãn đó là nhiễu.
+      render: (p) => {
+        const ds = p.departments ?? [];
+        if (ds.length === 0) return p.department_name ?? '—';
+        return (
+          <div className="flex flex-col gap-0.5">
+            {ds.map((d) => (
+              <span key={d.id}>
+                {d.name}
+                {ds.length > 1 && d.is_primary && <span className="text-subink"> (chính)</span>}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
     { key: 'job_title', header: 'Chức danh', render: (p) => p.job_title ?? '—' },
     {
       key: 'salary',
@@ -187,7 +206,7 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
         full_name: fullName.trim(),
         birth_year: by,
         user_id: userId || null,
-        department_id: deptId || null,
+        department_ids: deptId ? [deptId] : [],
         job_title: jobTitle.trim(),
         hired_date: hiredDate || null,
         phone: phone || null,
@@ -243,7 +262,10 @@ function CreateProfileModal({ onClose, onCreated }: { onClose: () => void; onCre
             ))}
           </Select>
         </Field>
-        <Field label="Phòng công tác" hint="Để trống nếu chưa xếp phòng">
+        <Field
+          label="Phòng chính"
+          hint="Để trống nếu chưa xếp phòng. Kiêm nhiệm thêm phòng khác thì thêm ở màn hình chi tiết."
+        >
           <Select value={deptId} onChange={(e) => setDeptId(e.target.value)}>
             <option value="">— Chưa xếp phòng —</option>
             {(depts?.data ?? []).map((d) => (

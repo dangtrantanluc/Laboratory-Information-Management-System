@@ -1,8 +1,9 @@
 """Schemas M4 — HR & Research Achievement (request bodies).
 
 KHÔNG nhận từ client: next_salary_raise_date (server tự tính), created_by/updated_by,
-status duyệt (qua endpoint approve/reject). Từ m49 department_id LÀ trường của hồ sơ
-(nhận từ client), không còn suy từ users.
+status duyệt (qua endpoint approve/reject). Từ m50 phòng ban LÀ dữ liệu của hồ sơ
+(nhận từ client qua `department_ids`), không còn suy từ users — và là DANH SÁCH, vì
+có người kiêm nhiệm nhiều phòng.
 Số tiền/hệ số nhận STRING-decimal để KHÔNG mất chính xác float (contract §0.12);
 validate + Decimal ở service.
 """
@@ -36,13 +37,23 @@ class CreateProfileRequest(BaseModel):
     user_id: Optional[uuid.UUID] = None
     birth_year: Optional[int] = Field(default=None, ge=1900, le=2100)
     job_title: str = Field(min_length=1, max_length=255)
-    # Phòng công tác ghi thẳng lên hồ sơ (m49) — không còn suy từ tài khoản, vì hồ sơ
-    # có thể chưa gắn tài khoản nào.
-    department_id: Optional[uuid.UUID] = None
+    # Phòng công tác (m50). NHIỀU phòng vì có người kiêm nhiệm; phần tử ĐẦU TIÊN là
+    # phòng chính. Không suy từ tài khoản — hồ sơ có thể chưa gắn tài khoản nào.
+    department_ids: Optional[List[uuid.UUID]] = None
     hired_date: Optional[date] = None
     phone: Optional[str] = Field(default=None, max_length=32)
 
     model_config = {"extra": "forbid"}
+
+
+class ProfileDepartmentOut(BaseModel):
+    """Một phòng mà hồ sơ này công tác. `is_primary` đánh dấu phòng được kể tới khi
+    chỉ có chỗ cho một phòng (tiêu đề hồ sơ, đếm đầu người theo phòng)."""
+
+    id: uuid.UUID
+    name: str
+    code: str
+    is_primary: bool
 
 
 class HrProfileOut(BaseModel):
@@ -55,8 +66,11 @@ class HrProfileOut(BaseModel):
     full_name: str
     birth_year: Optional[int] = None
     email: Optional[str] = None
+    # Phòng CHÍNH — giữ nguyên hai trường cũ cho những chỗ chỉ chứa được một phòng.
     department_id: Optional[uuid.UUID] = None
     department_name: Optional[str] = None
+    # Toàn bộ phòng ban, phòng chính đứng đầu (m50).
+    departments: List[ProfileDepartmentOut] = []
     job_title: str
     hired_date: Optional[str] = None
     phone: Optional[str] = None
@@ -108,7 +122,8 @@ class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     birth_year: Optional[int] = Field(default=None, ge=1900, le=2100)
     job_title: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    department_id: Optional[uuid.UUID] = None
+    # Gửi lên là THAY cả danh sách (phần tử đầu = phòng chính); [] nghĩa là gỡ hết.
+    department_ids: Optional[List[uuid.UUID]] = None
     hired_date: Optional[date] = None
     phone: Optional[str] = Field(default=None, max_length=32)
     position: Optional[str] = Field(default=None, max_length=255)

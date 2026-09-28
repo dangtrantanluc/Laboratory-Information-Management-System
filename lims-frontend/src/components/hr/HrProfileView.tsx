@@ -16,6 +16,7 @@ import { formatDate, formatDecimal, formatMoney, daysUntil } from '@/lib/format'
 import type { Competence, CompetenceKind, HrProfile } from '@/types';
 import * as hrApi from '@/api/hr';
 import * as usersApi from '@/api/users';
+import { ProfileDepartmentsModal } from './ProfileDepartmentsModal';
 
 interface Props {
   profileId: string;
@@ -35,6 +36,25 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-subink">{label}</span>
       <span className="text-right font-medium text-ink">{value ?? '—'}</span>
     </div>
+  );
+}
+
+/** Phòng ban của hồ sơ. Kiêm nhiệm (m50) thì liệt kê đủ, phòng chính đứng đầu và chỉ
+ *  được gắn nhãn khi có từ hai phòng — người một phòng thì nhãn đó là nhiễu. */
+function DepartmentList({ profile }: { profile: HrProfile }) {
+  const ds = profile.departments ?? [];
+  if (ds.length === 0) return <>{profile.department_name ?? '—'}</>;
+  return (
+    <span className="flex flex-col items-end gap-0.5">
+      {ds.map((d) => (
+        <span key={d.id}>
+          {d.name}
+          {ds.length > 1 && d.is_primary && (
+            <span className="font-normal text-subink"> (chính)</span>
+          )}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -64,6 +84,7 @@ export function HrProfileView({
   const hasContract = 'contract_signed_date' in profile || 'contract_type' in profile;
   const hasPII = 'id_number' in profile || 'dob' in profile || 'bank_account' in profile;
 
+  const [deptOpen, setDeptOpen] = useState(false);
   const [contractOpen, setContractOpen] = useState(false);
   const [cycleOpen, setCycleOpen] = useState(false);
   const [raiseOpen, setRaiseOpen] = useState(false);
@@ -73,11 +94,20 @@ export function HrProfileView({
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Thông tin chung */}
         <Card>
-          <CardHeader title="Thông tin chung" />
+          <CardHeader
+            title="Thông tin chung"
+            action={
+              canManage ? (
+                <Button size="sm" variant="secondary" onClick={() => setDeptOpen(true)}>
+                  <Pencil size={13} /> Phòng công tác
+                </Button>
+              ) : undefined
+            }
+          />
           <CardBody className="divide-y divide-hairline pt-0">
             <Row label="Họ tên" value={profile.full_name} />
             <Row label="Email" value={profile.email ?? '—'} />
-            <Row label="Phòng ban" value={profile.department_name ?? '—'} />
+            <Row label="Phòng ban" value={<DepartmentList profile={profile} />} />
             <Row label="Chức danh" value={profile.job_title ?? '—'} />
             {profile.position && <Row label="Chức vụ" value={profile.position} />}
             <Row label="Số điện thoại" value={profile.phone ?? '—'} />
@@ -193,6 +223,16 @@ export function HrProfileView({
         <CompetenceSection profileId={profileId} canManage={canManageCompetence} />
       )}
 
+      {deptOpen && (
+        <ProfileDepartmentsModal
+          profile={profile}
+          onClose={() => setDeptOpen(false)}
+          onSaved={() => {
+            setDeptOpen(false);
+            onProfileChange();
+          }}
+        />
+      )}
       {contractOpen && (
         <ContractModal
           profileId={profileId}

@@ -49,6 +49,7 @@ from app.models.hr import (
     ContractType,
     HrNotificationDedup,
     HrProfile,
+    HrProfileDepartment,
     SalaryHistory,
 )
 from app.models.research import (
@@ -145,6 +146,7 @@ __all__ = [
     "PublicationCategory",
     "MentorshipType",
     "HrProfile",
+    "HrProfileDepartment",
     "SalaryHistory",
     "Competence",
     "HrNotificationDedup",

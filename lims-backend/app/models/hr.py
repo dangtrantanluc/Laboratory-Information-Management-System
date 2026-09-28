@@ -97,16 +97,9 @@ class HrProfile(Base):
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Phòng công tác CỦA CON NGƯỜI (m49), không suy từ tài khoản. Trước m49 phòng ban
-    # của hồ sơ đọc qua `users.department_id`; hồ sơ chưa gắn tài khoản — tức 32/33
-    # người trong danh sách 2026 — nên không thuộc phòng nào, dù danh sách của Viện
-    # xếp từng người vào đúng một phòng nghiên cứu.
-    #
-    # NULL vẫn hợp lệ: người chưa được xếp phòng. Khi hồ sơ đã gắn tài khoản mà cột
-    # này trống, tầng dịch vụ lùi về phòng của tài khoản — xem hr_service._profile_dict.
-    department_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("departments.id", ondelete="RESTRICT"), nullable=True
-    )
+    # Phòng công tác KHÔNG nằm ở đây — xem bảng hr_profile_departments (m50). Cột đơn
+    # `department_id` của m49 đã bị gỡ vì nó chỉ chứa được một phòng, trong khi danh
+    # sách 2026 xếp Huỳnh Văn Biết vào cả Ban Lãnh đạo lẫn phòng Sinh học phân tử.
 
     contract_type: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("contract_types.code", ondelete="RESTRICT"), nullable=True
@@ -158,6 +151,50 @@ class HrProfile(Base):
             "OR contract_end_date > contract_signed_date",
             name="ck_hrp_contract_date_order",
         ),
+    )
+
+
+# ===================== TABLE 1b: hr_profile_departments (m50) =====================
+class HrProfileDepartment(Base):
+    """Một người ↔ NHIỀU phòng công tác.
+
+    m49 để phòng ban thành một cột trên `hr_profiles`, tức lược đồ phát biểu "mỗi người
+    thuộc đúng một phòng". DANH SÁCH VIÊN CHỨC 2026 bác bỏ điều đó ngay ở dòng đầu:
+    Huỳnh Văn Biết có tên ở cả mục "Ban Lãnh đạo" lẫn mục I "Phòng nghiên cứu Sinh học
+    Phân tử - Công nghệ gen". Cột đơn buộc phải chọn một và vứt cái còn lại — bỏ Ban
+    Lãnh đạo thì mất chức trách quản lý, bỏ phòng nghiên cứu thì ông biến mất khỏi
+    thống kê chuyên môn của phòng.
+
+    VÌ SAO VẪN CÓ `is_primary`
+    Kiêm nhiệm là quan hệ nhiều-nhiều, nhưng vài chỗ chỉ chứa được MỘT phòng: tiêu đề
+    hồ sơ, và nhất là báo cáo đếm đầu người theo phòng — tổng các phòng phải bằng sĩ số
+    Viện, không thì người kiêm nhiệm bị đếm hai lần. `is_primary` là chỗ trả lời câu
+    "nếu chỉ được kể một phòng thì kể phòng nào".
+
+    Chỉ mục riêng phần (partial unique) bảo đảm TỐI ĐA MỘT phòng chính mỗi hồ sơ. Hồ sơ
+    không có dòng nào is_primary vẫn hợp lệ — người chưa được phân công.
+    """
+
+    __tablename__ = "hr_profile_departments"
+
+    # CASCADE: bản ghi kiêm nhiệm không có nghĩa khi hồ sơ đã bị xoá.
+    profile_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("hr_profiles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    # RESTRICT: xoá một phòng đang có người là việc phải xử lý ở nghiệp vụ, không phải
+    # âm thầm gỡ phòng của cả chục hồ sơ.
+    department_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("departments.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    is_primary: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=False, server_default=text("now()")
     )
 
 

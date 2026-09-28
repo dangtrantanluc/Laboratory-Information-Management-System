@@ -34,8 +34,8 @@ export interface CreateProfileBody {
   full_name: string;
   birth_year?: number | null;
   job_title: string;
-  /** Phòng công tác ghi thẳng lên hồ sơ (m49) — không còn suy từ tài khoản. */
-  department_id?: string | null;
+  /** m50 — phòng công tác; phần tử ĐẦU TIÊN là phòng chính. Nhiều phần tử = kiêm nhiệm. */
+  department_ids?: string[];
   hired_date?: string | null;
   phone?: string | null;
 }
@@ -45,7 +45,8 @@ export function createProfile(body: CreateProfileBody) {
 
 export interface UpdateProfileBody {
   job_title?: string | null;
-  department_id?: string | null;
+  /** Gửi lên là THAY cả danh sách; [] nghĩa là gỡ hết phòng. */
+  department_ids?: string[];
   hired_date?: string | null;
   phone?: string | null;
   position?: string | null;

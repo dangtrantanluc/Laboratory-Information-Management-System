@@ -24,11 +24,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import delete, select  # noqa: E402
 
 from app.db.database import SessionLocal  # noqa: E402
 from app.models.department import Department  # noqa: E402
-from app.models.hr import Competence, HrProfile  # noqa: E402
+from app.models.hr import Competence, HrProfile, HrProfileDepartment  # noqa: E402
 from app.models.user import User  # noqa: E402
 
 # Ngạch trong file là chữ viết tắt của ngành; hồ sơ cần chức danh đọc được.
@@ -122,12 +122,29 @@ def main() -> int:
                 p.contract_type = DIEN[r["dien"]]
             if r.get("chuc_vu"):
                 p.position = r["chuc_vu"]
+            # Phòng ban là DANH SÁCH (m50): danh sách của Viện xếp Huỳnh Văn Biết vào
+            # cả Ban Lãnh đạo lẫn phòng Sinh học phân tử. Phần tử đầu là phòng chính.
             if r.get("phong"):
-                d = phong.get(r["phong"])
-                if d is None:
-                    ghi_chu.append(f"⚠ '{ten}': không có phòng mã {r['phong']} — bỏ trống")
-                else:
-                    p.department_id = d.id
+                ma = [m for m in r["phong"] if m]
+                thieu = [m for m in ma if m not in phong]
+                if thieu:
+                    ghi_chu.append(f"⚠ '{ten}': không có phòng mã {', '.join(thieu)} — bỏ qua")
+                ma = [m for m in ma if m in phong]
+                # Thay cả cụm: người gọi mô tả trạng thái mong muốn, nên điều chuyển
+                # phòng và gỡ kiêm nhiệm là cùng một thao tác, không sót dòng cũ.
+                db.execute(
+                    delete(HrProfileDepartment).where(
+                        HrProfileDepartment.profile_id == p.id
+                    )
+                )
+                db.flush()
+                for i, m in enumerate(ma):
+                    db.add(HrProfileDepartment(
+                        profile_id=p.id, department_id=phong[m].id, is_primary=(i == 0),
+                    ))
+                if len(ma) > 1:
+                    ghi_chu.append(f"'{ten}' kiêm nhiệm {len(ma)} phòng: "
+                                   f"{ma[0]} (chính), {', '.join(ma[1:])}")
 
             # Học vị + chuyên ngành thuộc về NĂNG LỰC (bằng cấp), không phải ô chức danh.
             if hv and hv not in KHONG_PHAI_BANG:
@@ -163,6 +180,8 @@ def main() -> int:
             if not xoa_vang_mat:
                 ghi_chu.append(f"'{p.full_name}' có trong sổ nhưng KHÔNG có trong danh sách mới")
                 continue
+            # Phòng ban theo hồ sơ (hr_profile_departments) tự đi theo nhờ ON DELETE
+            # CASCADE; năng lực thì RESTRICT nên phải dọn tay.
             con = db.execute(
                 select(Competence).where(Competence.profile_id == p.id)
             ).scalars().all()

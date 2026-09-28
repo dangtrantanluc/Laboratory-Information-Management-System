@@ -82,7 +82,7 @@ def create_profile(
         full_name=body.full_name,
         link_user_id=body.user_id,
         birth_year=body.birth_year,
-        department_id=body.department_id,
+        department_ids=body.department_ids,
         job_title=body.job_title,
         hired_date=body.hired_date,
         phone=body.phone,
