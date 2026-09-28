@@ -11,7 +11,7 @@ Chạy:
   docker exec lims-api python scripts/seed_role_accounts.py
 
   # production: đặt đúng tên miền của Viện
-  limsc exec -T lims-api python scripts/seed_role_accounts.py --domain lims.dangtrantanluc.id.vn
+  limsc exec -T lims-api python scripts/seed_role_accounts.py --domain ribe.com.vn
 
 Idempotent: email đã tồn tại thì BỎ QUA (không ghi đè). Muốn đưa tài khoản cũ về
 mật khẩu mặc định thì thêm --reset-existing.
