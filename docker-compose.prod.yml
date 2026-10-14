@@ -20,16 +20,20 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    mem_limit: 2g
+    # RAM: dữ liệu thật vài chục MB; giới hạn chủ yếu che shared_buffers + work_mem
+    # của các kết nối đang sort. Máy lớn / DB lớn thì nâng PG_MEM_LIMIT + PG_SHARED_BUFFERS.
+    mem_limit: ${PG_MEM_LIMIT:-768m}
     # max_connections phải >= workers x (pool_size + max_overflow) + dự phòng
-    #   4 x (12 + 28) + 20 (migrate/psql/backup) = 180  ->  200 vừa đủ, KHÔNG hạ
+    #   2 x (24 + 56) + 20 (migrate/psql/backup) = 180  ->  200 vừa đủ, KHÔNG hạ.
+    #   Kết nối mở lười theo tải, nên con số này không tốn RAM khi rảnh.
     # log_min_duration_statement: bắt truy vấn chậm, phục vụ phân tích ở R6.3
     command:
       - postgres
       - -c
       - max_connections=200
       - -c
-      - shared_buffers=512MB
+      # 128MB: DB hiện ~25MB, 512MB cũ chỉ là phần Postgres sẽ phình tới theo thời gian.
+      - shared_buffers=${PG_SHARED_BUFFERS:-128MB}
       - -c
       - work_mem=16MB
       - -c
@@ -63,7 +67,7 @@ services:
       options:
         max-size: "20m"
         max-file: "3"
-    mem_limit: 512m
+    mem_limit: ${REDIS_MEM_LIMIT:-128m}
     command:
       - redis-server
       - --requirepass
@@ -75,8 +79,9 @@ services:
       - "yes"
       - --appendfsync
       - everysec
+      # Redis chỉ giữ jti denylist, rate limit, cache quyền — thực dùng vài MB.
       - --maxmemory
-      - 384mb
+      - ${REDIS_MAXMEMORY:-64mb}
       # noeviction, TUYỆT ĐỐI không dùng allkeys-lru: khi đầy, LRU sẽ xoá chính
       # jti denylist để lấy chỗ — đúng thứ ta đang cố bảo vệ.
       - --maxmemory-policy
@@ -105,7 +110,8 @@ services:
       options:
         max-size: "20m"
         max-file: "3"
-    mem_limit: 1g
+    # MinIO thực dùng ~80MB với vài chục MB tệp; 512m đủ chỗ cho upload song song.
+    mem_limit: ${MINIO_MEM_LIMIT:-512m}
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env.prod}
@@ -174,7 +180,9 @@ services:
 
     # Giới hạn tài nguyên — 1 export/request ngốn RAM không được OOM cả host
     # (PRODUCTION_READINESS_REVIEW §Reliability: "no resource limits declared anywhere").
-    mem_limit: ${LIMS_API_MEM:-1g}
+    # 2 worker × ~180MB + bộ quản lý ~45MB ≈ 400MB lúc rảnh; phần còn lại là chỗ cho
+    # export Excel/PDF (mỗi lần 100–200MB). 4 worker cũ đã 643MB/1g — sát ngưỡng OOM.
+    mem_limit: ${LIMS_API_MEM:-768m}
     # Docker TỪ CHỐI khởi động nếu host có ít nhân hơn giá trị này. Trước đây chỉ
     # docker-compose.cloudflare.yml cho ghi đè, nên ai chạy riêng hồ sơ prod trên
     # máy 1-2 nhân sẽ gặp lỗi mà không có nút gạt nào. Trên Windows còn một bẫy
@@ -210,13 +218,19 @@ services:
       # APP_PUBLIC_URL phải là origin thật người dùng mở, nếu không link trong mail sai.
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:?Set APP_PUBLIC_URL in .env.prod}
       # ── R2.2: concurrency (xem phép tính ở khối command của postgres) ──
-      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
-      # 12+28 chứ không phải 8+12: main.py căn threadpool AnyIO bằng ĐÚNG tổng này,
-      # nên đây quyết định năng lực đồng thời của cả hệ thống —
-      #   4 worker × (12+28) = 160 request đồng thời, và 160 kết nối < max_connections 200.
-      # Mức cũ (4 × 20 = 80) đã cạn pool trong đo tải ở 60 người dùng đồng thời.
-      DB_POOL_SIZE: ${DB_POOL_SIZE:-12}
-      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-28}
+      # 2 worker thay vì 4: mỗi worker tốn ~180MB chỉ để nạp code, trong khi endpoint
+      # đồng bộ chạy trong threadpool nên năng lực đồng thời nằm ở POOL, không ở số worker.
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      # main.py căn threadpool AnyIO bằng ĐÚNG (pool + overflow), nên đây quyết định năng
+      # lực đồng thời — giữ nguyên 160 như cấu hình 4 worker cũ:
+      #   2 worker × (24+56) = 160 request đồng thời, và 160 kết nối < max_connections 200.
+      # Mức 80 đã cạn pool trong đo tải ở 60 người dùng đồng thời — đừng hạ.
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-24}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-56}
+      # Worker tự khởi động lại sau ngần này request — chặn RAM Python phình dần qua
+      # nhiều tuần (phân mảnh heap sau các lần export lớn). Uvicorn tự đọc biến này.
+      # KHÔNG đặt 0: với uvicorn, 0 nghĩa là chết sau MỌI request (vòng khởi động vô hạn).
+      UVICORN_LIMIT_MAX_REQUESTS: ${UVICORN_LIMIT_MAX_REQUESTS:-20000}
       DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-5}
       # ── R3.2 ──
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-10}
@@ -243,6 +257,8 @@ services:
         VITE_API_BASE_URL: /api/v1
     container_name: lims-web
     restart: unless-stopped
+    # nginx phục vụ file tĩnh + proxy, thực dùng ~10MB. Trước đây không giới hạn.
+    mem_limit: 64m
     healthcheck:
       # 127.0.0.1 chứ KHÔNG phải localhost: nginx.conf dùng `listen 80;` nên chỉ
       # bind IPv4 (0.0.0.0:80), trong khi /etc/hosts của image nginx:alpine phân

@@ -28,7 +28,11 @@ EXPOSE 8060
 
 # Số worker uvicorn. Phải KHỚP số nhân của host: đặt cao hơn nproc thì các worker
 # tranh CPU và chậm hơn là nhanh hơn. Ghi đè bằng biến môi trường khi deploy.
-ENV UVICORN_WORKERS=4
+ENV UVICORN_WORKERS=2
+# Uvicorn TỰ ĐỌC mọi biến UVICORN_<TÊN_THAM_SỐ> (click auto_envvar_prefix). Vì vậy
+# KHÔNG khai mặc định UVICORN_LIMIT_MAX_REQUESTS ở đây: giá trị 0 nghĩa là "tắt sau
+# 0 request" — worker chết ngay sau request đầu và khởi động lại vô hạn. Muốn worker
+# tự làm mới định kỳ thì đặt biến đó ở compose (mặc định 20000).
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 # Dùng sh -c để nội suy được ${UVICORN_WORKERS}.

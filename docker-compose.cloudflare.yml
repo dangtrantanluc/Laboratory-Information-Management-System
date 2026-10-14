@@ -26,7 +26,7 @@ services:
     image: cloudflare/cloudflared:2025.2.1
     container_name: lims-cloudflared
     restart: unless-stopped
-    mem_limit: 256m
+    mem_limit: 128m  # thực dùng ~40MB
     # Tunnel kiểu token (remote-managed): cấu hình public hostname ở dashboard
     # Cloudflare, không cần file config trong repo.
     command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
