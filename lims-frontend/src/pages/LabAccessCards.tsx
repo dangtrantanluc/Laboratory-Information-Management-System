@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ErrorState } from '@/components/ui/States';
-import { CreditCard, Plus, Pencil, Trash2 } from 'lucide-react';
+import { CreditCard, Download, Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { DataTable, type Column } from '@/components/ui/DataTable';
@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/format';
 import { canManageLabAccessCards } from '@/lib/rbac';
 import type { LabAccessCard } from '@/types';
 import * as labAccessApi from '@/api/labAccess';
+import { LabAccessExportModal, LabAccessImportModal } from '@/components/labAccess/LabAccessExcelModals';
 
 export function LabAccessCards() {
   const { user } = useAuth();
@@ -31,16 +32,24 @@ export function LabAccessCards() {
   const [editTarget, setEditTarget] = useState<LabAccessCard | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LabAccessCard | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  // Phân trang SERVER: nhập Excel một quý đã gần 100 dòng — cắt ở client với
+  // limit 100 sẽ âm thầm giấu phần còn lại (xem DataTable `server`).
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const { data, loading, error, reload } = useAsync(
     () =>
       labAccessApi.listLabAccessCards({
         q: dq || undefined,
         supervisor_name: supervisorName || undefined,
-        limit: 100,
+        page,
+        limit,
       }),
-    [dq, supervisorName],
+    [dq, supervisorName, page, limit],
   );
+  useEffect(() => setPage(1), [dq, supervisorName]);
   const canManage = canManageLabAccessCards(user);
 
   async function doDelete() {
@@ -59,7 +68,7 @@ export function LabAccessCards() {
   }
 
   const columns: Column<LabAccessCard>[] = [
-    { key: 'stt', header: 'STT', align: 'center', render: (_c, i) => i + 1 },
+    { key: 'stt', header: 'STT', align: 'center', render: (_c, i) => (page - 1) * limit + i + 1 },
     {
       key: 'student',
       header: 'Sinh viên',
@@ -74,7 +83,7 @@ export function LabAccessCards() {
       ),
     },
     { key: 'email', header: 'Email', render: (c) => c.email ?? '—' },
-    { key: 'room', header: 'Phòng đăng ký', render: (c) => c.room },
+    { key: 'room', header: 'Phòng đăng ký', render: (c) => c.room ?? '—' },
     { key: 'purpose', header: 'Mục đích', render: (c) => c.purpose ?? '—' },
     { key: 'supervisor', header: 'Giáo viên hướng dẫn', render: (c) => c.supervisor_name ?? '—' },
     {
@@ -114,11 +123,21 @@ export function LabAccessCards() {
         description="Danh sách sinh viên được cấp thẻ vào phòng thí nghiệm — Văn phòng quản lý"
         icon={<CreditCard size={20} />}
         actions={
-          canManage && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={16} /> Thêm
+          <>
+            <Button variant="secondary" onClick={() => setExportOpen(true)}>
+              <Download size={16} /> Xuất Excel
             </Button>
-          )
+            {canManage && (
+              <>
+                <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                  <Upload size={16} /> Nhập Excel
+                </Button>
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus size={16} /> Thêm
+                </Button>
+              </>
+            )}
+          </>
         }
       />
       <Card>
@@ -136,9 +155,32 @@ export function LabAccessCards() {
             className="w-full sm:max-w-[260px]"
           />
         </div>
-        <DataTable columns={columns} rows={data?.data ?? []} rowKey={(c) => c.id} empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined} loading={loading} pageSize={12} />
+        <DataTable
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(c) => c.id}
+          empty={error ? <ErrorState error={error} onRetry={reload} /> : undefined}
+          loading={loading}
+          pageSizeOptions={[20, 50, 100]}
+          server={{ page, limit, total: data?.meta?.total ?? 0, onPageChange: setPage, onLimitChange: setLimit }}
+        />
       </Card>
 
+      {importOpen && (
+        <LabAccessImportModal
+          onClose={() => setImportOpen(false)}
+          onDone={() => {
+            setImportOpen(false);
+            reload();
+          }}
+        />
+      )}
+      {exportOpen && (
+        <LabAccessExportModal
+          filters={{ q: dq || undefined, supervisor_name: supervisorName || undefined }}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       {createOpen && (
         <CardModal
           onClose={() => setCreateOpen(false)}
@@ -199,7 +241,6 @@ function CardModal({
   async function submit() {
     if (!studentName.trim()) return toast.error('Nhập tên sinh viên');
     if (!studentCode.trim()) return toast.error('Nhập MSSV');
-    if (!room.trim()) return toast.error('Nhập phòng đăng ký sử dụng');
     if (!validFrom) return toast.error('Chọn ngày bắt đầu');
     if (validTo && validTo < validFrom) return toast.error('Ngày kết thúc phải sau ngày bắt đầu');
     setSubmitting(true);
@@ -209,7 +250,7 @@ function CardModal({
         class_name: className.trim() || null,
         student_code: studentCode.trim(),
         email: email.trim() || null,
-        room: room.trim(),
+        room: room.trim() || null,
         purpose: purpose.trim() || null,
         supervisor_name: supervisorName.trim() || null,
         valid_from: validFrom,
@@ -260,7 +301,7 @@ function CardModal({
         </FormSection>
 
         <FormSection title="Đăng ký sử dụng">
-        <Field label="Đăng ký sử dụng PTN" required>
+        <Field label="Đăng ký sử dụng PTN">
           <Input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="vd: RIBE 306" />
         </Field>
         <Field label="Mục đích sử dụng">

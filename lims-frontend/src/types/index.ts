@@ -960,7 +960,7 @@ export interface LabAccessCard {
   class_name: string | null;
   student_code: string;
   email: string | null;
-  room: string;
+  room: string | null;
   purpose: string | null;
   supervisor_name: string | null;
   valid_from: string;
