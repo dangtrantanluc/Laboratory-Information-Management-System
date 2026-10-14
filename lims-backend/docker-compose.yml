@@ -32,7 +32,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z  # Silo — fork cộng đồng của MinIO, xem docker-compose.prod.yml
     container_name: lims-minio
     command: server /data --console-address ":9001"
     environment:

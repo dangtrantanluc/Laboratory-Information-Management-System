@@ -95,14 +95,19 @@ services:
       retries: 10
 
   minio:
-    # GHIM PHIÊN BẢN, không dùng :latest. Đây là image duy nhất trong stack còn
-    # thả nổi, và cũng là image rủi ro nhất khi thả nổi: MinIO đã có ít nhất một
-    # lần đổi hành vi console/quyền giữa các bản RELEASE. Máy Linux hiện tại giữ
-    # bản đã chạy thật; máy Windows deploy sau sẽ `docker pull` ra một bản MỚI
-    # HƠN, tức là hai máy chạy hai phần mềm khác nhau trong khi cùng một commit —
-    # đúng kiểu lỗi "trên máy anh chạy được". Bản dưới đây là bản đang chạy
-    # production, kiểm bằng: docker exec lims-minio minio --version
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # SILO thay MinIO (2026-10): MinIO đã ngừng phát hành bản cộng đồng. Silo
+    # (github.com/pgsty/silo, AGPL-3.0) là fork cộng đồng của MinIO, giữ NGUYÊN S3
+    # API, biến MINIO_*, đường /minio/health/* và ĐỊNH DẠNG DỮ LIỆU TRÊN ĐĨA — nên
+    # volume lims_miniodata cũ đọc thẳng, không phải chuyển dữ liệu. Đã kiểm trên bản
+    # sao dữ liệu production: 199 tệp / 34,8MB khớp từng byte (sha256), ghi-đọc-xoá OK.
+    #
+    # Cố ý GIỮ tên service `minio`, container `lims-minio`, volume `lims_miniodata`:
+    # backend (MINIO_ENDPOINT), nginx (upstream minio), script backup/khôi phục và
+    # RUNBOOK đều trỏ vào các tên đó. Đổi tên không đem lại gì ngoài rủi ro.
+    #
+    # GHIM PHIÊN BẢN, không dùng :latest — máy Windows deploy sau phải chạy đúng bản
+    # đã kiểm. Kiểm bản đang chạy: docker exec lims-minio silo --version
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
     container_name: lims-minio
     restart: unless-stopped
     logging:
