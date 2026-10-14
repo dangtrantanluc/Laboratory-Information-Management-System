@@ -24,7 +24,7 @@ class LabAccessCard(Base):
     class_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     student_code: Mapped[str] = mapped_column(String(30), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    room: Mapped[str] = mapped_column(String(255), nullable=False)  # đăng ký sử dụng PTN
+    room: Mapped[str | None] = mapped_column(String(255), nullable=True)  # đăng ký sử dụng PTN — m53: được trống
     purpose: Mapped[str | None] = mapped_column(String(255), nullable=True)
     supervisor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)  # giáo viên hướng dẫn
     valid_from: Mapped[date] = mapped_column(Date, nullable=False)

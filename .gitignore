@@ -21,3 +21,4 @@ tmp/
 
 # Tài khoản test dùng chung một mật khẩu — không commit
 acc.txt
+lims-frontend/tsconfig.app.tsbuildinfo

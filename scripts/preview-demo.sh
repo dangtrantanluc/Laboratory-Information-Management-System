@@ -124,6 +124,18 @@ docker exec "$API" python scripts/seed_demo_research_2024_2025.py
 echo "→ tài khoản thử theo vai trò (admin / lãnh đạo / văn phòng / KTV…)"
 docker exec "$API" python scripts/seed_role_accounts.py >/dev/null 2>&1 \
     || echo "  (bỏ qua — seed_role_accounts cần phòng ban, không bắt buộc cho demo)"
+# m54 — mỗi phòng lab một Trưởng phòng lab + một KTV (truongphonglab.<mã>@, ktv.<mã>@)
+docker exec "$API" python scripts/seed_role_accounts.py --all-labs >/dev/null 2>&1 \
+    || echo "  (bỏ qua tài khoản theo từng lab)"
+
+echo "→ danh mục chỉ tiêu từ BẢNG GIÁ PHÂN TÍCH 2024 + báo cáo phân tích mẫu theo quý (demo)"
+PRICE_LIST="docs/BẢNG GIÁ PHÂN TÍCH - 2024.xlsx"
+if [ -f "$PRICE_LIST" ]; then
+    docker cp "$PRICE_LIST" "$API:/tmp/bang-gia.xlsx"
+    docker exec "$API" python scripts/import_test_parameters.py /tmp/bang-gia.xlsx >/dev/null 2>&1 \
+        || echo "  (không nạp được danh mục chỉ tiêu — báo cáo demo dùng chỉ tiêu ngoài danh mục)"
+fi
+docker exec "$API" python scripts/seed_demo_quarterly_samples.py | tail -n 16
 
 echo "→ khởi động Web"
 docker run -d --name "$WEB" --network "$NET" -p "$WEB_PORT:80" "$WEB_IMAGE" >/dev/null
@@ -142,6 +154,12 @@ cat <<EOF
 
   Đăng nhập:  $ADMIN_EMAIL / $ADMIN_PASSWORD
   Vai trò khác (nếu seed được): vanphong@lims.local / Lims@1234
+
+  Báo cáo phân tích mẫu (mật khẩu Lims@1234):
+    Văn phòng  vanphong@lims.local           — tình trạng 9 lab, trả lại / chốt / xuất Excel
+    LAB-HS     ktv.hs@lims.local             — đang nhập, thử "Nhập nhiều mẫu"
+    LAB-SHPT   ktv@lims.local                — bị trả lại, sửa rồi nộp lại
+    LAB-KTMT   truongphonglab.ktmt@lims.local — chưa bắt đầu
 
   Xem các thay đổi ở:
     Nghiên cứu ▸ Đề tài NCKH        kinh phí · chuyển giao · chủ nhiệm ngoài HT · minh chứng

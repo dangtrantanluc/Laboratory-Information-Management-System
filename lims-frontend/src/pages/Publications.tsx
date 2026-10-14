@@ -697,18 +697,35 @@ function PublicationModal({
             <option value="patent">Sáng chế / GPHI / Giống cây trồng</option>
           </Select>
         </Field>
-        <Field label="Năm công bố" required>
-          <Input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
-        </Field>
-        <Field label="Tháng công bố" hint="Để trống nếu chỉ biết năm">
-          <Select value={month} onChange={(e) => setMonth(e.target.value)}>
-            <option value="">— Không rõ tháng —</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                Tháng {m}
-              </option>
-            ))}
-          </Select>
+        {/* Tháng và năm là MỘT sự thật — "tháng 3/2025" — nên đứng chung một ô.
+            Tách làm hai ô thì lưới 2 cột của FormSection đẩy "Tháng công bố" xuống
+            hàng dưới, nằm ngay dưới "Loại": nhìn vào tưởng tháng thuộc về loại công
+            bố, còn năm thì không có tháng đi kèm. Tháng đứng trước năm vì tiếng Việt
+            đọc là "tháng 3/2025". */}
+        <Field label="Thời gian công bố" required hint="Để trống tháng nếu chỉ biết năm">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Select
+                aria-label="Tháng công bố"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              >
+                <option value="">— Không rõ tháng —</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    Tháng {m}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Input
+              aria-label="Năm công bố"
+              className="w-24 shrink-0"
+              type="number"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            />
+          </div>
         </Field>
         <Field label="Tiêu đề" required className="md:col-span-2">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />

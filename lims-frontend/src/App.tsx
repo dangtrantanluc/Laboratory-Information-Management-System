@@ -30,6 +30,7 @@ const HrProfileDetail = lazy(() => import('@/pages/HrProfileDetail').then((m) =>
 const HrProfiles = lazy(() => import('@/pages/HrProfiles').then((m) => ({ default: m.HrProfiles })));
 const Improvements = lazy(() => import('@/pages/Improvements').then((m) => ({ default: m.Improvements })));
 const LabAccessCards = lazy(() => import('@/pages/LabAccessCards').then((m) => ({ default: m.LabAccessCards })));
+const QuarterlySampleReports = lazy(() => import('@/pages/QuarterlySampleReports').then((m) => ({ default: m.QuarterlySampleReports })));
 const LabRegistrations = lazy(() => import('@/pages/LabRegistrations').then((m) => ({ default: m.LabRegistrations })));
 const MonthlyReport = lazy(() => import('@/pages/MonthlyReport').then((m) => ({ default: m.MonthlyReport })));
 const Nonconformities = lazy(() => import('@/pages/Nonconformities').then((m) => ({ default: m.Nonconformities })));
@@ -68,6 +69,7 @@ import {
   canViewCustomers,
   canViewForms,
   canViewLabAccessCards,
+  canViewQuarterlyReports,
   canViewIntake,
   canViewLabReg,
   canViewSamples,
@@ -315,6 +317,14 @@ export default function App() {
           element={
             <RequireAccess allow={canViewLabReg}>
               <LabRegistrations />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="/quarterly-sample-reports"
+          element={
+            <RequireAccess allow={canViewQuarterlyReports}>
+              <QuarterlySampleReports />
             </RequireAccess>
           }
         />

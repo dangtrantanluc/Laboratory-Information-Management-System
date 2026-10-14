@@ -13,6 +13,9 @@ Chạy:
   # production: đặt đúng tên miền của Viện
   limsc exec -T lims-api python scripts/seed_role_accounts.py --domain ribe.com.vn
 
+  # mỗi phòng lab (kind='lab') một Trưởng phòng lab + một KTV — m54 báo cáo mẫu theo quý
+  limsc exec -T lims-api python scripts/seed_role_accounts.py --domain ribe.com.vn --all-labs
+
 Idempotent: email đã tồn tại thì BỎ QUA (không ghi đè). Muốn đưa tài khoản cũ về
 mật khẩu mặc định thì thêm --reset-existing.
 
@@ -78,6 +81,9 @@ def parse_args():
     p.add_argument("--set-dept-lead", action="store_true",
                    help="Đặt tài khoản Trưởng phòng lab làm trưởng nhóm của phòng lab đó. "
                         "CẢNH BÁO: ghi đè trưởng nhóm hiện tại của phòng.")
+    p.add_argument("--all-labs", action="store_true",
+                   help="Tạo Trưởng phòng lab + KTV cho MỌI phòng lab (truongphonglab.<mã>@, "
+                        "ktv.<mã>@). Phòng đã có người ở vai trò đó thì bỏ qua.")
     p.add_argument("--dry-run", action="store_true", help="Chỉ in dự kiến, không ghi gì")
     return p.parse_args()
 
@@ -106,7 +112,36 @@ def main():
 
         created, skipped, reset, failed = [], [], [], []
 
-        for role, local, full_name, dept_code in ACCOUNTS:
+        accounts = ACCOUNTS
+        if args.all_labs:
+            accounts = []
+            labs = db.execute(
+                select(Department)
+                .where(Department.kind == "lab", Department.status == "active")
+                .order_by(Department.code)
+            ).scalars().all()
+            for dept in labs:
+                slug = dept.code.lower().removeprefix("lab-")
+                for role, local, title in (
+                    ("lab_manager", "truongphonglab", "Trưởng phòng lab"),
+                    ("staff", "ktv", "KTV"),
+                ):
+                    # Phòng đã có người thật ở vai trò này thì không cần tài khoản thử.
+                    has_one = db.execute(
+                        select(User.id).where(
+                            User.department_id == dept.id, User.role == role,
+                            User.status == "active",
+                        ).limit(1)
+                    ).first()
+                    if has_one:
+                        skipped.append((role, f"{local}.{slug}@{args.domain}",
+                                        f"{dept.code} đã có {ROLE_LABELS[role]}"))
+                        continue
+                    accounts.append((
+                        role, f"{local}.{slug}", f"{title} {dept.name} (tài khoản thử)", dept.code,
+                    ))
+
+        for role, local, full_name, dept_code in accounts:
             if only and role not in only:
                 continue
 

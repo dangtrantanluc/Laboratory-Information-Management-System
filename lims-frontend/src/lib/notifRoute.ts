@@ -30,6 +30,9 @@ export function notifTarget(n: Notification): string | null {
       return '/nonconformities';
     case 'risk':
       return '/risks';
+    // m54 — báo cáo mẫu theo quý: trang tự đổi id ra quý + phòng
+    case 'quarterly_sample_report':
+      return id ? `/quarterly-sample-reports?report=${id}` : '/quarterly-sample-reports';
     default:
       return null;
   }

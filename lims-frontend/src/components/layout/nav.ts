@@ -6,6 +6,7 @@ import {
   canViewCustomers,
   canManageUsers,
   canViewAudit,
+  canViewQuarterlyReports,
 } from '@/lib/rbac';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -27,6 +28,7 @@ import {
   Landmark,
   ListChecks,
   Presentation,
+  TestTubes,
   Receipt,
   ScrollText,
   TrendingUp,
@@ -93,6 +95,10 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Không gian của tôi',
     defaultOpen: true,
     items: [
+      // m54 — lab nhập + nộp theo quý, Văn phòng chốt + xuất Excel; một mục cho cả hai phía.
+      // Đặt ở đây (nhóm mở sẵn) chứ không ở "Báo cáo & Phân tích": với lab đây là việc
+      // nhập liệu định kỳ, và nhóm kia đóng mặc định ở cuối menu nên lab không thấy.
+      { to: '/quarterly-sample-reports', label: 'Báo cáo phân tích mẫu', icon: TestTubes, can: canViewQuarterlyReports },
       { to: '/activity-reports', label: 'Báo cáo hoạt động', icon: ClipboardList, roles: REPORTERS },
     ],
   },

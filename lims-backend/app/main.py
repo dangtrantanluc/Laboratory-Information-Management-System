@@ -45,6 +45,7 @@ from app.routers import (
     nonconformities,
     notifications,
     push,
+    quarterly_sample_reports,
     quotations,
     rbac,
     reporting,
@@ -244,5 +245,7 @@ app.include_router(quotations.router, prefix=api)
 app.include_router(test_reports.router, prefix=api)
 # --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
 app.include_router(lab_access.router, prefix=api)
+# --- m54: Báo cáo mẫu phân tích theo quý (lab nhập, Văn phòng tổng hợp) ---
+app.include_router(quarterly_sample_reports.router, prefix=api)
 # --- M6: Reporting & Analytics (module cuối, tầng tổng hợp chéo) ---
 app.include_router(reporting.router, prefix=api)
