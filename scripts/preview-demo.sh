@@ -73,11 +73,11 @@ docker run -d --name "$DB" --network "$NET" \
     -e POSTGRES_USER=lims -e POSTGRES_PASSWORD=lims -e POSTGRES_DB=lims \
     postgres:15-alpine >/dev/null
 docker run -d --name "$REDIS" --network "$NET" redis:7-alpine >/dev/null
-# MinIO BẮT BUỘC dù demo không dùng tệp đính kèm: nginx.conf có upstream "minio" và
+# MinIO (Silo) BẮT BUỘC dù demo không dùng tệp đính kèm: nginx.conf có upstream "minio" và
 # nginx từ chối khởi động khi không phân giải được hostname trong cấu hình.
 docker run -d --name "$MINIO" --network "$NET" --network-alias minio \
     -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-    minio/minio:latest server /data >/dev/null
+    pgsty/silo:RELEASE.2026-09-16T00-00-00Z server /data >/dev/null
 
 echo "→ build API (code hiện tại, gồm migration m34)"
 docker build -q -t "$API_IMAGE" ./lims-backend >/dev/null
