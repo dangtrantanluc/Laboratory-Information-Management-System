@@ -20,7 +20,7 @@ chỉ đúng nguyên nhân.
 | 1 | Git for Windows mặc định `core.autocrlf=true`, đổi `entrypoint.sh` sang CRLF. File này là ENTRYPOINT của image Linux → shebang thành `#!/usr/bin/env bash\r`, kernel đi tìm interpreter tên `bash\r`. | `exec /app/entrypoint.sh: no such file or directory` — nói "không có file" trong khi file rõ ràng nằm đó. Container `lims-api` restart vô hạn. | [`.gitattributes`](./.gitattributes) mới — ép LF cho `*.sh`, `*.conf`, `*.yml`, Dockerfile |
 | 2 | `COMPOSE_FILE=a.yml:b.yml` dùng dấu `:` — mặc định của Linux. Windows tách bằng `;`. | `no such file or directory: docker-compose.prod.yml:docker-compose.cloudflare.yml` | `.env.prod.example` — đổi sang `;` và khai tường minh `COMPOSE_PATH_SEPARATOR=;` (chạy đúng trên **cả hai** hệ điều hành) |
 | 3 | Không khai `COMPOSE_PROJECT_NAME` → compose lấy **tên thư mục** làm tên project, mà tên volume dữ liệu = `<project>_lims_pgdata`. Clone vào thư mục tên khác là dữ liệu nằm ở volume khác. | Stack chạy bình thường, đăng nhập được, nhưng **DB trống trơn**. Dữ liệu không mất, chỉ nằm ở volume không ai gắn vào. | `.env.prod.example` + `.env.prod` — khoá cứng `COMPOSE_PROJECT_NAME=lims` |
-| 4 | `image: minio/minio:latest` — máy Windows `docker pull` sẽ lấy bản **mới hơn** máy Linux. Cùng một commit, hai máy chạy hai phần mềm khác nhau. | Khác biệt hành vi không giải thích được, kiểu "trên máy anh chạy được". | `docker-compose.prod.yml` — ghim `minio/minio:RELEASE.2025-09-07T16-13-09Z` |
+| 4 | `image: minio/minio:latest` — máy Windows `docker pull` sẽ lấy bản **mới hơn** máy Linux. Cùng một commit, hai máy chạy hai phần mềm khác nhau. | Khác biệt hành vi không giải thích được, kiểu "trên máy anh chạy được". | `docker-compose.prod.yml` — ghim phiên bản. Từ 2026-10 dùng **Silo** `pgsty/silo:RELEASE.2026-09-16T00-00-00Z` (fork cộng đồng của MinIO, cùng định dạng dữ liệu — MinIO đã ngừng phát hành bản cộng đồng) |
 
 Ngoài ra `docker-compose.prod.yml` nay cho ghi đè `LIMS_API_CPUS` / `LIMS_API_MEM`
 ngay ở hồ sơ prod (trước chỉ overlay Cloudflare mới cho) — cần thiết vì số nhân
@@ -364,9 +364,9 @@ VAPID, độ mạnh bí mật, chế độ Linux containers, và tài nguyên WS
 
 Dòng `[!]` là cảnh báo (chạy được nhưng nên xem), dòng `[X]` là lỗi chặn.
 
-### 5.2 Khôi phục dữ liệu và khởi chạy
+### 5.2 Khôi phục dữ liệu và khởi chạy — HAI BƯỚC
 
-Một lệnh làm hết:
+**Bước A — khôi phục và tự kiểm tra (tunnel CHƯA bật, người dùng vẫn vào máy cũ):**
 
 ```powershell
 .\scripts\windows\restore-from-linux.ps1 -BundlePath D:\lims-export
@@ -374,15 +374,37 @@ Một lệnh làm hết:
 
 Script sẽ, theo thứ tự:
 
-1. kiểm SHA-256 của cả 3 file — sai là dừng, không restore một nửa;
+1. kiểm SHA-256 của các file trong gói — sai là dừng, không restore một nửa;
 2. tạo `.env.prod` nếu chưa có (không ghi đè nếu đã có);
 3. **dừng lại nếu volume dữ liệu đã tồn tại** và yêu cầu bạn chạy lại kèm `-Fresh`
    (rồi gõ đúng chữ `XOA` để xác nhận) — chốt an toàn chống ghi đè nhầm;
 4. dựng Postgres rỗng, chờ `pg_isready`, `docker cp` dump vào rồi `pg_restore`;
-5. **đếm số bản ghi bảng `users` và đọc `alembic_version`** — bảng rỗng là báo lỗi,
-   không tin vào mã thoát của `pg_restore` (nó luôn cảnh báo về owner/extension);
-6. giải nén file đính kèm vào volume MinIO;
-7. `docker compose up -d --build` toàn bộ stack.
+5. **đối chiếu số dòng TỪNG bảng với `MANIFEST.txt`** của máy nguồn — lệch một
+   bảng là dừng, không khởi động hệ thống;
+6. giải nén file đính kèm vào volume kho tệp (Silo) và **đối chiếu số tệp**;
+7. build và khởi động mọi service **trừ `cloudflared`**;
+8. chờ `/health/ready` báo `"success": true` (DB + Redis + kho tệp) và kiểm
+   `lims-web` phục vụ trang.
+
+**Bước B — tắt máy cũ, rồi chuyển tên miền về máy này:**
+
+```bash
+# trên máy cũ (Linux)
+docker stop lims-cloudflared lims-api
+```
+```powershell
+# trên máy Windows — hỏi xác nhận, phải gõ đúng: DA TAT MAY CU
+.\scripts\windows\restore-from-linux.ps1 -StartTunnel
+```
+
+> **Vì sao tách hai bước:** hai máy dùng CHUNG một token Cloudflare Tunnel. Nếu cả
+> hai cùng bật, Cloudflare chia request cho cả hai và dữ liệu bị ghi vào hai
+> database khác nhau mà không có thông báo lỗi nào. Giữ máy cũ (đã tắt) vài ngày
+> làm đường lùi: bật lại nó = quay về.
+
+Đã diễn tập toàn bộ (2026-10-14) bằng chính script này, trong Docker cô lập, với
+gói dữ liệu thật của ribe.com.vn: 78/78 bảng và 199/199 tệp khớp, đọc lại đủ 199
+tệp đính kèm qua ứng dụng, đăng nhập được; khoảng 2 phút sau khi đã có image.
 
 > Bước 4 và 6 đi qua `docker cp` và volume có tên, **không mount thư mục host**. Đây
 > là lựa chọn có chủ đích cho Windows: `docker run -v "C:\duong\dan:/backup"` vướng
@@ -412,7 +434,7 @@ Mốc cần thấy trong log:
 |---|---|
 | `lims-migrate` | thoát với mã 0 (`docker compose ps -a` hiện `Exited (0)`) |
 | `lims-api` | `Application startup complete` |
-| `lims-cloudflared` | `Registered tunnel connection` |
+| `lims-cloudflared` | `Registered tunnel connection` (chỉ sau Bước B `-StartTunnel`) |
 | tất cả | `docker compose ps` hiện `(healthy)` |
 
 `lims-api` có `start_period: 90s` nên trong phút rưỡi đầu trạng thái `starting` là

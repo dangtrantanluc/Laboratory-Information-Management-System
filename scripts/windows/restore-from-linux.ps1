@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Khôi phục dữ liệu LIMS (Postgres + MinIO) từ gói do scripts/export-for-windows.sh tạo.
+    Khôi phục dữ liệu LIMS (Postgres + kho tệp Silo/MinIO) từ gói do scripts/export-for-windows.sh tạo.
 
 .DESCRIPTION
     Chạy MỘT LẦN trên máy Windows đích, sau khi đã copy mã nguồn và gói dữ liệu sang.
@@ -15,19 +15,36 @@
     nhị phân: PowerShell 5.1 ghi ra UTF-16LE và sẽ làm hỏng file dump — dump hỏng
     theo kiểu vẫn tạo ra file, vẫn có kích thước hợp lý, chỉ là không restore được.
 
+    KHÔNG BẬT CLOUDFLARE TUNNEL theo mặc định. Máy mới và máy cũ dùng CHUNG một token
+    tunnel; nếu cả hai cùng chạy, Cloudflare chia request cho cả hai máy và dữ liệu
+    bị ghi vào hai database khác nhau mà không ai hay. Script dựng mọi thứ trừ
+    tunnel, tự kiểm sức khoẻ, rồi dừng lại. Tắt hẳn máy cũ xong thì chạy lại với
+    -StartTunnel (hoặc: .\scripts\windows\dc.ps1 up -d cloudflared).
+
+    Đối chiếu với MANIFEST.txt của gói (nếu có): số dòng TỪNG bảng và số tệp đính
+    kèm phải khớp đúng máy nguồn — không chỉ "bảng users có dữ liệu".
+
 .PARAMETER BundlePath
-    Thư mục chứa db.dump, minio-files.tar.gz, env.prod, SHA256SUMS.txt.
+    Thư mục chứa db.dump, minio-files.tar.gz, env.prod, SHA256SUMS.txt, MANIFEST.txt.
 
 .PARAMETER Fresh
     XOÁ volume dữ liệu hiện có trước khi khôi phục. Có hỏi xác nhận.
 
+.PARAMETER StartTunnel
+    Chỉ bật Cloudflare Tunnel (đưa ribe.com.vn trỏ về máy này). Dùng SAU khi đã khôi
+    phục và đã TẮT HẲN máy cũ. Có hỏi xác nhận. Không đụng tới dữ liệu.
+
 .EXAMPLE
-    .\scripts\windows\restore-from-linux.ps1 -BundlePath D:\lims-export-2026-08-12_1430
+    # Bước 1 — khôi phục, kiểm tra (tunnel chưa bật)
+    .\scripts\windows\restore-from-linux.ps1 -BundlePath D:\lims-export-2026-10-14_1030
+    # Bước 2 — tắt máy cũ, rồi chuyển domain về máy này
+    .\scripts\windows\restore-from-linux.ps1 -StartTunnel
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Restore')]
 param(
-    [Parameter(Mandatory = $true)][string]$BundlePath,
-    [switch]$Fresh
+    [Parameter(Mandatory = $true, ParameterSetName = 'Restore')][string]$BundlePath,
+    [Parameter(ParameterSetName = 'Restore')][switch]$Fresh,
+    [Parameter(Mandatory = $true, ParameterSetName = 'Tunnel')][switch]$StartTunnel
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,7 +57,46 @@ function Say  { param($m) Write-Host "[restore] $m" -ForegroundColor Cyan }
 function Ok   { param($m) Write-Host "[restore] OK  $m" -ForegroundColor Green }
 function Die  { param($m) Write-Host "[restore] LOI $m" -ForegroundColor Red; exit 1 }
 
+$Compose = @('compose', '-f', 'docker-compose.prod.yml', '-f', 'docker-compose.cloudflare.yml',
+             '--env-file', '.env.prod')
+
+# ── Chế độ -StartTunnel: chỉ chuyển domain ───────────────────────────────────
+if ($StartTunnel) {
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot '.env.prod'))) { Die "chua co .env.prod — chay khoi phuc truoc" }
+    $apiUp = (& docker $Compose ps --status running --services 2>$null) -contains 'lims-api'
+    if (-not $apiUp) { Die "lims-api chua chay tren may nay — khoi phuc va kiem tra truoc khi bat tunnel" }
+    Write-Host ""
+    Write-Host "Bat tunnel = ten mien trong APP_PUBLIC_URL tro ve MAY NAY." -ForegroundColor Yellow
+    Write-Host "May cu PHAI da tat han (it nhat container lims-cloudflared), neu khong" -ForegroundColor Yellow
+    Write-Host "Cloudflare chia request cho ca hai may va du lieu bi ghi vao hai DB khac nhau." -ForegroundColor Yellow
+    Write-Host "  Tren may cu (Linux):  docker stop lims-cloudflared lims-api" -ForegroundColor DarkGray
+    $ans = Read-Host "Go dung chu DA TAT MAY CU de tiep tuc"
+    if ($ans -cne 'DA TAT MAY CU') { Die "huy bo — tunnel chua bat" }
+    & docker $Compose up -d cloudflared
+    if ($LASTEXITCODE -ne 0) { Die "khong bat duoc cloudflared" }
+    Say "cho tunnel ket noi..."
+    $reg = $false
+    foreach ($i in 1..30) {
+        $log = (& docker logs lims-cloudflared 2>&1) -join "`n"
+        if ($log -match 'Registered tunnel connection') { $reg = $true; break }
+        Start-Sleep -Seconds 2
+    }
+    if ($reg) { Ok "tunnel da ket noi — mo ten mien va dang nhap thu" }
+    else { Write-Host "[restore] !   chua thay 'Registered tunnel connection' sau 60 giay — xem: docker logs lims-cloudflared" -ForegroundColor Yellow }
+    exit 0
+}
+
 $Bundle = (Resolve-Path -LiteralPath $BundlePath).Path
+$Manifest = Join-Path $Bundle 'MANIFEST.txt'
+# table:<ten>=<so dong> va objects=<so tep> — sinh tren CHINH ban dump o may nguon.
+$Expected = @{}
+$ExpectedObjects = $null
+if (Test-Path -LiteralPath $Manifest) {
+    foreach ($line in (Get-Content -LiteralPath $Manifest -Encoding UTF8)) {
+        if ($line -match '^table:([^=]+)=(\d+)$') { $Expected[$Matches[1]] = [int64]$Matches[2] }
+        elseif ($line -match '^objects=(\d+)$') { $ExpectedObjects = [int64]$Matches[1] }
+    }
+}
 $Dump   = Join-Path $Bundle 'db.dump'
 $Tar    = Join-Path $Bundle 'minio-files.tar.gz'
 $EnvSrc = Join-Path $Bundle 'env.prod'
@@ -91,9 +147,6 @@ foreach ($line in (Get-Content -LiteralPath $EnvDst)) {
 $PgVol    = "${proj}_lims_pgdata"
 $MinioVol = "${proj}_lims_miniodata"
 Say "project=$proj  volume: $PgVol / $MinioVol"
-
-$Compose = @('compose', '-f', 'docker-compose.prod.yml', '-f', 'docker-compose.cloudflare.yml',
-             '--env-file', '.env.prod')
 
 # ── 3. Volume phải trống ─────────────────────────────────────────────────────
 # Image postgres CHỈ chạy initdb khi thư mục dữ liệu rỗng. Volume còn sót lại từ
@@ -154,7 +207,8 @@ if ($restoreCode -ne 0) {
     Write-Host "[restore] Se kiem lai bang so ban ghi ngay duoi day." -ForegroundColor Yellow
 }
 
-# Bằng chứng thật, không tin mã thoát: đếm user và đọc phiên bản migration.
+# Bằng chứng thật, không tin mã thoát: đếm user, đọc phiên bản migration, rồi đối
+# chiếu số dòng TỪNG bảng với MANIFEST của máy nguồn.
 $users = (& docker $Compose exec -T postgres psql -U lims -d lims -tAc 'SELECT count(*) FROM users;') 2>$null
 $alem  = (& docker $Compose exec -T postgres psql -U lims -d lims -tAc 'SELECT version_num FROM alembic_version;') 2>$null
 if (-not $users -or [int]($users -replace '\D', '') -eq 0) {
@@ -162,8 +216,29 @@ if (-not $users -or [int]($users -replace '\D', '') -eq 0) {
 }
 Ok "Postgres: $($users.Trim()) nguoi dung, alembic=$($alem.Trim())"
 
-# ── 5. MinIO ─────────────────────────────────────────────────────────────────
-Say "tao volume MinIO..."
+if ($Expected.Count -gt 0) {
+    Say "doi chieu so dong $($Expected.Count) bang voi MANIFEST..."
+    $q = "SELECT table_name || '=' || (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM public.%I', table_name), false, true, '')))[1]::text FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE';"
+    $actual = @{}
+    foreach ($line in (& docker $Compose exec -T postgres psql -U lims -d lims -tA -c $q)) {
+        if ($line -match '^([^=]+)=(\d+)$') { $actual[$Matches[1]] = [int64]$Matches[2] }
+    }
+    $diff = @()
+    foreach ($t in $Expected.Keys) {
+        $got = if ($actual.ContainsKey($t)) { $actual[$t] } else { -1 }
+        if ($got -ne $Expected[$t]) { $diff += "  $t : may nguon $($Expected[$t]), may nay $got" }
+    }
+    if ($diff.Count -gt 0) {
+        $diff | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+        Die "$($diff.Count) bang KHONG khop may nguon — khong khoi dong he thong. Chay lai voi -Fresh."
+    }
+    Ok "ca $($Expected.Count) bang khop so dong voi may nguon"
+} else {
+    Write-Host "[restore] !   goi khong co MANIFEST.txt — chi kiem duoc bang users" -ForegroundColor Yellow
+}
+
+# ── 5. Kho tệp (Silo — cùng định dạng dữ liệu với MinIO) ─────────────────────
+Say "tao volume kho tep..."
 & docker $Compose create minio *> $null
 & docker volume inspect $MinioVol *> $null
 if ($LASTEXITCODE -ne 0) { & docker volume create $MinioVol *> $null }
@@ -172,29 +247,53 @@ Say "giai nen file dinh kem vao $MinioVol..."
 $helper = 'lims-restore-helper'
 & docker rm -f $helper *> $null
 # Container dùng một lần, chỉ gắn volume có tên — không mount thư mục host nào.
+# Đếm ngay sau khi giải nén: mỗi tệp S3 là một thư mục có xl.meta (.minio.sys là
+# siêu dữ liệu nội bộ, không tính).
 & docker create --name $helper -v "${MinioVol}:/data" alpine `
-    sh -c 'tar xzf /tmp/minio-files.tar.gz -C /data && echo TAR_OK' *> $null
+    sh -c 'tar xzf /tmp/minio-files.tar.gz -C /data && echo TAR_OK && echo OBJECTS=$(find /data -name xl.meta -not -path "*/.minio.sys/*" | wc -l)' *> $null
 if ($LASTEXITCODE -ne 0) { Die "khong tao duoc container phu tro" }
 & docker cp $Tar "${helper}:/tmp/minio-files.tar.gz"
 if ($LASTEXITCODE -ne 0) { & docker rm -f $helper *> $null; Die "docker cp minio-files.tar.gz that bai" }
 $tarOut = & docker start -a $helper 2>&1
 $tarCode = $LASTEXITCODE
 & docker rm -f $helper *> $null
-if ($tarCode -ne 0 -or ($tarOut -notmatch 'TAR_OK')) { Die "giai nen that bai: $tarOut" }
-Ok "da giai nen file dinh kem"
+# -join trước khi so khớp: $tarOut là MẢNG nhiều dòng, và -notmatch trên mảng trả về
+# các dòng không khớp (luôn "đúng" khi có >1 dòng) chứ không trả về true/false.
+$tarText = $tarOut -join "`n"
+if ($tarCode -ne 0 -or ($tarText -notmatch 'TAR_OK')) { Die "giai nen that bai: $tarText" }
+$gotObjects = if ($tarText -match 'OBJECTS=(\d+)') { [int64]$Matches[1] } else { -1 }
+if ($null -ne $ExpectedObjects -and $gotObjects -ne $ExpectedObjects) {
+    Die "so tep dinh kem: may nguon $ExpectedObjects, may nay $gotObjects — goi du lieu khong tron ven"
+}
+Ok "da giai nen $gotObjects tep dinh kem$(if ($null -ne $ExpectedObjects) { ' (khop may nguon)' })"
 
-# ── 6. Dựng toàn bộ stack ────────────────────────────────────────────────────
-Say "build va khoi dong toan bo stack (lan dau mat 5-15 phut)..."
-& docker $Compose up -d --build
+# ── 6. Dựng mọi thứ TRỪ tunnel ───────────────────────────────────────────────
+$services = @(& docker $Compose config --services) | Where-Object { $_ -and $_ -ne 'cloudflared' }
+Say "build va khoi dong: $($services -join ', ') (lan dau mat 5-15 phut)..."
+& docker $Compose up -d --build @services
 if ($LASTEXITCODE -ne 0) { Die "docker compose up that bai — xem log o tren" }
 
+# ── 7. Tự kiểm sức khoẻ ──────────────────────────────────────────────────────
+Say "cho lims-api san sang..."
+$apiOk = $false
+$ready = ''
+# /health/ready trả HTTP 200 cả khi "degraded" — phải đọc "success": true, không tin mã thoát của curl.
+foreach ($i in 1..90) {
+    $ready = (& docker $Compose exec -T lims-api curl -sS http://localhost:8060/health/ready 2>$null) -join ''
+    if ($ready -match '"success"\s*:\s*true') { $apiOk = $true; break }
+    Start-Sleep -Seconds 2
+}
+if (-not $apiOk) { Die "lims-api chua san sang sau 3 phut ($ready) — xem: .\scripts\windows\dc.ps1 logs lims-api" }
+Ok "lims-api san sang (DB + Redis + kho tep deu ket noi duoc)"
+& docker $Compose exec -T lims-web wget -qO- http://127.0.0.1/ *> $null
+if ($LASTEXITCODE -ne 0) { Die "lims-web khong phuc vu trang — xem: .\scripts\windows\dc.ps1 logs lims-web" }
+Ok "lims-web phuc vu trang"
+
 Write-Host ""
-Ok "khoi phuc xong"
+Ok "khoi phuc xong — TUNNEL CHUA BAT, nguoi dung van dang vao may cu"
 Write-Host ""
-Write-Host "Kiem tra tiep:" -ForegroundColor Cyan
-Write-Host "  docker compose ps                          # tat ca phai (healthy)"
-Write-Host "  docker compose logs -f lims-api            # cho dong 'Application startup complete'"
-Write-Host "  docker compose logs lims-cloudflared       # cho 'Registered tunnel connection'"
-Write-Host "  docker compose exec lims-api curl -fsS http://localhost:8060/health/ready"
-Write-Host ""
-Write-Host "Sau do mo trinh duyet vao ten mien trong APP_PUBLIC_URL va dang nhap thu." -ForegroundColor Cyan
+Write-Host "Buoc tiep theo:" -ForegroundColor Cyan
+Write-Host "  1. Tren may cu (Linux) tat han he thong:  docker stop lims-cloudflared lims-api"
+Write-Host "  2. Tren may nay chuyen ten mien ve:       .\scripts\windows\restore-from-linux.ps1 -StartTunnel"
+Write-Host "  3. Mo ten mien trong APP_PUBLIC_URL, dang nhap, mo vai phieu co tep dinh kem."
+Write-Host "  Giu may cu (da tat) vai ngay de con duong lui." -ForegroundColor DarkGray
