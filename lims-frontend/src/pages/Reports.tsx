@@ -7,6 +7,7 @@ import {
   FlaskConical,
   ShieldCheck,
   UserSquare2,
+  TestTubes,
 } from 'lucide-react';
 import {
   BarChart,
@@ -40,12 +41,14 @@ import {
   canViewChemicalReport,
   canViewSystemAccess,
   canViewCost,
+  canViewAllQuarterlyReports,
 } from '@/lib/rbac';
 import * as reportingApi from '@/api/reporting';
 import * as usersApi from '@/api/users';
+import { QuarterlyStatsTab } from '@/components/quarterlySampleReports/QuarterlyStatsTab';
 import { formatDateTime, formatMoney, formatNumber } from '@/lib/format';
 
-type TabKey = 'samples' | 'chemicals' | 'customers' | 'system-access';
+type TabKey = 'samples' | 'lab-samples' | 'chemicals' | 'customers' | 'system-access';
 
 export function Reports() {
   const { user } = useAuth();
@@ -53,15 +56,18 @@ export function Reports() {
   const showChem = canViewChemicalReport(user);
   const showR15 = canViewSystemAccess(user);
   const showCustomers = canViewCustomerReport(user);
+  // m54 — số liệu các lab nộp theo quý. Văn phòng xem tab này (tab "Báo cáo mẫu" M1 vẫn ẩn với VP).
+  const showLabSamples = canViewAllQuarterlyReports(user);
 
   const tabs = useMemo(() => {
     const t: { key: TabKey; label: string; icon: React.ReactNode }[] = [];
     if (showSamples) t.push({ key: 'samples', label: 'Báo cáo mẫu', icon: <ClipboardList size={15} /> });
+    if (showLabSamples) t.push({ key: 'lab-samples', label: 'Báo cáo phân tích mẫu', icon: <TestTubes size={15} /> });
     if (showChem) t.push({ key: 'chemicals', label: 'Báo cáo hóa chất', icon: <FlaskConical size={15} /> });
     if (showCustomers) t.push({ key: 'customers', label: 'Khách hàng', icon: <UserSquare2 size={15} /> });
     if (showR15) t.push({ key: 'system-access', label: 'Truy cập hệ thống', icon: <ShieldCheck size={15} /> });
     return t;
-  }, [showSamples, showChem, showCustomers, showR15]);
+  }, [showSamples, showLabSamples, showChem, showCustomers, showR15]);
 
   const [tab, setTab] = useState<TabKey>(tabs[0]?.key ?? 'chemicals');
 
@@ -97,6 +103,7 @@ export function Reports() {
           </div>
 
           {tab === 'samples' && showSamples && <SamplesReportTab />}
+          {tab === 'lab-samples' && showLabSamples && <QuarterlyStatsTab />}
           {tab === 'chemicals' && showChem && <ChemicalsReportTab />}
           {tab === 'customers' && showCustomers && <CustomersReportTab />}
           {tab === 'system-access' && showR15 && <SystemAccessTab />}

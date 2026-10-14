@@ -317,6 +317,22 @@ export function canManageLabAccessCards(user: CurrentUser | null): boolean {
   return hasPermission(user, 'lab_access_card', 'manage') || user?.role === 'admin';
 }
 
+// ── m54: Báo cáo mẫu phân tích theo quý ─────────────────────────
+/** Xem: lab (phòng mình), Văn phòng / admin / Ban lãnh đạo (toàn Viện). */
+export function canViewQuarterlyReports(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'quarterly_sample_report', 'read');
+}
+/** Nhập + nộp báo cáo của phòng mình: KTV và trưởng lab. */
+export function canWriteQuarterlyReports(user: CurrentUser | null): boolean {
+  return hasPermission(user, 'quarterly_sample_report', 'write');
+}
+/** Xem toàn Viện (bảng tình trạng nộp, xuất Excel): quyền đọc phạm vi 'all'. */
+export function canViewAllQuarterlyReports(user: CurrentUser | null): boolean {
+  return !!user?.permissions.some(
+    (p) => p.resource === 'quarterly_sample_report' && p.action === 'read' && p.scope === 'all',
+  );
+}
+
 // ── GĐ2b: Nhận & Chuyển mẫu ─────────────────────────────────────
 /** Xem phiếu nhận/chuyển mẫu (reception/lab/qms/leader/admin). */
 export function canViewIntake(user: CurrentUser | null): boolean {

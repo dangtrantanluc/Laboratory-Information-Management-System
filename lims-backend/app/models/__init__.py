@@ -102,6 +102,9 @@ from app.models.test_report import TestReport
 # --- M19: Thẻ vào PTN (sinh viên, Văn phòng quản lý) ---
 from app.models.lab_access import LabAccessCard
 
+# --- m54: Báo cáo mẫu phân tích theo quý (lab nhập, Văn phòng tổng hợp) ---
+from app.models.quarterly_sample_report import QuarterlyReport, QuarterlyReportItem, QuarterlyReportItemCriterion
+
 # --- M20: Web Push (popup thông báo desktop) ---
 from app.models.push_subscription import PushSubscription
 
@@ -191,4 +194,8 @@ __all__ = [
     "LabAccessCard",
     # M20
     "PushSubscription",
+    # m54
+    "QuarterlyReport",
+    "QuarterlyReportItem",
+    "QuarterlyReportItemCriterion",
 ]
