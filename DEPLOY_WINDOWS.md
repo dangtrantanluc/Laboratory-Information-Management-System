@@ -37,15 +37,16 @@ volume Docker. Đây là lý do việc chuyển sang Windows khả thi và gọn
 |---|---|---|
 | Hệ điều hành | Windows 10 64-bit 22H2 | Windows 11 |
 | RAM máy | 8 GB | **16 GB** |
-| RAM cấp cho Docker | 5 GB | 8 GB |
+| RAM cấp cho Docker | 3 GB | 4 GB |
 | CPU | 2 nhân | 4 nhân |
 | Ổ đĩa trống trên C: | 30 GB | 60 GB |
 | Ảo hoá | Bật trong BIOS (VT-x / AMD-V) | |
 
-Tổng `mem_limit` khai trong hồ sơ prod là **4.75 GB** (postgres 2g + minio 1g +
-api 1g + redis 512m + cloudflared 256m). Cấp cho Docker ít hơn 5 GB thì container
-bị OOM-kill giữa chừng — biểu hiện là container tự restart mà **không có lỗi ứng
-dụng nào trong log**, rất dễ đi tìm nhầm chỗ.
+Tổng `mem_limit` khai trong hồ sơ prod (sau tối ưu 2026-10) là **~2.4 GB** (api 768m
++ postgres 768m + silo 512m + redis 128m + cloudflared 128m + nginx 64m); thực dùng
+khoảng 500–550 MB. Cấp cho Docker ít hơn tổng giới hạn thì container bị OOM-kill giữa
+chừng — biểu hiện là container tự restart mà **không có lỗi ứng dụng nào trong log**,
+rất dễ đi tìm nhầm chỗ.
 
 ---
 
